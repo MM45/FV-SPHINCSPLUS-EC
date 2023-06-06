@@ -3,7 +3,6 @@ require import FinType.
 
 require KeyedHashFunctions.
 
-
 op max (x y : real) =
   if x < y then y else x.
   
@@ -28,8 +27,9 @@ type output.
 
 op f : key -> input -> output.
 
+
 op [lossless] dkey : key distr.
-op [lossless] dinput : input distr.
+op [lossless full uniform] dinput : input distr.
 
 
 clone import KeyedHashFunctions as F with
@@ -66,6 +66,7 @@ clone import DSPR as F_DSPR with
   realize din_ll by exact: dinput_ll.
   
 
+  
 module R_SPR_PRE (A : Adv_PRE) : Adv_SPR  = {
   proc find(k : key, x : input) : input = {
     var x' : input;
@@ -75,6 +76,7 @@ module R_SPR_PRE (A : Adv_PRE) : Adv_SPR  = {
     return x';
   }
 }.
+
 
 module R_DSPR_PRE (A : Adv_PRE) : Adv_DSPR = {
   proc guess(k : key, x : input) : bool = {
@@ -91,7 +93,7 @@ section Proof_PRE_From_DSPR_SPR.
 
 require import Finite.
 require StdBigop StdOrder.
-import RField.
+import RField MRat.
 import StdBigop.Bigreal BRA.
 import StdOrder.RealOrder.
 
@@ -109,12 +111,14 @@ local lemma uniq_size_ge2_mem (s : 'a list) :
     exists (x x' : 'a), x <> x' /\ x \in s /\ x' \in s.
 proof. elim: s => // /#. qed.
 
+
+
 local op is_pre_f (k : key) (y : output) : input -> bool = 
   fun (x : input) => f k x = y.
-
+ 
 local op pre_f_l (k : key) (y : output) : input list =
   to_seq (is_pre_f k y).
-
+  
 local lemma is_finite_ispref (k : key) (y : output) : 
   is_finite (is_pre_f k y).
 proof. by rewrite (finite_leq predT) 2:-/finite_type 2:is_finite. qed.
@@ -122,6 +126,7 @@ proof. by rewrite (finite_leq predT) 2:-/finite_type 2:is_finite. qed.
 local lemma ltcard_szprefl (k : key) (y : output) :
   size (pre_f_l k y) <= card.
 proof. by rewrite card_size_to_seq sub_size_to_seq 2:-/finite_type 2:is_finite. qed. 
+
 
 local lemma rngprefl_image (k : key) (x : input) :
   1 <= size (pre_f_l k (f k x)) <= card.
@@ -149,6 +154,7 @@ qed.
 
 declare module A <: Adv_PRE.
 declare axiom A_find_ll : islossless A.find.
+
 
 local module Si = {
   var x, x' : input
@@ -184,6 +190,7 @@ local module Fi = {
     return size (pre_f_l k y) = i /\ f k x' <> y;
   }
 }.
+
 
 local module PREg = {
   var k : key
@@ -248,6 +255,144 @@ local module SPprobA = {
     return spexists k x;    
   }
 }.
+
+local module Si_early_fail = {
+  var x, x' : input
+
+  proc sample(i : int, k : key) = {
+    var xt : input;
+    var y : output <- witness;
+    var r : bool;
+    
+    xt <$ dinput;
+
+    if (size (pre_f_l k (f k xt)) = i) {
+      y <- f k xt;
+      r <- true;
+    } else {
+      xt <- witness;
+      y <- witness;
+      r <- false;     
+    }
+    
+    return (xt, y, r);
+  }
+  
+  proc main(i : int) : bool = {
+    var k : key;
+    var y : output <- witness;
+    var r : bool;
+
+    k <$ dkey;
+    
+    (x, y, r) <@ sample(i, k);
+      
+    x' <@ A.find(k, y);
+    
+    return r /\ (f k x' = y);
+  }
+}.
+
+
+local module Si_inverse_sample = {
+  var x, x' : input
+
+  proc sample(i : int, k : key) = {
+    var xt : input;
+    var y : output <- witness;
+    var r : bool;
+    
+    y <$ dmap dinput (f k);
+
+    if (size (pre_f_l k y) = i) {
+      xt <$ drat (pre_f_l k y);
+      r <- true;
+    } else {
+      xt <- witness;
+      y <- witness;
+      r <- false;     
+    }
+    
+    return (xt, y, r);
+  }
+
+  proc main(i : int) : bool = {
+    var k : key;
+    var y : output <- witness;
+    var r : bool <- false;
+
+    k <$ dkey;
+    
+    (x, y, r) <@ sample(i, k);
+    
+    x' <@ A.find(k, y);
+    
+    return r /\ (f k x' = y);
+  }
+}.
+
+
+local lemma pr_Si_Sief (j : int) &m:
+  Pr[Si.main(j) @ &m : res /\ Si.x' <> Si.x]
+  =
+  Pr[Si_early_fail.main(j) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x].
+proof.
+byequiv (: _ ==> ={res} /\ (res{1} => ={x, x'}(Si, Si_early_fail))) => [| // | /#].
+proc; inline *.
+seq 3 8 : (   (r{2} => ={k, y} /\ ={x}(Si, Si_early_fail))
+           /\ (r{2} <=> (size (pre_f_l k{1} y{1}) = i{1}))
+           /\ ={glob A, i}).
++ by auto.
+case (r{2}).
++ call (: true).
+  by skip => />.
+conseq (: size (pre_f_l k{1} y{1}) <> i{1} /\ !r{2}) => />.
+call{1} A_find_ll; call{2} A_find_ll.
+by skip.
+qed.
+
+
+(*
+local proc op sief = Si_early_fail.sample.
+*)
+local lemma pr_Sief_Siis (j : int) &m:
+  Pr[Si_early_fail.main(j) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x]
+  =
+  Pr[Si_inverse_sample.main(j) @ &m : res /\ Si_inverse_sample.x' <> Si_inverse_sample.x].
+proof.
+case (0 < j) => [gt0_j | /lezNgt le0_j]; last first.
++ have ->:
+    Pr[Si_early_fail.main(j) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x] = 0%r.
+  - byphoare (: arg <= 0 ==> _) => //=.
+    hoare.
+    proc; inline *.
+    seq 6 : (i0 <= 0); first by auto.
+    rcondf 1; 1: by skip; smt(rngprefl_image).
+    sp; conseq (: _ ==> true) => />.
+    by call (: true).
++ byphoare (: arg <= 0 ==> _) => //=.
+  hoare.
+  proc; inline *.
+  rcondf 8.
+  - rnd.
+    wp.
+    rnd.
+    by wp; skip => />; smt(supp_dmap rngprefl_image).
+  seq 10 : (!r0); first by auto. 
+  sp; conseq (: _ ==> true) => />.
+  by call (: true).
+byequiv=> //=.
+proc.
+call (: true).
+sp.
+seq 1 1 : (#pre /\ ={i, k} /\ i{1} = j); first by auto.
+call (: ={arg} /\ 0 < arg{1}.`1 ==> ={res}); last first.
++ by skip.
+bypr (res{1}) (res{2}) => //=.
+move=> &1 &2 -[x y r] -[eq_args gt0_i].
+admit.
+qed.
+
 
 local lemma pr_cond_neqxxp_Si (i : int) &m:
   Pr[Si.main(i) @ &m : res /\ Si.x' <> Si.x]

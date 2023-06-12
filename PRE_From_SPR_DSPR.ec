@@ -1,5 +1,6 @@
 require import AllCore List Distr.
-require import FinType.
+require import FinType Finite. 
+require StdBigop StdOrder DMap.
 
 require KeyedHashFunctions.
 
@@ -91,9 +92,7 @@ module R_DSPR_PRE (A : Adv_PRE) : Adv_DSPR = {
 
 section Proof_PRE_From_DSPR_SPR.
 
-require import Finite.
-require StdBigop StdOrder.
-import RField MRat.
+import RField DMap MRat.
 import StdBigop.Bigreal BRA.
 import StdOrder.RealOrder.
 
@@ -261,7 +260,7 @@ local module Si_early_fail = {
 
   proc sample(i : int, k : key) = {
     var xt : input;
-    var y : output <- witness;
+    var y : output;
     var r : bool;
     
     xt <$ dinput;
@@ -280,7 +279,7 @@ local module Si_early_fail = {
   
   proc main(i : int) : bool = {
     var k : key;
-    var y : output <- witness;
+    var y : output;
     var r : bool;
 
     k <$ dkey;
@@ -299,7 +298,7 @@ local module Si_inverse_sample = {
 
   proc sample(i : int, k : key) = {
     var xt : input;
-    var y : output <- witness;
+    var y : output;
     var r : bool;
     
     y <$ dmap dinput (f k);
@@ -318,8 +317,8 @@ local module Si_inverse_sample = {
 
   proc main(i : int) : bool = {
     var k : key;
-    var y : output <- witness;
-    var r : bool <- false;
+    var y : output;
+    var r : bool;
 
     k <$ dkey;
     
@@ -332,6 +331,67 @@ local module Si_inverse_sample = {
 }.
 
 
+local clone import DMapSampling as DMS with
+  type t1 <- input,
+  type t2 <- output
+  
+  proof *.
+
+local module Si_inverse_sample_alt = {
+  var x, x' : input
+  var k : key
+  var y : output
+  
+  proc orig(i : int) : bool = {
+    k <$ dkey;
+    x <$ dinput;
+    
+    y <- f k x;
+    
+    return size (pre_f_l k y) = i /\ f k x' = y;
+  }
+
+  proc orig_sm(i : int) : bool = {
+    k <$ dkey;
+    
+    y <@ S.map(dinput, f k);
+    
+    x' <@ A.find(k, y);
+    
+    return size (pre_f_l k y) = i /\ f k x' = y;
+  }
+  
+  proc orig_ss(i : int) : bool = {
+    k <$ dkey;
+    
+    y <@ S.sample(dinput, f k);
+    
+    x' <@ A.find(k, y);
+    
+    return size (pre_f_l k y) = i /\ f k x' = y;
+  }
+  
+  proc orig_invs(i : int) : bool = {
+    k <$ dkey;
+    y <$ dmap dinput (f k);
+    
+    x' <@ A.find(k, y);
+  
+    return size (pre_f_l k y) = i /\ f k x' = y;  
+  }
+  
+  proc main(i : int) : bool = {
+    var r : bool;
+      
+    r <@ orig_invs(i);
+    
+    x <$ drat (pre_f_l k y);
+        
+    return r; 
+  }
+}.
+
+
 local lemma pr_Si_Sief (j : int) &m:
   Pr[Si.main(j) @ &m : res /\ Si.x' <> Si.x]
   =
@@ -339,7 +399,7 @@ local lemma pr_Si_Sief (j : int) &m:
 proof.
 byequiv (: _ ==> ={res} /\ (res{1} => ={x, x'}(Si, Si_early_fail))) => [| // | /#].
 proc; inline *.
-seq 3 8 : (   (r{2} => ={k, y} /\ ={x}(Si, Si_early_fail))
+seq 3 6 : (   (r{2} => ={k, y} /\ ={x}(Si, Si_early_fail))
            /\ (r{2} <=> (size (pre_f_l k{1} y{1}) = i{1}))
            /\ ={glob A, i}).
 + by auto.
@@ -366,19 +426,19 @@ case (0 < j) => [gt0_j | /lezNgt le0_j]; last first.
   - byphoare (: arg <= 0 ==> _) => //=.
     hoare.
     proc; inline *.
-    seq 6 : (i0 <= 0); first by auto.
+    seq 4 : (i0 <= 0); first by auto.
     rcondf 1; 1: by skip; smt(rngprefl_image).
     sp; conseq (: _ ==> true) => />.
     by call (: true).
 + byphoare (: arg <= 0 ==> _) => //=.
   hoare.
   proc; inline *.
-  rcondf 8.
+  rcondf 5.
   - rnd.
     wp.
     rnd.
     by wp; skip => />; smt(supp_dmap rngprefl_image).
-  seq 10 : (!r0); first by auto. 
+  seq 8 : (!r); first by auto. 
   sp; conseq (: _ ==> true) => />.
   by call (: true).
 byequiv=> //=.
@@ -394,12 +454,94 @@ admit.
 qed.
 
 
-local lemma pr_cond_neqxxp_Si (i : int) &m:
-  Pr[Si.main(i) @ &m : res /\ Si.x' <> Si.x]
+local lemma pr_Siis_Siisa (j : int) &m:  
+  Pr[Si_inverse_sample.main(j) @ &m : res /\ Si_inverse_sample.x' <> Si_inverse_sample.x]
   =
-  (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res].
+  Pr[Si_inverse_sample_alt.main(j) @ &m : res /\ Si_inverse_sample_alt.x' <> Si_inverse_sample_alt.x].
 proof.
-admit.
+byequiv (: _ ==> res{1} /\ Si_inverse_sample.x'{1} <> Si_inverse_sample.x{1} 
+                 <=>
+                 res{2} /\ Si_inverse_sample_alt.x'{2} <> Si_inverse_sample_alt.x{2}) => //.
+proc; inline *.
+seq 4 3 : (   ={glob A, i, i0}
+           /\ k0{1} = k{1}
+           /\ k0{1} = Si_inverse_sample_alt.k{2}
+           /\ y0{1} = Si_inverse_sample_alt.y{2}
+           /\ i0{1} = i{1} 
+           /\ Si_inverse_sample_alt.y{2} \in dmap dinput (f Si_inverse_sample_alt.k{2})).
++ by rnd; wp; rnd; wp; skip.
+if{1}.  
++ swap{2} 3 -2.
+  wp; call (: true); wp => /=.
+  by rnd; skip.
+seq 4 0 : (   ={glob A, i}
+           /\ i0{2} = i{2}
+           /\ !r{1}
+           /\ k{1} = Si_inverse_sample_alt.k{2} 
+           /\ size (pre_f_l Si_inverse_sample_alt.k{2} Si_inverse_sample_alt.y{2}) <> i{2}
+           /\ Si_inverse_sample_alt.y{2} \in dmap dinput (f Si_inverse_sample_alt.k{2})).
++ by auto.
+swap{2} 2 1; wp.
+conseq (: _ ==> true) => />. 
+rnd{2}. 
+call{1} A_find_ll; call{2} A_find_ll.
+skip => /> _ &2 _ _ /supp_dmap -[x [_ ->]].
+by apply drat_ll; smt(rngprefl_image).
+qed.
+
+
+local lemma pr_cond_neqxxp_Si (j : int) &m:
+  Pr[Si.main(j) @ &m : res /\ Si.x' <> Si.x]
+  =
+  (j%r - 1%r) / j%r * Pr[Si.main(j) @ &m : res].
+proof.
+rewrite pr_Si_Sief pr_Sief_Siis pr_Siis_Siisa mulrC.
+pose prsi := Pr[Si.main(j) @ &m : res]; pose j1dj := (j%r - 1%r) / j%r.
+byphoare (: (glob A) = (glob A){m} /\ arg = j ==> _) => //=.
+proc.
+seq 1 : r prsi j1dj _ 0%r 
+        (   r = (size (pre_f_l Si_inverse_sample_alt.k Si_inverse_sample_alt.y) = j 
+         /\ f Si_inverse_sample_alt.k Si_inverse_sample_alt.x' = Si_inverse_sample_alt.y)) => //.
++ inline *.
+  wp; call (: true).
+  rnd; rnd.
+  by wp; skip.
++ call (_ : (glob A) = (glob A){m} /\ arg = j ==> res) => //.
+  rewrite /prsi; bypr => //= &m' [eq_glob ->].
+  byequiv=> //=; symmetry.
+  transitivity Si_inverse_sample_alt.orig_ss (={glob A, arg} ==> ={res}) 
+                                             (={glob A, arg} ==> ={res}) => //=.
+  - by move=> />; exists (glob A){m} j => /#.
+  - transitivity Si_inverse_sample_alt.orig_sm (={glob A, arg} ==> ={res}) 
+                                               (={glob A, arg} ==> ={res}) => //=.
+    * by move=> /> &2; exists (glob A){2} arg{2} => /#.
+    * proc; inline *.
+      call (: true).
+      by wp; rnd; wp; rnd; skip => />.
+    * proc.
+      call (: true).
+      symmetry.
+      call sample.
+      by rnd; skip => />.
+  proc; inline *.
+  call (: true).
+  by wp; rnd; wp; rnd; skip => />.
++ rnd; skip => /= &1 -[-> [eqszpfl_i eqy_fkx]].
+  rewrite eqszpfl_i eqy_fkx /=. print predC.
+  have ->:
+    (fun (x : input) => Si_inverse_sample_alt.x'{1} <> x) 
+    = 
+    predC (pred1 Si_inverse_sample_alt.x'{1}).
+  - by rewrite fun_ext => x @/predC /#.
+  rewrite mu_not drat_ll 1:-eqy_fkx; 1: by smt(rngprefl_image). 
+  rewrite dratE count_uniq_mem 1:to_seq_finite 1:is_finite_ispref /b2i. 
+  rewrite (: Si_inverse_sample_alt.x'{1} \in pre_f_l Si_inverse_sample_alt.k{1} Si_inverse_sample_alt.y{1}) /=.
+  -  by rewrite mem_to_seq 1:is_finite_ispref.
+  rewrite eqszpfl_i /j1dj {1}(: 1%r = j%r / j%r) 1:mulfV //. 
+  admit.
+  admit.
+hoare. 
+by rnd; skip => />.
 qed.
   
 local lemma pr_SPprob_bigSi &m: 

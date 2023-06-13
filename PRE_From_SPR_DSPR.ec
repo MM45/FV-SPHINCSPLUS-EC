@@ -342,15 +342,6 @@ local module Si_inverse_sample_alt = {
   var k : key
   var y : output
   
-  proc orig(i : int) : bool = {
-    k <$ dkey;
-    x <$ dinput;
-    
-    y <- f k x;
-    
-    return size (pre_f_l k y) = i /\ f k x' = y;
-  }
-
   proc orig_sm(i : int) : bool = {
     k <$ dkey;
     
@@ -495,6 +486,20 @@ local lemma pr_cond_neqxxp_Si (j : int) &m:
   =
   (j%r - 1%r) / j%r * Pr[Si.main(j) @ &m : res].
 proof.
+case (j <= 0) => [le0_j | /ltzNge gt0_j].
++ rewrite (: Pr[Si.main(j) @ &m : res] = 0%r) 2:mulr0.
+  - byphoare (_: arg <= 0 ==> _) => //=.
+    hoare.
+    proc.
+    call (: true). 
+    wp => /=.
+    by conseq (_ : _ ==> true) => // />; smt(size_ge0 rngprefl_image).
+  byphoare (_: arg <= 0 ==> _) => //=.
+  hoare.
+  proc.
+  call (: true). 
+  wp => /=.
+  by conseq (_ : _ ==> true) => // />; smt(size_ge0 rngprefl_image).  
 rewrite pr_Si_Sief pr_Sief_Siis pr_Siis_Siisa mulrC.
 pose prsi := Pr[Si.main(j) @ &m : res]; pose j1dj := (j%r - 1%r) / j%r.
 byphoare (: (glob A) = (glob A){m} /\ arg = j ==> _) => //=.
@@ -537,9 +542,8 @@ seq 1 : r prsi j1dj _ 0%r
   rewrite dratE count_uniq_mem 1:to_seq_finite 1:is_finite_ispref /b2i. 
   rewrite (: Si_inverse_sample_alt.x'{1} \in pre_f_l Si_inverse_sample_alt.k{1} Si_inverse_sample_alt.y{1}) /=.
   -  by rewrite mem_to_seq 1:is_finite_ispref.
-  rewrite eqszpfl_i /j1dj {1}(: 1%r = j%r / j%r) 1:mulfV //. 
-  admit.
-  admit.
+  rewrite eqszpfl_i /j1dj {1}(: 1%r = j%r / j%r) 1:mulfV 1:/# //.
+  by rewrite -{2}(mul1r (inv j%r)) -mulrBl.
 hoare. 
 by rnd; skip => />.
 qed.
@@ -799,139 +803,4 @@ rewrite mulrAC mulrDl /= 2!mulNr /= mulrC -mulrBr.
 by rewrite &(ler_pemulr) 1:Pr[mu_ge0] // /#.
 qed.
 
-end section Proof_PRE_From_DSPR_SPR. 
-
-
-(*
-local module Sir = {
-  var i : int
-  
-  proc main() : bool = {
-    var b : bool;
-        
-    i <$ [1..card];
-    
-    b <@ Si.main(i);
-    
-    return b;
-  }
-}.
-
-local lemma ubpr_Sir &m (j : int) :
-  Pr[Sir.main() @ &m : res /\ 1 <= Sir.i < j]
-  =
-  bigi predT (fun (i : int) => Pr[Sir.main() @ &m : res /\ i = Sir.i]) 1 j.
-proof.
-have lt2_pr0 :
-  forall (k : int), k < 2 => Pr[Sir.main() @ &m : res /\ 1 <= Sir.i < k] = 0%r.
-+ move=> k lt2_k.
-  byphoare (: _ ==> false) => [ | //= | /#].
-  by hoare => /=.
-case (j < 0) => [lt0_j | /lezNgt ge0_j].
-+ by rewrite range_geq 1:/# big_nil lt2_pr0 1:/#.
-elim: j ge0_j => [| j ge0_j ih].
-+ by rewrite range_geq 1:/# big_nil lt2_pr0 1:/#.
-case (j = 0) => [-> | neq0_j]; 1: by rewrite range_geq 1:/# big_nil lt2_pr0 1:/#.
-rewrite rangeSr 1:/# big_rcons /predT /= -/predT.
-rewrite Pr[mu_split Sir.i < j]; congr; last first.
-+ byequiv (: ={glob A} ==> ={res, Sir.i}) => [| // | /#]. 
-  by sim.
-have ->:
-  Pr[Sir.main() @ &m : (res /\ 1 <= Sir.i < j + 1) /\ Sir.i < j]
-  =
-  Pr[Sir.main() @ &m : res /\ 1 <= Sir.i < j].
-+ byequiv (: ={glob A} ==> ={res, Sir.i}) => [| // | /#]. 
-  by sim.
-by rewrite ih.
-qed.
-
-local lemma ppr_Sir &m :
-  Pr[Sir.main() @ &m : res]
-  =
-  bigi predT (fun (i : int) => Pr[Sir.main() @ &m : res /\ i = Sir.i]) 1 (card + 1).
-proof.
-rewrite Pr[mu_split (1 <= Sir.i < card + 1)] -(RField.addr0 (bigi _ _ _ _)) ubpr_Sir.
-congr.
-byphoare => //=.
-hoare.
-proc.
-seq 1 : (1 <= Sir.i < card + 1).
-- by rnd; skip => /> i /DInterval.supp_dinter /#.
-inline *.
-wp; call (: true).
-wp; rnd; rnd.
-by wp; skip => />.
-qed.
-
-local lemma pr_Sir_cBigSi &m :
-  Pr[Sir.main() @ &m : res]
-  =
-  (1%r / card%r) * bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 1 (card + 1).
-proof.
-rewrite ppr_Sir.
-search (big _ _ _ * _).
-rewrite RField.mulrC mulr_suml /= &(eq_big_seq) /= => i /mem_range rng_i.
-pose pr := Pr[Si.main(i) @ &m : res]; pose cinv := inv card%r; rewrite RField.mulrC.
-byphoare (: (glob A) = (glob A){m} ==> res /\ i = Sir.i) => //=.
-proc.
-seq 1 : (i = Sir.i) cinv pr _ 0%r ((glob A) = (glob A){m}).
-+ by rnd.
-+ rnd; skip => />.
-  by rewrite (: ((=) i) = pred1 i) 2:DInterval.dinter1E /#.
-+ conseq />.
-  call (: (glob A) = (glob A){m} /\ arg = i ==> res) => //= @/pr.
-  bypr => /> &m0 eq_glA ->.
-  byequiv => //=.
-  proc.
-  call (: true).
-  by wp; rnd; rnd; skip.
-+ hoare.
-  by conseq (: _ ==> i <> Sir.i) => />.
-by rewrite RField.mulrC.
-qed.
-*)
-
-(*
-rewrite (: Pr[SPprob.main() @ &m : res] = Pr[SPprobA.main() @ &m : res]).
-+ byequiv => //.
-  proc.
-  call{2} A_find_ll.
-  by sim.
-rewrite (: Pr[PRE(A).main() @ &m : res] = Pr[PREg.main() @ &m : res]).
-+ by byequiv=> //; sim.  
-rewrite pr_PREg_BigSi range_ltn; 1: smt(card_gt0).
-rewrite big_cons /predT /= -/predT.
-apply (StdOrder.RealOrder.ler_trans 
-        (Pr[Si.main(1) @ &m : res] + 
-         bigi predT (fun (i : int) => (3%r*i%r - 4%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1))).
-+ apply StdOrder.RealOrder.ler_add => //.
-  apply ler_sum_seq => i /mem_range rng_i _ /=.
-  rewrite RField.mulrAC RField.mulrC StdOrder.RealOrder.ler_pemulr 1:Pr[mu_ge0] //.
-  by rewrite StdOrder.RealOrder.ler_pdivl_mulr /= /#.
-pose bigsi := big _ _ _.
-have ->:
-  bigsi
-  =
-  bigi predT (fun (i : int) => 
-    (3%r * i%r - 3%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1)
-  -
-  bigi predT (fun (i : int) => 
-    1%r / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
-+ by rewrite /bigsi sumrB /= /#. 
-rewrite RField.addrA RField.addrAC StdOrder.RealOrder.ler_add.
-
--big_split /= &(eq_big_seq) => i /mem_range rng_i /=.
-  search (_ * _ + _ * _)%Real. print RField.
-  field. smt.
-   => /#.
-  smt(RField.mulrDr).
-  
-  print 
-  search (big _ _ _ = big _ _ _)%Real.
-    search (_ + _ <= _ + _)%Real.
-rewrite ler_trans ()
-1:/#. search range (::).
-
-Pr[mu_split ]
-qed.
-*)
+end section Proof_PRE_From_DSPR_SPR.

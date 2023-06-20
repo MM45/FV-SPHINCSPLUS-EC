@@ -292,6 +292,19 @@ local module Si_early_fail = {
   }
 }.
 
+local op Si_early_fail_sample_sem i k =
+  dlet dinput (fun xt =>
+    if (size (pre_f_l k (f k xt)) = i)
+    then dunit (xt, f k xt, true)
+    else dunit (witness, witness, false)).
+
+local lemma Si_early_fail_sampleP i k &m x y r :
+  Pr[Si_early_fail.sample(i, k) @ &m : res = (x, y, r)]
+  = mu1 (Si_early_fail_sample_sem i k) (x, y, r).
+proof.
+byphoare=> //; proc.
+admit.
+qed.
 
 local module Si_inverse_sample = {
   var x, x' : input
@@ -330,6 +343,30 @@ local module Si_inverse_sample = {
   }
 }.
 
+local op Si_inverse_sample_sample_sem i k =
+  dlet (dmap dinput (f k)) (fun y =>
+    if (size (pre_f_l k y) = i)
+    then dmap
+           (drat (pre_f_l k y))
+           (fun xt => (xt, y, true))
+    else dunit (witness, witness, false)).
+
+local lemma Si_inverse_sample_sampleP i k &m x y r :
+  Pr[Si_inverse_sample.sample(i, k) @ &m : res = (x, y, r)]
+  = mu1 (Si_inverse_sample_sample_sem i k) (x, y, r).
+proof.
+byphoare=> //; proc.
+admit.
+qed.
+
+local lemma Si_equiv i k:
+    Si_early_fail_sample_sem i k
+  = Si_inverse_sample_sample_sem i k.
+proof.
+apply: eq_distr=> - [] x y r.
+rewrite !dlet1E.
+admit.
+qed.
 
 local clone import DMapSampling as DMS with
   type t1 <- input,
@@ -437,13 +474,13 @@ proc.
 call (: true).
 sp.
 seq 1 1 : (#pre /\ ={i, k} /\ i{1} = j); first by auto.
-call (: ={arg} /\ 0 < arg{1}.`1 ==> ={res}); last first.
+call (: ={i, k} /\ 0 < arg{1}.`1 ==> ={res}); last first.
 + by skip.
 bypr (res{1}) (res{2}) => //=.
-move=> &1 &2 -[x y r] -[eq_args gt0_i].
-admit.
+move=> &1 &2 /> -[] x y r eq_i eq_k gt0_i.
+rewrite Si_early_fail_sampleP Si_inverse_sample_sampleP.
+by rewrite eq_i eq_k Si_equiv.
 qed.
-
 
 local lemma pr_Siis_Siisa (j : int) &m:  
   Pr[Si_inverse_sample.main(j) @ &m : res /\ Si_inverse_sample.x' <> Si_inverse_sample.x]

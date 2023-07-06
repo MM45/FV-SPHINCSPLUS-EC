@@ -4,6 +4,7 @@ require StdBigop StdOrder DMap.
 
 require KeyedHashFunctions.
 
+
 op max (x y : real) =
   if x < y then y else x.
   
@@ -258,7 +259,7 @@ local module SPprobA = {
 local module Si_early_fail = {
   var x, x' : input
 
-  proc sample(i : int, k : key) = {
+  proc sample(i : int, k : key) : input * output * bool = {
     var xt : input;
     var y : output;
     var r : bool;
@@ -292,12 +293,17 @@ local module Si_early_fail = {
   }
 }.
 
+(*
 local op Si_early_fail_sample_sem i k =
   dlet dinput (fun xt =>
     if (size (pre_f_l k (f k xt)) = i)
     then dunit (xt, f k xt, true)
     else dunit (witness, witness, false)).
+*)
 
+local proc op Si_early_fail_sample_sem = Si_early_fail.sample.
+
+(*
 local lemma Si_early_fail_sampleP i k &m x y r :
   Pr[Si_early_fail.sample(i, k) @ &m : res = (x, y, r)]
   = mu1 (Si_early_fail_sample_sem i k) (x, y, r).
@@ -305,6 +311,7 @@ proof.
 byphoare=> //; proc.
 admit.
 qed.
+*)
 
 local module Si_inverse_sample = {
   var x, x' : input
@@ -343,6 +350,7 @@ local module Si_inverse_sample = {
   }
 }.
 
+(*
 local op Si_inverse_sample_sample_sem i k =
   dlet (dmap dinput (f k)) (fun y =>
     if (size (pre_f_l k y) = i)
@@ -350,7 +358,11 @@ local op Si_inverse_sample_sample_sem i k =
            (drat (pre_f_l k y))
            (fun xt => (xt, y, true))
     else dunit (witness, witness, false)).
+*)
 
+local proc op Si_inverse_sample_sample_sem = Si_inverse_sample.sample.
+
+(*
 local lemma Si_inverse_sample_sampleP i k &m x y r :
   Pr[Si_inverse_sample.sample(i, k) @ &m : res = (x, y, r)]
   = mu1 (Si_inverse_sample_sample_sem i k) (x, y, r).
@@ -358,13 +370,160 @@ proof.
 byphoare=> //; proc.
 admit.
 qed.
+*)
+import RealSeries.
 
-local lemma Si_equiv i k:
+local lemma Si_eq_sem i k:
     Si_early_fail_sample_sem i k
   = Si_inverse_sample_sample_sem i k.
-proof.
-apply: eq_distr=> - [] x y r.
-rewrite !dlet1E.
+proof. 
+rewrite /Si_early_fail_sample_sem /Si_inverse_sample_sample_sem /=.
+rewrite dlet_dmap /= /dmap /(\o) eq_distr => -[b x y] /=.
+rewrite ?dlet1E /=.
+case (i <= 0) => [le0_i | /ltzNge gt0_i].
++ apply RealSeries.eq_sum => x' /=. 
+  rewrite (: size (pre_f_l k (f k x')) <> i) /=; 1: smt(rngprefl_image).
+  congr.
+  rewrite dmap1E /(\o) /pred1 /= /#.
+rewrite (sumE_fin _ enum); 1,2: smt(@Input). 
+rewrite (sumE_fin _ enum); 1,2: smt(@Input). 
+(*
+smt()
+pose fa := (fun (a : input) =>
+      mu1 dinput a *
+      mu1
+        (dunit
+           (let (r, xt, y0) =
+              if size (pre_f_l k (f k a)) = i then (true, a, f k a)
+              else (false, witness, witness) in (r, xt, y0))) (b, x, y)).
+have ->: 
+  fa
+  =
+  (fun (a : input) =>
+      if a \in enum then
+      mu1 dinput a *
+      mu1
+        (dunit
+           (let (r, xt, y0) =
+              if size (pre_f_l k (f k a)) = i then (true, a, f k a)
+              else (false, witness, witness) in (r, xt, y0))) (b, x, y)
+      else 0%r). (* RealSeries.sumE_fin*)
++ by rewrite fun_ext /fa => a; rewrite (: a \in enum = predT a); smt(@Input).
+rewrite RealSeries.fin_sum_cond. print is_finite. print finite_type. print is_finite_for.
+search is_finite (<=).  apply (finite_leq predT). smt(). 
+apply is_finite. 
+rewrite -(: predT = fun (z : input) => z \in enum); 1: smt(@Input).
+print eq_big_perm.
+rewrite (eq_big_perm _ _ _ enum). smt(perm_eq_sym @Input). search perm_eq.
+search big perm_eq. 
+print to_seq. search choiceb. search to_seq.
+pose fb := (fun (a : input) =>
+      mu1 dinput a *
+      mu1
+        (dlet
+           (if size (pre_f_l k (f k a)) = i then
+              dlet (drat (pre_f_l k (f k a)))
+                (fun (x0 : input) => dunit (true, x0, f k a))
+            else dunit (false, witness, witness))
+           (fun (x0 : bool * input * output) =>
+              dunit (let (r, xt, y0) = x0 in (r, xt, y0)))) (b, x, y)).
+have ->:
+  fb
+  =
+  (fun (a : input) =>
+      if a \in enum then
+      mu1 dinput a *
+      mu1
+        (dlet
+           (if size (pre_f_l k (f k a)) = i then
+              dlet (drat (pre_f_l k (f k a)))
+                (fun (x0 : input) => dunit (true, x0, f k a))
+            else dunit (false, witness, witness))
+           (fun (x0 : bool * input * output) =>
+              dunit (let (r, xt, y0) = x0 in (r, xt, y0)))) (b, x, y)
+     else 0%r).
++ by rewrite fun_ext /fb => a; rewrite (: a \in enum = predT a) /predT //; 1: smt(@Input).
+rewrite RealSeries.fin_sum_cond. print is_finite. print finite_type. print is_finite_for.
+search is_finite (<=).  apply (finite_leq predT). smt(). 
+apply is_finite. 
+rewrite -(: predT = fun (z : input) => z \in enum); 1: smt(@Input).
+print eq_big_perm.
+rewrite eq_sym (eq_big_perm _ _ _ enum). smt(perm_eq_sym @Input). 
+*)
+case ((b, x, y) = (false, witness, witness)) => [-> /= | neql].
++ apply eq_bigr => z' _ /=; congr.
+  case (size (pre_f_l k (f k z')) = i) => ? /=.
+  rewrite dlet_dlet /= dlet1E dunit1E /= RealSeries.sum0_eq // => x' /=.
+  pose mud := mu1 (dlet _ _) _.
+  by rewrite (: mud = 0%r) // /mud dmap1E /pred1 /(\o) dunitE.
+  rewrite -/(\o).
+  rewrite dmap1E /= /pred1 /(\o) /= 2?dunitE //.
+case (y = f k x /\ b) => [[-> ->] | /negb_and neqfkx_y]; last first.
++ rewrite ?big1 // => j _ /=; case (size (pre_f_l k (f k j)) = i) => ? /=.
+  rewrite dunit1E /#.
+  rewrite dunit1E /#.
+  rewrite dlet_dlet /= dlet1E sum0_eq /=. 
+  move=> x'; rewrite dmap1E /pred1 /(\o) /=.
+  case (x' \in (pre_f_l k (f k j))) => xpin; last first.
+  rewrite prratE  count_uniq_mem /= 1:uniq_to_seq 1:is_finite_ispref. smt().
+  rewrite dunitE /=.
+  case (x \in pre_f_l k (f k j)) => xin.
+  have /# : f k j = f k x. smt.
+  smt().
+  trivial.
+  by rewrite dmap1E /pred1 /(\o) dunitE /#.
+have t: perm_eq enum (flatten (undup (map (fun z => pre_f_l k (f k z)) enum))). admit.
+print eq_big_perm. rewrite (eq_big_perm _ _ _ (flatten (undup (map (fun z => pre_f_l k (f k z)) enum)))) 1:/# eq_sym (eq_big_perm _ _ _ (flatten (undup (map (fun z => pre_f_l k (f k z)) enum)))) 1:/#.
+rewrite ?big_flatten ?big_seq &(eq_bigr) => s /=.
+rewrite mem_undup mapP => -[z /= [zin ->]]. 
+rewrite ?big_seq.
+case (size (pre_f_l k (f k z)) = i) => t2.
+case (x \in pre_f_l k (f k z)) => xin; last first.
+rewrite ?big1 => [j /= jin | j /= jin |].
+rewrite (: pre_f_l k (f k j) = (pre_f_l k (f k z))). admit.
+rewrite t2 /= dlet_dlet /=.
+rewrite dlet1E /= sum0_eq /=.
+move=> x'. 
+case (x' \in pre_f_l k (f k z)) => ?.
+rewrite dmap1E /pred1 /(\o) /=.
+rewrite dunitE /= /#.
+rewrite prratE.
+search count pred1 mem.
+rewrite count_uniq_mem. rewrite uniq_to_seq 1:is_finite_ispref. smt(). trivial. 
+rewrite dunit1E /= (: size (pre_f_l k (f k j)) = i) /=. admit. smt().
+trivial.
+rewrite eq_sym big_mkcond /=.
+have -> :
+  (fun (i0 : input) =>
+     if i0 \in pre_f_l k (f k z) then
+       mu1 dinput i0 *
+       mu1
+         (dunit
+            (let (r, xt, y0) =
+               if size (pre_f_l k (f k i0)) = i then (true, i0, f k i0)
+               else (false, witness, witness) in (r, xt, y0))) (true, x, f k x)
+     else 0%r)
+  =
+  (fun (i0 : input) =>
+   if i0 = x then
+     if i0 \in pre_f_l k (f k z) then
+       mu1 dinput i0 *
+       mu1
+         (dunit
+            (let (r, xt, y0) =
+               if size (pre_f_l k (f k i0)) = i then (true, i0, f k i0)
+               else (false, witness, witness) in (r, xt, y0))) (true, x, f k x)
+       else 0%r
+     else 0%r).
++ rewrite fun_ext => z'.
+  case (z' \in pre_f_l k (f k z)) => // zpin.
+  case (z' = x) => [-> // | neqzz /=].
+  have <-: pre_f_l k (f k z) = pre_f_l k (f k z'). admit.
+  by rewrite t2 /= dunit1E /= /#.
+  rewrite -big_mkcond (bigD1_cond _ _ _ x) 2:xin //=. admit. 
+  rewrite xin /= /predI /predC1.
+  rewrite big_pred0 1:/# /= dunit1E (: size (pre_f_l k (f k x)) = i) /=. admit.
+  admit.
 admit.
 qed.
 
@@ -478,8 +637,9 @@ call (: ={i, k} /\ 0 < arg{1}.`1 ==> ={res}); last first.
 + by skip.
 bypr (res{1}) (res{2}) => //=.
 move=> &1 &2 /> -[] x y r eq_i eq_k gt0_i.
-rewrite Si_early_fail_sampleP Si_inverse_sample_sampleP.
-by rewrite eq_i eq_k Si_equiv.
+search Si_early_fail_sample_sem.
+rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem. 
+rewrite eq_i eq_k; congr; smt(Si_eq_sem).
 qed.
 
 local lemma pr_Siis_Siisa (j : int) &m:  

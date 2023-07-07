@@ -93,7 +93,7 @@ module R_DSPR_PRE (A : Adv_PRE) : Adv_DSPR = {
 
 section Proof_PRE_From_DSPR_SPR.
 
-import RField DMap MRat.
+import RField DMap MRat RealSeries.
 import StdBigop.Bigreal BRA.
 import StdOrder.RealOrder.
 
@@ -151,6 +151,23 @@ exists x'; rewrite neqx_xp /=.
 by move: xpin; rewrite mem_to_seq 1:is_finite_ispref.
 qed.
 
+local lemma eqv_img_prefl (k : key) (x x' : input) :
+  f k x = f k x' <=> pre_f_l k (f k x) = pre_f_l k (f k x').
+proof.
+split => [-> // | @/pre_f_l eq_prefl].
+move: (to_seq_finite (is_pre_f k (f k x)) _); 1: by apply is_finite_ispref.  
+rewrite uniq_to_seq 1:is_finite_ispref /= => /(_ x') /iffLR /(_ _).
++ by rewrite eq_prefl to_seq_finite 1:is_finite_ispref.
+by rewrite /is_pre_f => ->.
+qed.
+
+local lemma eqv_img_mem (k : key) (x x' : input) :
+  f k x = f k x' <=> x' \in pre_f_l k (f k x).
+proof. by rewrite to_seq_finite 1:is_finite_ispref /is_pre_f; split => ->. qed.
+  
+local lemma eqv_prefl_mem (k : key) (x x' : input) :
+  x' \in pre_f_l k (f k x) <=> pre_f_l k (f k x) = pre_f_l k (f k x').
+proof. by rewrite -eqv_img_mem eqv_img_prefl. qed.
 
 declare module A <: Adv_PRE.
 declare axiom A_find_ll : islossless A.find.
@@ -293,25 +310,7 @@ local module Si_early_fail = {
   }
 }.
 
-(*
-local op Si_early_fail_sample_sem i k =
-  dlet dinput (fun xt =>
-    if (size (pre_f_l k (f k xt)) = i)
-    then dunit (xt, f k xt, true)
-    else dunit (witness, witness, false)).
-*)
-
 local proc op Si_early_fail_sample_sem = Si_early_fail.sample.
-
-(*
-local lemma Si_early_fail_sampleP i k &m x y r :
-  Pr[Si_early_fail.sample(i, k) @ &m : res = (x, y, r)]
-  = mu1 (Si_early_fail_sample_sem i k) (x, y, r).
-proof.
-byphoare=> //; proc.
-admit.
-qed.
-*)
 
 local module Si_inverse_sample = {
   var x, x' : input
@@ -350,182 +349,113 @@ local module Si_inverse_sample = {
   }
 }.
 
-(*
-local op Si_inverse_sample_sample_sem i k =
-  dlet (dmap dinput (f k)) (fun y =>
-    if (size (pre_f_l k y) = i)
-    then dmap
-           (drat (pre_f_l k y))
-           (fun xt => (xt, y, true))
-    else dunit (witness, witness, false)).
-*)
-
 local proc op Si_inverse_sample_sample_sem = Si_inverse_sample.sample.
 
-(*
-local lemma Si_inverse_sample_sampleP i k &m x y r :
-  Pr[Si_inverse_sample.sample(i, k) @ &m : res = (x, y, r)]
-  = mu1 (Si_inverse_sample_sample_sem i k) (x, y, r).
-proof.
-byphoare=> //; proc.
-admit.
-qed.
-*)
-import RealSeries.
 
+lemma fin_sum_type (s : 'a -> real) :
+     is_finite predT<:'a>
+  => sum s = big predT s (to_seq predT<:'a>).
+proof. by apply (fin_sum_cond predT s). qed.
+
+lemma sumr_const_val (P : 'a -> bool) (F : 'a -> real) (x : real) (s : 'a list):
+     (forall (i : 'a), P i => F i = x) 
+  => big P F s = (count P s)%r * x.
+proof. by rewrite -sumr_const &(eq_bigr). qed.
+
+lemma sumr_const_val_seq (P : 'a -> bool) (F : 'a -> real) (x : real) (s : 'a list):
+     (forall (i : 'a), i \in s /\ P i => F i = x) 
+  => big P F s = (count P s)%r * x.
+proof. 
+move=> ?; rewrite -sumr_const big_mkcond eq_sym big_mkcond. 
+apply eq_big_seq => i' ipin /= /#. 
+qed.
+
+  
 local lemma Si_eq_sem i k:
     Si_early_fail_sample_sem i k
   = Si_inverse_sample_sample_sem i k.
 proof. 
 rewrite /Si_early_fail_sample_sem /Si_inverse_sample_sample_sem /=.
-rewrite dlet_dmap /= /dmap /(\o) eq_distr => -[b x y] /=.
-rewrite ?dlet1E /=.
+rewrite dlet_dmap /= /dmap /(\o) eq_distr => -[b x y] /=; rewrite 2?dlet1E.
 case (i <= 0) => [le0_i | /ltzNge gt0_i].
-+ apply RealSeries.eq_sum => x' /=. 
++ apply eq_sum => x' /=. 
   rewrite (: size (pre_f_l k (f k x')) <> i) /=; 1: smt(rngprefl_image).
-  congr.
-  rewrite dmap1E /(\o) /pred1 /= /#.
-rewrite (sumE_fin _ enum); 1,2: smt(@Input). 
-rewrite (sumE_fin _ enum); 1,2: smt(@Input). 
-(*
-smt()
-pose fa := (fun (a : input) =>
-      mu1 dinput a *
-      mu1
-        (dunit
-           (let (r, xt, y0) =
-              if size (pre_f_l k (f k a)) = i then (true, a, f k a)
-              else (false, witness, witness) in (r, xt, y0))) (b, x, y)).
-have ->: 
-  fa
-  =
-  (fun (a : input) =>
-      if a \in enum then
-      mu1 dinput a *
-      mu1
-        (dunit
-           (let (r, xt, y0) =
-              if size (pre_f_l k (f k a)) = i then (true, a, f k a)
-              else (false, witness, witness) in (r, xt, y0))) (b, x, y)
-      else 0%r). (* RealSeries.sumE_fin*)
-+ by rewrite fun_ext /fa => a; rewrite (: a \in enum = predT a); smt(@Input).
-rewrite RealSeries.fin_sum_cond. print is_finite. print finite_type. print is_finite_for.
-search is_finite (<=).  apply (finite_leq predT). smt(). 
-apply is_finite. 
-rewrite -(: predT = fun (z : input) => z \in enum); 1: smt(@Input).
-print eq_big_perm.
-rewrite (eq_big_perm _ _ _ enum). smt(perm_eq_sym @Input). search perm_eq.
-search big perm_eq. 
-print to_seq. search choiceb. search to_seq.
-pose fb := (fun (a : input) =>
-      mu1 dinput a *
-      mu1
-        (dlet
-           (if size (pre_f_l k (f k a)) = i then
-              dlet (drat (pre_f_l k (f k a)))
-                (fun (x0 : input) => dunit (true, x0, f k a))
-            else dunit (false, witness, witness))
-           (fun (x0 : bool * input * output) =>
-              dunit (let (r, xt, y0) = x0 in (r, xt, y0)))) (b, x, y)).
-have ->:
-  fb
-  =
-  (fun (a : input) =>
-      if a \in enum then
-      mu1 dinput a *
-      mu1
-        (dlet
-           (if size (pre_f_l k (f k a)) = i then
-              dlet (drat (pre_f_l k (f k a)))
-                (fun (x0 : input) => dunit (true, x0, f k a))
-            else dunit (false, witness, witness))
-           (fun (x0 : bool * input * output) =>
-              dunit (let (r, xt, y0) = x0 in (r, xt, y0)))) (b, x, y)
-     else 0%r).
-+ by rewrite fun_ext /fb => a; rewrite (: a \in enum = predT a) /predT //; 1: smt(@Input).
-rewrite RealSeries.fin_sum_cond. print is_finite. print finite_type. print is_finite_for.
-search is_finite (<=).  apply (finite_leq predT). smt(). 
-apply is_finite. 
-rewrite -(: predT = fun (z : input) => z \in enum); 1: smt(@Input).
-print eq_big_perm.
-rewrite eq_sym (eq_big_perm _ _ _ enum). smt(perm_eq_sym @Input). 
-*)
+  by congr; rewrite dmap1E /(\o) /pred1 /= /#.
+do 2! (rewrite (sumE_fin _ enum) 1:enum_uniq => [? _ |]; 1: by rewrite enumP).
 case ((b, x, y) = (false, witness, witness)) => [-> /= | neql].
-+ apply eq_bigr => z' _ /=; congr.
-  case (size (pre_f_l k (f k z')) = i) => ? /=.
-  rewrite dlet_dlet /= dlet1E dunit1E /= RealSeries.sum0_eq // => x' /=.
-  pose mud := mu1 (dlet _ _) _.
-  by rewrite (: mud = 0%r) // /mud dmap1E /pred1 /(\o) dunitE.
-  rewrite -/(\o).
-  rewrite dmap1E /= /pred1 /(\o) /= 2?dunitE //.
++ apply eq_bigr => z _ /=; congr.
+  case (size (pre_f_l k (f k z)) = i) => ? /=.
+  - rewrite dlet_dlet /= dlet1E dunit1E /= sum0_eq // => x' /=.
+    rewrite mulf_eq0; right.
+    by rewrite dmap1E /pred1 /(\o) dunitE.
+  by rewrite dmap1E /= /pred1 /(\o) /= 2?dunitE //.
 case (y = f k x /\ b) => [[-> ->] | /negb_and neqfkx_y]; last first.
-+ rewrite ?big1 // => j _ /=; case (size (pre_f_l k (f k j)) = i) => ? /=.
-  rewrite dunit1E /#.
-  rewrite dunit1E /#.
-  rewrite dlet_dlet /= dlet1E sum0_eq /=. 
-  move=> x'; rewrite dmap1E /pred1 /(\o) /=.
-  case (x' \in (pre_f_l k (f k j))) => xpin; last first.
-  rewrite prratE  count_uniq_mem /= 1:uniq_to_seq 1:is_finite_ispref. smt().
-  rewrite dunitE /=.
-  case (x \in pre_f_l k (f k j)) => xin.
-  have /# : f k j = f k x. smt.
-  smt().
-  trivial.
++ rewrite ?big1 // => z _ /=.
+  - by case (size (pre_f_l k (f k z)) = i) => ? /=; rewrite dunit1E /#.
+  case (size (pre_f_l k (f k z)) = i) => ? /=.
+  - rewrite dlet_dlet /= dlet1E sum0_eq //=. 
+    move=> z'; rewrite dmap1E /pred1 /(\o) /=.
+    rewrite mulf_eq0; case (z' \in (pre_f_l k (f k z))) => zpin; [right | left].
+    * rewrite dunitE /=; case (z' = x) => [->> | //] /=.
+      by rewrite (: f k z = f k x) 1:eqv_img_mem // /#. 
+    by rewrite prratE count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref /#.
   by rewrite dmap1E /pred1 /(\o) dunitE /#.
-have t: perm_eq enum (flatten (undup (map (fun z => pre_f_l k (f k z)) enum))). admit.
-print eq_big_perm. rewrite (eq_big_perm _ _ _ (flatten (undup (map (fun z => pre_f_l k (f k z)) enum)))) 1:/# eq_sym (eq_big_perm _ _ _ (flatten (undup (map (fun z => pre_f_l k (f k z)) enum)))) 1:/#.
+pose flundenum := flatten (undup (map (fun z => pre_f_l k (f k z)) enum)).
+have permenum: perm_eq enum flundenum.
++ rewrite perm_eqP_pred1 => x'; rewrite enum_spec eq_sym.
+  rewrite count_flatten StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT /(\o).
+  rewrite (StdBigop.Bigint.BIA.bigD1 _ _ (pre_f_l k (f k x'))) 2:undup_uniq.
+  - by rewrite mem_undup mapP; exists x'; rewrite enumP.
+  rewrite StdBigop.Bigint.BIA.big1_seq /=; 1: move => xl -[@/predC1 neqxl].
+  - rewrite mem_undup mapP => -[z /= [zin ->>]].
+    by rewrite count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref /=; smt(eqv_prefl_mem).
+  by rewrite count_uniq_mem 2:to_seq_finite 1:uniq_to_seq 1,2:is_finite_ispref.
+rewrite (eq_big_perm _ _ _ flundenum) // eq_sym (eq_big_perm _ _ _ flundenum) //.
 rewrite ?big_flatten ?big_seq &(eq_bigr) => s /=.
-rewrite mem_undup mapP => -[z /= [zin ->]]. 
-rewrite ?big_seq.
-case (size (pre_f_l k (f k z)) = i) => t2.
-case (x \in pre_f_l k (f k z)) => xin; last first.
-rewrite ?big1 => [j /= jin | j /= jin |].
-rewrite (: pre_f_l k (f k j) = (pre_f_l k (f k z))). admit.
-rewrite t2 /= dlet_dlet /=.
-rewrite dlet1E /= sum0_eq /=.
-move=> x'. 
-case (x' \in pre_f_l k (f k z)) => ?.
-rewrite dmap1E /pred1 /(\o) /=.
-rewrite dunitE /= /#.
-rewrite prratE.
-search count pred1 mem.
-rewrite count_uniq_mem. rewrite uniq_to_seq 1:is_finite_ispref. smt(). trivial. 
-rewrite dunit1E /= (: size (pre_f_l k (f k j)) = i) /=. admit. smt().
-trivial.
-rewrite eq_sym big_mkcond /=.
-have -> :
-  (fun (i0 : input) =>
-     if i0 \in pre_f_l k (f k z) then
-       mu1 dinput i0 *
-       mu1
-         (dunit
-            (let (r, xt, y0) =
-               if size (pre_f_l k (f k i0)) = i then (true, i0, f k i0)
-               else (false, witness, witness) in (r, xt, y0))) (true, x, f k x)
-     else 0%r)
-  =
-  (fun (i0 : input) =>
-   if i0 = x then
-     if i0 \in pre_f_l k (f k z) then
-       mu1 dinput i0 *
-       mu1
-         (dunit
-            (let (r, xt, y0) =
-               if size (pre_f_l k (f k i0)) = i then (true, i0, f k i0)
-               else (false, witness, witness) in (r, xt, y0))) (true, x, f k x)
-       else 0%r
-     else 0%r).
-+ rewrite fun_ext => z'.
-  case (z' \in pre_f_l k (f k z)) => // zpin.
-  case (z' = x) => [-> // | neqzz /=].
-  have <-: pre_f_l k (f k z) = pre_f_l k (f k z'). admit.
-  by rewrite t2 /= dunit1E /= /#.
-  rewrite -big_mkcond (bigD1_cond _ _ _ x) 2:xin //=. admit. 
-  rewrite xin /= /predI /predC1.
-  rewrite big_pred0 1:/# /= dunit1E (: size (pre_f_l k (f k x)) = i) /=. admit.
-  admit.
-admit.
+rewrite mem_undup mapP => -[z /= [zin ->]]; rewrite 2?big_seq.
+case (size (pre_f_l k (f k z)) = i) => [eqi_szfkz | neqi_szfkz]; last first.
++ rewrite &(eq_bigr) => z' /= zpin; congr.
+  rewrite (: size (pre_f_l k (f k z')) <> i) /=; 1: smt(eqv_prefl_mem).
+  by rewrite dmap1E dunit1E /pred1 /(\o) dunitE.
+case (x \in pre_f_l k (f k z)) => [xin | xnin]; last first.
++ rewrite big1 2:eq_sym 1:/predT /= => [z' ^ /eqv_prefl_mem <- zpin |].
+  - rewrite eqi_szfkz /= dlet_dlet dlet1E sum0_eq // => z'' /=.
+    rewrite mulf_eq0; right; rewrite dlet1E sum0_eq // => r /=.
+    case (r = (true, z'', f k z')) => [-> | neqr] /=; last first.
+    * by rewrite mulf_eq0; left; rewrite dunit1E [_ = r]eq_sym neqr. 
+    by rewrite mulf_eq0; right; rewrite dunit1E; smt(eqv_img_mem).
+  rewrite big1 // => z' zpin /=; rewrite mulf_eq0 /=.
+  right; move/eqv_prefl_mem: (zpin) => <-.
+  by rewrite eqi_szfkz /= dunit1E; smt(eqv_img_mem).
+rewrite &(eq_trans _ (inv card%r)) 2:eq_sym; last first.
++ rewrite (bigD1_cond _ _ _ x) 1,2:// 1:uniq_to_seq 1:is_finite_ispref /=.
+  rewrite -(addr0 (inv card%r)); congr; 1: rewrite -(mulr1 (inv card%r)).
+  - congr; 1: rewrite mu1_uni_ll 1:dinput_uni 1:dinput_ll dinput_fu /=.
+    * rewrite card_size_to_seq; do 4! congr.
+      by rewrite fun_ext => ? @/predT; rewrite eqT dinput_fu. 
+    by move/eqv_prefl_mem: (xin) => <-; rewrite dunit1E eqi_szfkz.
+  rewrite big1 /predI /predC1 // => z' [^ zpin /eqv_prefl_mem eqprefl neqxzp] /=.
+  by rewrite mulf_eq0; right; rewrite dunit1E -eqprefl eqi_szfkz /= neqxzp.
+rewrite (sumr_const_val _ _ ((inv card%r) * (inv i%r))) /= => [z' ^ zpin /eqv_prefl_mem <-| ].
++ rewrite eqi_szfkz /= invfM; congr.
+  - rewrite mu1_uni_ll 1:dinput_uni 1:dinput_ll dinput_fu /=.
+    rewrite card_size_to_seq; do 4! congr.
+    by rewrite fun_ext => ? @/predT; rewrite eqT dinput_fu.
+  rewrite dlet_dlet dlet1E /= (sumE_fin _ (pre_f_l k (f k z))).
+  - by rewrite uniq_to_seq is_finite_ispref. 
+  - move=> z'' /=; apply contraLR => /= znin.
+    by rewrite prratE /= count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref znin /b2i.
+  rewrite (bigD1 _ _ x) 1:// 1:uniq_to_seq 1:is_finite_ispref /=.
+  rewrite -(addr0 (inv i%r)); congr; last first.
+  - apply big1_seq => z'' @/predC1 [neqxzpp zppin] /=.
+    by rewrite mulf_eq0; right; rewrite dmap1E /pred1 /(\o) dunitE /= neqxzpp.
+  rewrite -(mulr1 (inv i%r)); congr.
+  - by rewrite prratE count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref xin eqi_szfkz /b2i.
+  rewrite dmap1E dunitE /pred1 /(\o) /=.
+  by move/eqv_img_mem: xin zpin => <- /eqv_img_mem <-.  
+by rewrite count_predT_eq_in 1:// eqi_szfkz /= mulrC invfM -mulrA mulVf 1:/#.
 qed.
+
 
 local clone import DMapSampling as DMS with
   type t1 <- input,
@@ -547,7 +477,7 @@ local module Si_inverse_sample_alt = {
     
     return size (pre_f_l k y) = i /\ f k x' = y;
   }
-  
+ 
   proc orig_ss(i : int) : bool = {
     k <$ dkey;
     
@@ -598,10 +528,6 @@ call{1} A_find_ll; call{2} A_find_ll.
 by skip.
 qed.
 
-
-(*
-local proc op sief = Si_early_fail.sample.
-*)
 local lemma pr_Sief_Siis (j : int) &m:
   Pr[Si_early_fail.main(j) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x]
   =

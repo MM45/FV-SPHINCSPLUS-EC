@@ -30,11 +30,11 @@ module BFO1 : BFOi_t  = {
 
 module type BFO_t = { include BFOi_t [-init] }.
 
-quantum module type BFO_D(BFO : BFO_t) = {
+module type BFO_D(BFO : BFO_t) = {
    proc dist() : bool
 }.
 
-quantum module type BFO_F(BFO : BFO_t) = {
+module type BFO_F(BFO : BFO_t) = {
    proc find() : X
 }.
 
@@ -55,6 +55,7 @@ module BFO_Dist(BFO : BFOi_t, A : BFO_D) = {
        return b;
    }
 }.
+
 (*
 axiom bfo_assumption qbfo (A <: BFO_D {-BFO1, -BFO0}) &m :  
    0 <= qbfo =>
@@ -100,7 +101,7 @@ module type GBFO_ti = {
 }.
 
 
-quantum module type GBFO_F(O : BFO_t) = {
+module type GBFO_F(O : BFO_t) = {
    proc lambdas(aux : Aux) : (X -> real) {}
    proc find() : X { O.h }
 }.
@@ -166,6 +167,7 @@ module RO : ROi_t  = {
    proc h( x : X ) : Y = { return f x; }
 }.
 
+print dh.
 module type RO_t = { include ROi_t [-init] }.
 
 (* Variant to support history free proofs, 
@@ -189,7 +191,7 @@ module SPR(A : SPR_Adv) = {
        RO.init();
        x' <@ A(RO).find(x);
        y <@ RO.h(x);
-       y' <@  RO.h(x');
+       y' <@ RO.h(x');
        return (x <> x' /\ y = y');
    }
 }.
@@ -340,6 +342,6 @@ Outline:
   * Given x, you sample a random k, and replace F(k, . ) by the random function used in SPR.
 - Question: KeyedHashFunction Lib considers the hash function to be an op. We need it to be a module. This is kind of a switch to the ROM (we want to first fix the A and then evaluate the expected number of queries necessary to break a given property which is equivalent to a ROM bound).
 *)
-end TCRBound
+end TCRBound.
 
 

@@ -21,6 +21,12 @@
 require import AllCore List Distr SmtMap.
 
 
+(* TODO
+Make this go through and make it make sense (also know what "making sense" means).
+Then, proof each security notion equivalent with original theory instantiate with 
+an arbitrary f and this theory instantiated with dunit f.
+*)
+
 
 (*
 ---
@@ -66,9 +72,33 @@ type key_t.
 
 
 (* -- Operators -- *)
-(* Keyed hash function *)
-op f : key_t -> in_t -> out_t.
+(* Proper distribution over keyed hash functions *)
+op [lossless] df : (key_t -> in_t -> out_t) distr.
 
+
+module type Oraclei_t = {
+  proc init(f : key_t -> in_t -> out_t, k : key_t) : unit
+  proc get(x : in_t) : out_t
+}.
+
+module type Oracle_t = {
+  include Oraclei_t [-init] 
+}.
+
+
+module O_Default : Oraclei_t = {
+  var f : key_t -> in_t -> out_t
+  var k : key_t
+  
+  proc init(f_init : key_t -> in_t -> out_t, k_init : key_t) : unit = {
+    f <- f_init;
+    k <- k_init;
+  }
+  
+  proc get(x : in_t) : out_t = {
+    return f k x;
+  }
+}.
 
 
 (* --- Properties --- *)
@@ -87,34 +117,94 @@ abstract theory PRE.
   op [lossless] dkey : key_t distr.
 
   (* Class of adversaries against PRE *) 
-  module type Adv_PRE = {
+  module type Adv_PRE(O : Oracle_t) = {
     proc find(k : key_t, y : out_t) : in_t
   }.
 
   (* PRE game *)
-  module PRE(A : Adv_PRE) = {
+  module PRE(A : Adv_PRE, O : Oraclei_t) = {
     proc main() : bool = {
+      var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
       var y : out_t;
 
-      (* Sample key k and input x *)
+      (* Sample keyed hash function f and key k *)
+      f <$ df;
       k <$ dkey;
+
+      (* Initialize oracle with f and k *)
+      O.init(f, k);
+
+      (* Sample input x *)
       x <$ din;
 
-      (* Compute output y of hash function when given key k and input x *)
+      (* Compute output y of k and x under f *)
       y <- f k x;
 
       (* Ask adversary to find a preimage x' of y *)
-      x' <@ A.find(k, y);
+      x' <@ A(O).find(k, y);
 
-      (* Success iff x' is a preimage of y, i.e., if f k maps x' to y *)
+      (* Success iff x' is a preimage of y, i.e., iff f k maps x' to y *)
       return f k x' = y;
     }
   }.
 end PRE.
 
 
+
+(* 
+-- 
+  Second Preimage Resistance (SPR).
+  Given a key k and input x, it is hard to find an input x' that is different from x
+  such that f k x = f k x'
+-- 
+*)
+(* - single-function, single-target Second Preimage Resistance (SPR) - *)
+abstract theory SPR.
+  (* Proper distribution over input type *)
+  op [lossless] din : in_t distr.
+
+  (* Proper distribution over (indexing) key type *)
+  op [lossless] dkey : key_t distr.
+  
+  (* Class of adversaries against SPR *) 
+  module type Adv_SPR(O : Oracle_t) = {
+    proc find(k : key_t, x : in_t) : in_t
+  }.
+
+  (* SPR game *)
+  module SPR(A : Adv_SPR, O : Oraclei_t) = {
+    proc main() : bool  = {
+      var f : key_t -> in_t -> out_t;
+      var k : key_t;
+      var x, x' : in_t;
+
+      (* Sample function f and key k *)
+      f <$ df;
+      k <$ dkey;
+      
+      (* Initialize oracle with f and k *)
+      O.init(f, k);
+
+      (* Sample input x *)
+      x <$ din;
+      
+      (* Ask adversary to find a second preimage x' of x w.r.t. k (i.e., under f k) *)
+      x' <@ A(O).find(k, x);
+
+      (* 
+        Success iff
+        (1) "x <> x'": x does not equal x', and
+        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+      *)
+      return x <> x' /\ f k x = f k x';
+    }
+  }.
+end SPR.
+
+
+(*
 (* - Single-function, Multi-target PREimage resistance (SM_PRE) - *)
 abstract theory SMPRE.
   (* Number of targets in SM_PRE *)
@@ -1648,3 +1738,4 @@ abstract theory PRF.
     }
   }.
 end PRF.
+*)

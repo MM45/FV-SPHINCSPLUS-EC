@@ -18,7 +18,9 @@
 
 (* --- Require/Import --- *)
 (* -- Built-in (i.e, standard library) -- *)
-require import AllCore List Distr SmtMap.
+require import AllCore StdOrder List Distr DInterval Finite SmtMap.
+require (*--*) PlugAndPray.
+(*---*) import RField RealOrder.
 
 
 
@@ -772,13 +774,18 @@ abstract theory DSPR.
     Denotes the probability that could trivially be obtained in the
     DSPR game by invariably returning 1
   *)
-  module SPprob = {
+  module SPprob(A : Adv_DSPR) = {
     proc main() = {
       var k : key_t;
       var x : in_t;
+      var b : bool;
+
       (* Sample key k and input x *)
       k <$ dkey;
       x <$ din;
+
+      (* Ask adversary to determine whether x has a preimage under f k *)
+      b <@ A.guess(k, x); 
 
       (* Success iff x has a second preimage under f k *)
       return spexists k x;

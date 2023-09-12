@@ -166,23 +166,14 @@ clone import FinType as FinKey with
 
 clone import FinType as FinIn with
   type t <= input.
-
-clone import FinProdType as FinKeyIn with
-  type t1 <= key,
-  type t2 <= input,
-  
-  theory FT1 <= FinKey,
-  theory FT2 <= FinIn
-  
-  proof *.
   
 clone import FinType as FinOut with
   type t <= output.
 
 axiom gt1_cardout : 1 < FinOut.card.
 
-op [lossless full uniform] dkey : key distr.
-op [lossless full uniform] dinput : input distr.
+op [lossless] dkey : key distr.
+op [lossless] dinput : input distr.
 
 clone import MUniFinFun as MUFF_Key with
   type t <= key,
@@ -345,7 +336,6 @@ local clone import DMapSampling as DMS with
   type t2 <- input -> output
   
   proof *.
-  print DMS.
 
         
 local module O_Default_NK : Oracle_t = {
@@ -415,20 +405,6 @@ call (: O_Default.f{1} O_Default.k{1} = O_Default_NK.f{2}); 1: by proc.
 by rnd; wp; rnd; rnd; skip.
 qed.
 
-(*
-local module R_SPR_NK = {
-  proc find(x : input) : input = {
-    var k : key;
-    var x' : input;
-    
-    k <$ dkey;
-    
-    x' <@ A(O_Default_NK).find(k, x);
-    
-    return x';
-  }
-}.
-*)
 
 local module SPR_NK = {
   proc main() : bool = {

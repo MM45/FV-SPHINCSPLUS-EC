@@ -204,6 +204,87 @@ abstract theory SPR.
 end SPR.
 
 
+
+(* 
+-- 
+  Collision Resistance (CR).
+  Given a key k, it is hard to find two different inputs x and x' such that f k x = f k x' 
+-- 
+*)
+(* - regular Collision Resistance (CR) - *)
+abstract theory CR.
+  (* Proper distribution over (indexing) key type *)
+  op [lossless] dkey : key_t distr.
+
+  (* Class of adversaries against CR *)
+  module type Adv_CR = {
+    proc find(k : key_t) : in_t * in_t
+  }.
+
+  (* CR game *)
+  module CR(A : Adv_CR) = {
+    proc main() : bool = {
+      var f : key_t -> in_t -> out_t;
+      var k : key_t;
+      var x, x' : in_t;
+
+      (* Sample function f and key k *)
+      f <$ df;
+      k <$ dkey;
+
+      (* Ask adversary to find two values x and x' that collide w.r.t. to k (i.e., under f k) *)
+      (x, x') <@ A.find(k);
+
+      (*
+        Success iff
+        (1) "x <> x'": x does not equal x', and
+        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+      *)
+      return x <> x' /\ f k x = f k x'; 
+    }
+  }.
+end CR.
+
+
+(* - Target Collision Resistance (TCR) - *)
+abstract theory TCR.
+  (* Proper distribution over (indexing) key type *)
+  op [lossless] dkey : key_t distr.
+
+  (* Class of adversaries against TCR *)
+  module type Adv_TCR = {
+    proc pick() : in_t
+    proc find(k : key_t) : in_t
+  }.
+
+  (* TCR game *)
+  module TCR(A : Adv_TCR) = {
+    proc main() : bool = {
+      var f : key_t -> in_t -> out_t;
+      var k : key_t;
+      var x, x' : in_t;
+
+      (* Ask adversary to pick an input (the 'target') *)
+      x <@ A.pick();
+
+      (* Sample function f and key k *)
+      f <$ df;
+      k <$ dkey;
+
+      (* Ask adversary to find a value x' that collides with x w.r.t k (i.e., under f k) *)
+      x' <@ A.find(k);
+
+      (*
+        Success iff
+        (1) "x <> x'": x does not equal x', and
+        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+      *) 
+      return x <> x' /\ f k x = f k x';
+    }
+  }.
+end TCR.
+
+
 (*
 (* - Single-function, Multi-target PREimage resistance (SM_PRE) - *)
 abstract theory SMPRE.

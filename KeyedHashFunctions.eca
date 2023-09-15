@@ -655,15 +655,20 @@ abstract theory METCR.
   op [lossless] dkey : key_t distr.
 
   (* Type for oracles used in M_ETCR game *)
-  module type Oracle_METCR = {
+  module type Oracle_METCRi_t = {
     proc init() : unit
     proc query(x : in_t) : key_t
     proc get(i : int) : key_t * in_t
     proc nr_targets() : int
   }.
 
+  (* Type for oracles given to adversary in M_ETCR game *)
+  module type Oracle_METCR_t = {
+    proc query(x : in_t) : key_t
+  }.
+  
   (* Default implementation of an oracle for M_ETCR *)
-  module O_METCR_Default : Oracle_METCR = {
+  module O_METCR_Default : Oracle_METCRi_t = {
     var ts : (key_t * in_t) list
 
     (* Initialize list of targets (i.e., (key, input) pairs) to the empty list *)
@@ -696,12 +701,12 @@ abstract theory METCR.
   }.
 
   (* Class of adversaries against M_ETCR *)
-  module type Adv_METCR(O : Oracle_METCR) = {
+  module type Adv_METCR(O : Oracle_METCR_t) = {
     proc find() : int * key_t * in_t { O.query }
   }.
 
   (* M_ETCR game *)
-  module M_ETCR (A : Adv_METCR, O : Oracle_METCR) = {
+  module M_ETCR (A : Adv_METCR, O : Oracle_METCRi_t) = {
     proc main() : bool = {
       var k, k' : key_t;
       var x, x' : in_t;

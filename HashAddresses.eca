@@ -1,12 +1,6 @@
 require import AllCore List.
 require Subtype.
 
-(* Generic auxiliary properties *)
-lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) (i : int) :
-     nth x0 s1 i <> nth x0 s2 i 
-  => s1 <> s2.
-proof. by apply contra => ->. qed.
-
 const l : { int | 1 <= l } as ge1_l.
 
 type index.

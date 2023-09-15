@@ -77,8 +77,8 @@ op [lossless] df : (key_t -> in_t -> out_t) distr.
 
 
 module type Oraclei_t = {
-  proc init(f : key_t -> in_t -> out_t, k : key_t) : unit
-  proc get(x : in_t) : out_t
+  proc init(f : key_t -> in_t -> out_t) : unit
+  proc get(k : key_t, x : in_t) : out_t
 }.
 
 module type Oracle_t = {
@@ -88,17 +88,16 @@ module type Oracle_t = {
 
 module O_Default : Oraclei_t = {
   var f : key_t -> in_t -> out_t
-  var k : key_t
   
-  proc init(f_init : key_t -> in_t -> out_t, k_init : key_t) : unit = {
+  proc init(f_init : key_t -> in_t -> out_t) : unit = {
     f <- f_init;
-    k <- k_init;
   }
   
-  proc get(x : in_t) : out_t = {
+  proc get(k : key_t, x : in_t) : out_t = {
     return f k x;
   }
 }.
+
 
 
 (* --- Properties --- *)
@@ -133,8 +132,8 @@ abstract theory PRE.
       f <$ df;
       k <$ dkey;
 
-      (* Initialize oracle with f and k *)
-      O.init(f, k);
+      (* Initialize oracle with f *)
+      O.init(f);
 
       (* Sample input x *)
       x <$ din;
@@ -184,8 +183,8 @@ abstract theory SPR.
       f <$ df;
       k <$ dkey;
       
-      (* Initialize oracle with f and k *)
-      O.init(f, k);
+      (* Initialize oracle with f *)
+      O.init(f);
 
       (* Sample input x *)
       x <$ din;
@@ -217,12 +216,12 @@ abstract theory CR.
   op [lossless] dkey : key_t distr.
 
   (* Class of adversaries against CR *)
-  module type Adv_CR = {
+  module type Adv_CR(O : Oracle_t) = {
     proc find(k : key_t) : in_t * in_t
   }.
 
   (* CR game *)
-  module CR(A : Adv_CR) = {
+  module CR(A : Adv_CR, O : Oraclei_t) = {
     proc main() : bool = {
       var f : key_t -> in_t -> out_t;
       var k : key_t;
@@ -231,9 +230,12 @@ abstract theory CR.
       (* Sample function f and key k *)
       f <$ df;
       k <$ dkey;
+      
+      (* Initialize oracle with f *)
+      O.init(f);
 
       (* Ask adversary to find two values x and x' that collide w.r.t. to k (i.e., under f k) *)
-      (x, x') <@ A.find(k);
+      (x, x') <@ A(O).find(k);
 
       (*
         Success iff
@@ -252,27 +254,30 @@ abstract theory TCR.
   op [lossless] dkey : key_t distr.
 
   (* Class of adversaries against TCR *)
-  module type Adv_TCR = {
-    proc pick() : in_t
+  module type Adv_TCR(O : Oracle_t) = {
+    proc pick() : in_t {}
     proc find(k : key_t) : in_t
   }.
 
   (* TCR game *)
-  module TCR(A : Adv_TCR) = {
+  module TCR(A : Adv_TCR, O : Oraclei_t) = {
     proc main() : bool = {
       var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
 
       (* Ask adversary to pick an input (the 'target') *)
-      x <@ A.pick();
+      x <@ A(O).pick();
 
       (* Sample function f and key k *)
       f <$ df;
       k <$ dkey;
+      
+      (* Initialize oracle with f *)
+      O.init(f);
 
       (* Ask adversary to find a value x' that collides with x w.r.t k (i.e., under f k) *)
-      x' <@ A.find(k);
+      x' <@ A(O).find(k);
 
       (*
         Success iff
@@ -283,6 +288,109 @@ abstract theory TCR.
     }
   }.
 end TCR.
+
+
+(* - Multi-target Extended Target Collision Resistance (M_ETCR) - *)
+abstract theory METCR.
+  (* Proper distribution over (indexing) key type *)
+  op [lossless] dkey : key_t distr.
+
+  (* Type for oracles used in M_ETCR game *)
+  module type Oracle_METCRi_t = {
+    proc init() : unit
+    proc query(x : in_t) : key_t
+    proc get(i : int) : key_t * in_t
+    proc nr_targets() : int
+  }.
+
+  (* Type for oracles given to adversary in M_ETCR game *)
+  module type Oracle_METCR_t = {
+    proc query(x : in_t) : key_t
+  }.
+
+  (* Default implementation of an oracle for M_ETCR *)
+  module O_METCR_Default : Oracle_METCRi_t = {
+    var ts : (key_t * in_t) list
+
+    (* Initialize list of targets (i.e., (key, input) pairs) to the empty list *)
+    proc init() : unit = {
+      ts <- [];
+    }
+
+    (* Samples key k, adds pair (k, x) to list of targets, and returns k *)
+    proc query(x : in_t) : key_t = {
+      var k : key_t;
+      var kx : key_t * in_t;
+
+      k <$ dkey;
+
+      kx <- (k, x);
+      ts <- rcons ts kx;
+
+      return k;
+    }
+
+    (* Gets i-th element in list of targets; returns witness if index is out of bounds *)
+    proc get(i : int) : key_t * in_t = {
+      return nth witness ts i;
+    }
+
+    (* Returns the number of elements in the list of targets *)
+    proc nr_targets() : int = {
+      return size ts; 
+    }
+  }.
+
+  (* Class of adversaries against M_ETCR *)
+  module type Adv_METCR(O : Oracle_t, CO : Oracle_METCR_t) = {
+    proc find() : int * key_t * in_t
+  }.
+
+  (* M_ETCR game *)
+  module M_ETCR (A : Adv_METCR, O : Oraclei_t, CO : Oracle_METCRi_t) = {
+    proc main() : bool = {
+      var f : key_t -> in_t -> out_t;
+      var k, k' : key_t;
+      var x, x' : in_t;
+      var i : int;
+      var nrts : int;
+
+      (* Sample function f *)
+      f <$ df;
+      
+      (* Initialize oracles *)
+      O.init(f);
+      CO.init();
+
+      (* 
+        Ask adversary to
+        (1) Generate (key, input) pairs (the 'targets') by querying oracle O
+        (2) Find a pair (k', x') such that, for any (key, input) pair (k, x) in 
+            the list of targets, x' under f k' collides with x under f k.
+            Note that k' may be any element from the domain of keys, including k 
+      *)
+      (i, k', x') <@ A(O, CO).find();
+
+      (* 
+        Get (key, input) pair (i.e., target) (k, x) from list of targets at index i,
+        as specified by the adversary
+      *)
+      (k, x) <@ CO.get(i);
+
+      (* Get number of elements in the list of targets specified by the adversary *)
+      nrts <@ CO.nr_targets();
+
+      (*
+        Success iff
+        (1) "0 <= i < size nrts": index provided by adversary is within the bounds 
+            of nrts (i.e., between 0 (including) and nrts (excluding)), and
+        (2) "x <> x'": x does not equal x', and
+        (3) "f k x = f k' x'": f k maps x to the same element as f k' maps x'
+      *)     
+      return 0 <= i < nrts /\ x <> x' /\ f k x = f k' x';
+    }
+  }.
+end METCR.
 
 
 (*

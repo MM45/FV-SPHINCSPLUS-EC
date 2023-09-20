@@ -68,7 +68,7 @@ type in_t.
 type out_t.
 
 (* Type for (indexing) keys *)
-type key_t. 
+type key_t.
 
 
 (* -- Operators -- *)
@@ -77,7 +77,7 @@ op [lossless] df : (key_t -> in_t -> out_t) distr.
 
 
 module type Oraclei_t = {
-  proc init(f : key_t -> in_t -> out_t) : unit
+  proc init() : unit
   proc get(k : key_t, x : in_t) : out_t
 }.
 
@@ -89,8 +89,8 @@ module type Oracle_t = {
 module O_Default : Oraclei_t = {
   var f : key_t -> in_t -> out_t
   
-  proc init(f_init : key_t -> in_t -> out_t) : unit = {
-    f <- f_init;
+  proc init() : unit = {
+    f <$ df;
   }
   
   proc get(k : key_t, x : in_t) : out_t = {
@@ -123,29 +123,30 @@ abstract theory PRE.
   (* PRE game *)
   module PRE(A : Adv_PRE, O : Oraclei_t) = {
     proc main() : bool = {
-      var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
-      var y : out_t;
+      var y, y' : out_t;
 
-      (* Sample keyed hash function f and key k *)
-      f <$ df;
+      (* Initialize oracle *)
+      O.init();
+
+      (* Sample key k *)
       k <$ dkey;
-
-      (* Initialize oracle with f *)
-      O.init(f);
 
       (* Sample input x *)
       x <$ din;
 
-      (* Compute output y of k and x under f *)
-      y <- f k x;
+      (* Compute output y of k and x under function implemented by oracle *)
+      y <@ O.get(k, x);
 
       (* Ask adversary to find a preimage x' of y *)
       x' <@ A(O).find(k, y);
 
-      (* Success iff x' is a preimage of y, i.e., iff f k maps x' to y *)
-      return f k x' = y;
+      (* Compute output y of k and x' under function implemented by oracle *)
+      y' <@ O.get(k, x');
+        
+      (* Success iff x' is a preimage of y, i.e., iff the oracle maps k and x' to y *)
+      return y' = y;
     }
   }.
 end PRE.
@@ -175,29 +176,34 @@ abstract theory SPR.
   (* SPR game *)
   module SPR(A : Adv_SPR, O : Oraclei_t) = {
     proc main() : bool  = {
-      var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
+      var y, y' : out_t;
 
-      (* Sample function f and key k *)
-      f <$ df;
+      (* Initialize oracle *)
+      O.init();
+
+      (* Sample key k *)
       k <$ dkey;
-      
-      (* Initialize oracle with f *)
-      O.init(f);
 
       (* Sample input x *)
       x <$ din;
       
+      (* Compute output y of k and x under function implemented by oracle *)
+      y <@ O.get(k, x);
+      
       (* Ask adversary to find a second preimage x' of x w.r.t. k (i.e., under f k) *)
       x' <@ A(O).find(k, x);
 
+      (* Compute output y' of k and x' under function implemented by oracle *)
+      y' <@ O.get(k, x');
+      
       (* 
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+        (1) "x' <> x": x' does not equal x, and
+        (2) "y' = y": y' equals y', i.e., the oracle maps k and x to the same image as k and x' 
       *)
-      return x <> x' /\ f k x = f k x';
+      return x' <> x /\ y' = y;
     }
   }.
 end SPR.
@@ -223,26 +229,33 @@ abstract theory CR.
   (* CR game *)
   module CR(A : Adv_CR, O : Oraclei_t) = {
     proc main() : bool = {
-      var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
-
-      (* Sample function f and key k *)
-      f <$ df;
-      k <$ dkey;
+      var y, y' : out_t;
       
-      (* Initialize oracle with f *)
-      O.init(f);
+      (* Initialize oracle *)
+      O.init();
+
+      (* Sample key k *)
+      k <$ dkey;
 
       (* Ask adversary to find two values x and x' that collide w.r.t. to k (i.e., under f k) *)
       (x, x') <@ A(O).find(k);
-
-      (*
-        Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+      
+      (* 
+        Compute output y (resp. y') of k and x (resp. k and x') 
+        under function implemented by oracle
       *)
-      return x <> x' /\ f k x = f k x'; 
+      y <@ O.get(k, x);
+      y' <@ O.get(k, x');
+
+      
+      (* 
+        Success iff
+        (1) "x' <> x": x' does not equal x, and
+        (2) "y' = y": y' equals y', i.e., the oracle maps k and x to the same image as k and x' 
+      *)
+      return x' <> x /\ y' = y; 
     }
   }.
 end CR.
@@ -255,36 +268,41 @@ abstract theory TCR.
 
   (* Class of adversaries against TCR *)
   module type Adv_TCR(O : Oracle_t) = {
-    proc pick() : in_t {}
+    proc pick() : in_t
     proc find(k : key_t) : in_t
   }.
 
   (* TCR game *)
   module TCR(A : Adv_TCR, O : Oraclei_t) = {
     proc main() : bool = {
-      var f : key_t -> in_t -> out_t;
       var k : key_t;
       var x, x' : in_t;
-
+      var y, y' : out_t;
+      
+      (* Initialize oracle *)
+      O.init();
+      
       (* Ask adversary to pick an input (the 'target') *)
       x <@ A(O).pick();
 
-      (* Sample function f and key k *)
-      f <$ df;
+      (* Sample key k *)
       k <$ dkey;
-      
-      (* Initialize oracle with f *)
-      O.init(f);
 
+      (* Compute output y of k and x under function implemented by oracle *)
+      y <@ O.get(k, x);
+      
       (* Ask adversary to find a value x' that collides with x w.r.t k (i.e., under f k) *)
       x' <@ A(O).find(k);
 
-      (*
+      (* Compute output y of k and x' under function implemented by oracle *)
+      y' <@ O.get(k, x');
+      
+      (* 
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
-      *) 
-      return x <> x' /\ f k x = f k x';
+        (1) "x' <> x": x' does not equal x, and
+        (2) "y' = y": y' equals y', i.e., the oracle maps k and x to the same image as k and x' 
+      *)
+      return x' <> x /\ y' = y;
     }
   }.
 end TCR.
@@ -349,17 +367,14 @@ abstract theory METCR.
   (* M_ETCR game *)
   module M_ETCR (A : Adv_METCR, O : Oraclei_t, CO : Oracle_METCRi_t) = {
     proc main() : bool = {
-      var f : key_t -> in_t -> out_t;
       var k, k' : key_t;
       var x, x' : in_t;
+      var y, y' : out_t;
       var i : int;
       var nrts : int;
-
-      (* Sample function f *)
-      f <$ df;
       
       (* Initialize oracles *)
-      O.init(f);
+      O.init();
       CO.init();
 
       (* 
@@ -371,12 +386,18 @@ abstract theory METCR.
       *)
       (i, k', x') <@ A(O, CO).find();
 
+      (* Compute output y of k and x' under function implemented by oracle *)
+      y' <@ O.get(k', x');
+      
       (* 
         Get (key, input) pair (i.e., target) (k, x) from list of targets at index i,
         as specified by the adversary
       *)
       (k, x) <@ CO.get(i);
 
+      (* Compute output y of k and x under function implemented by oracle *)
+      y <@ O.get(k, x);
+      
       (* Get number of elements in the list of targets specified by the adversary *)
       nrts <@ CO.nr_targets();
 
@@ -384,10 +405,10 @@ abstract theory METCR.
         Success iff
         (1) "0 <= i < size nrts": index provided by adversary is within the bounds 
             of nrts (i.e., between 0 (including) and nrts (excluding)), and
-        (2) "x <> x'": x does not equal x', and
-        (3) "f k x = f k' x'": f k maps x to the same element as f k' maps x'
+        (2) "x' <> x": x' does not equal x, and
+        (3) "y' = y": y' equals y', i.e., the oracle maps k and x to the same image as k' and x' 
       *)     
-      return 0 <= i < nrts /\ x <> x' /\ f k x = f k' x';
+      return 0 <= i < nrts /\ x' <> x /\ y' = y;
     }
   }.
 end METCR.

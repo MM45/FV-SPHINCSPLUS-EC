@@ -343,10 +343,10 @@ abstract theory SPR.
 
       (* 
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+        (1) "x' <> x": x' does not equal x, and
+        (2) "f k x' = f k x": f k maps x' to the same element as it maps x
       *)
-      return x <> x' /\ f k x = f k x';
+      return x' <> x /\ f k x' = f k x;
     }
   }.
 end SPR.
@@ -396,10 +396,10 @@ abstract theory SMSPR.
         Success iff
         (1) "0 <= i < size xl": index i provided by adversary is within the bounds of xl
             (i.e., between 0 (including) and the size xl = t_smspr (excluding)), and
-        (2) "x <> x'": x does not equal x'
-        (3) "f k x = f k x'": f k maps x to the same element as it maps x'  
+        (2) "x' <> x": x' does not equal x, and
+        (3) "f k x' = f k x": f k maps x' to the same element as it maps x 
       *)
-      return 0 <= i < size xl /\ x <> x' /\ f k x = f k x';
+      return 0 <= i < size xl /\ x' <> x /\ f k x' = f k x;
     }
   }.
 end SMSPR.
@@ -460,10 +460,10 @@ abstract theory MMSPR.
         Success iff
         (1) "0 <= i < size kxl": index provided by adversary is within the bounds of kyl 
             (i.e., between 0 (including) and size kxl = t_mmspr (excluding)), and
-        (2) "x <> x'": x does not equal x', and
-        (3) "f k x = f k x'": f k maps x to the same element as it maps x'
+        (2) "x' <> x": x' does not equal x, and
+        (3) "f k x' = f k x": f k maps x' to the same element as it maps x
       *)
-      return 0 <= i < size kxl /\ x <> x' /\ f k x = f k x';
+      return 0 <= i < size kxl /\ x' <> x /\ f k x' = f k x;
     }
   }.
 end MMSPR.
@@ -523,10 +523,10 @@ abstract theory DMSPR.
         Success iff
         (1) "0 <= i < size kl": index provided by adversary is within the bounds of kl, and
         (2) "uniq kl": kl contains no duplicate elements, and
-        (3) "x <> x'": x is not equal to x', and
-        (4) "f k x = f k x'": f k maps x' to y
+        (3) "x' <> x": x' does not equal x, and
+        (4) "f k x' = f k x": f k maps x' to the same element as it maps x
       *)
-      return 0 <= i < size kl /\ uniq kl /\ x <> x' /\ f k x = f k x';
+      return 0 <= i < size kl /\ uniq kl /\ x' <> x /\ f k x' = f k x;
     }
   }.
 end DMSPR.
@@ -562,10 +562,10 @@ abstract theory CR.
 
       (*
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+        (1) "x' <> x": x' does not equal x, and
+        (2) "f k x' = f k x": f k maps x' to the same element as it maps x
       *)
-      return x <> x' /\ f k x = f k x'; 
+      return x' <> x /\ f k x' = f k x; 
     }
   }.
 end CR.
@@ -599,10 +599,10 @@ abstract theory TCR.
 
       (*
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k x'": f k maps x to the same element as it maps x'
+        (1) "x' <> x": x' does not equal x, and
+        (2) "f k x' = f k x": f k maps x' to the same element as it maps x
       *) 
-      return x <> x' /\ f k x = f k x';
+      return x' <> x /\ f k x' = f k x;
     }
   }.
 end TCR.
@@ -640,10 +640,10 @@ abstract theory ETCR.
 
       (*
         Success iff
-        (1) "x <> x'": x does not equal x', and
-        (2) "f k x = f k' x'": f k maps x to the same element as f k' maps x'
+        (1) "x' <> x": x' does not equal x, and
+        (2) "f k' x' = f k x": f k' maps x' to the same element as f k maps x
       *) 
-      return x <> x' /\ f k x = f k' x';
+      return x' <> x /\ f k x' = f k' x;
     }
   }.
 end ETCR.
@@ -738,10 +738,10 @@ abstract theory METCR.
         Success iff
         (1) "0 <= i < size nrts": index provided by adversary is within the bounds 
             of nrts (i.e., between 0 (including) and nrts (excluding)), and
-        (2) "x <> x'": x does not equal x', and
-        (3) "f k x = f k' x'": f k maps x to the same element as f k' maps x'
+        (2) "x' <> x": x' does not equal x, and
+        (3) "f k' x' = f k x": f k' maps x' to the same element as f k maps x
       *)     
-      return 0 <= i < nrts /\ x <> x' /\ f k x = f k' x';
+      return 0 <= i < nrts /\ x' <> x /\ f k' x' = f k x;
     }
   }.
 end METCR.

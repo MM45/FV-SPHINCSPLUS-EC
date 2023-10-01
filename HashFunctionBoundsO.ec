@@ -63,6 +63,32 @@ clone import KeyedHashFunctionsO as KHFO with
   realize df_ll by exact: df_ll.
 
 
+(* 
+  Auxiliary module types for non-keyed hash function properties.
+  Not essential, but used for better readability.
+*)
+module type Oracle_NKi_t = {
+  proc init() : unit
+  proc get(x : input) : output 
+}.
+
+module type Oracle_NK_t = {
+  include Oracle_NKi_t [-init]
+}.
+
+module O_NK_Default : Oracle_NKi_t = {
+  var gk : input -> output
+  
+  proc init() : unit = {
+    gk <$ MUFF_In.dfun (fun _ => doutput);
+  }
+  
+  proc get(x : input) : output = {
+    return gk x;  
+  }
+}.
+
+
 theory SPRBound.
 
 op [lossless] dkey : key distr.
@@ -83,29 +109,8 @@ clone import SPR as KHFO_SPR with
   to remove all these extra definitions (but makes reduction
   bit less intuitive/readable).
 *)
-module type Oracle_NKi_t = {
-  proc init() : unit
-  proc get(x : input) : output 
-}.
-
-module type Oracle_NK_t = {
-  include Oracle_NKi_t [-init]
-}.
-
 module type Adv_SPR_NK (O : Oracle_NK_t) = {
   proc find(x : input) : input
-}.
-
-module O_SPRNK_Default : Oracle_NKi_t = {
-  var gk : input -> output
-  
-  proc init() : unit = {
-    gk <$ MUFF_In.dfun (fun _ => doutput);
-  }
-  
-  proc get(x : input) : output = {
-    return gk x;  
-  }
 }.
 
 module SPR_NK (A : Adv_SPR_NK) (O : Oracle_NKi_t) = {
@@ -191,7 +196,7 @@ module (R_BFFind_SPRNK (A : Adv_SPR) : Adv_BFFind) (BFO : BFOF_t) = {
 
 section.
 
-declare module A <: Adv_SPR {-KHFO.O_Default, -R_BFFind_SPRNK, -O_SPRNK_Default, -BFOF, -BFOD}.
+declare module A <: Adv_SPR {-KHFO.O_Default, -R_BFFind_SPRNK, -O_NK_Default, -BFOF, -BFOD}.
 (*
 print eq_dlet.
 search dlet dfun.
@@ -327,7 +332,7 @@ qed.
 local lemma EqPr_SPRSS_SPRNK &m:
   Pr[SPR_SS.main() @ &m : res]
   =
-  Pr[SPR_NK(R_SPRNK_SPR(A), O_SPRNK_Default).main() @ &m : res].
+  Pr[SPR_NK(R_SPRNK_SPR(A), O_NK_Default).main() @ &m : res].
 proof.
 byequiv=> //=.
 proc; inline *.
@@ -338,7 +343,7 @@ seq 3 3 : (   ={glob A}
               = 
               (fun k => 
                 if k = R_SPRNK_SPR.k0{2}
-                then O_SPRNK_Default.gk{2}
+                then O_NK_Default.gk{2}
                 else R_SPRNK_SPR.g{2} k)).
   (* 
     Don't know how to approach, but looks reasonable. 
@@ -352,7 +357,7 @@ call (:   SPR_SS.k0{1} = R_SPRNK_SPR.k0{2}
           =
           (fun (k : key) =>
             if k = R_SPRNK_SPR.k0{2}
-            then O_SPRNK_Default.gk{2}
+            then O_NK_Default.gk{2}
             else R_SPRNK_SPR.g{2} k)).
 + proc; inline *.
   by wp; skip.
@@ -559,7 +564,6 @@ qed.
 
 
 local module SPR_NK_Rep (A : Adv_SPR_NK) = {
-  var k0 : key
   var x0 : input
   var y0 : output
   var f : input -> output
@@ -594,7 +598,7 @@ local module SPR_NK_Rep (A : Adv_SPR_NK) = {
 }.
 
 local lemma EqPr_SPRNK_SPRNKRep &m :
-  Pr[SPR_NK(R_SPRNK_SPR(A), O_SPRNK_Default).main() @ &m : res]
+  Pr[SPR_NK(R_SPRNK_SPR(A), O_NK_Default).main() @ &m : res]
   =
   Pr[SPR_NK_Rep(R_SPRNK_SPR(A)).main() @ &m : res].
 proof.
@@ -603,7 +607,7 @@ proc; inline *.
 wp.
 call (: ={R_SPRNK_SPR.k0, R_SPRNK_SPR.g} /\
         (forall (x : input), 
-          O_SPRNK_Default.gk{1} x 
+          O_NK_Default.gk{1} x 
           = 
           if !BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
           then SPR_NK_Rep.f{2} x 
@@ -615,31 +619,31 @@ seq 1 1 : (={glob A} /\ x{1} = SPR_NK_Rep.x0{2}); 1: by rnd.
 conseq (_ : _ 
             ==> 
             (forall (x : input), 
-              O_SPRNK_Default.gk{1} x 
+              O_NK_Default.gk{1} x 
               = 
               if !BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
               then SPR_NK_Rep.f{2} x 
               else SPR_NK_Rep.y0{2})).
 + move=> /> &2 gk fl y0 br ih k kin gL glin r.
   by rewrite (eq_sym r); congr; rewrite !ih //= /#.
-transitivity{1} {O_SPRNK_Default.gk <@ LR.LambdaRepro.left();}
-                (true ==> ={O_SPRNK_Default.gk})
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.left();}
+                (true ==> ={O_NK_Default.gk})
                 (x{1} = SPR_NK_Rep.x0{2} 
                  ==> 
                  (forall (x : input),
-                   O_SPRNK_Default.gk{1} x 
+                   O_NK_Default.gk{1} x 
                    =
                    if ! BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
                    then SPR_NK_Rep.f{2} x
                    else SPR_NK_Rep.y0{2})); 1,2: by smt().
 + inline *.
   by wp; rnd.
-transitivity{1} {O_SPRNK_Default.gk <@ LR.LambdaRepro.right(x);}
-                (true ==> ={O_SPRNK_Default.gk})
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.right(x);}
+                (true ==> ={O_NK_Default.gk})
                 (x{1} = SPR_NK_Rep.x0{2} 
                  ==> 
                  (forall (x : input),
-                   O_SPRNK_Default.gk{1} x 
+                   O_NK_Default.gk{1} x 
                    =
                    if ! BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
                    then SPR_NK_Rep.f{2} x
@@ -649,7 +653,7 @@ inline *.
 wp; rnd.
 swap{2} 1 1.
 by rnd; rnd; wp; skip.
-qed.
+qed.  
 
 
 local lemma EqPr_SPR_SPRNKRep &m:
@@ -1330,30 +1334,9 @@ clone import KHFO.TCR as KHFO_TCR with
   to remove all these extra definitions (but makes reduction
   bit less intuitive/readable).
 *)
-module type Oracle_NKi_t = {
-  proc init() : unit
-  proc get(x : input) : output 
-}.
-
-module type Oracle_NK_t = {
-  include Oracle_NKi_t [-init]
-}.
-
 module type Adv_TCR_NK (O : Oracle_NK_t) = {
   proc pick() : input
   proc find() : input
-}.
-
-module O_TCRNK_Default : Oracle_NKi_t = {
-  var gk : input -> output
-  
-  proc init() : unit = {
-    gk <$ MUFF_In.dfun (fun _ => doutput);
-  }
-  
-  proc get(x : input) : output = {
-    return gk x;  
-  }
 }.
 
 module TCR_NK (A : Adv_TCR_NK) (O : Oracle_NKi_t) = {
@@ -1422,14 +1405,17 @@ module (R_BFFind_TCRNK (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
 
   module O_R_BFFind_TCRNK_Pick : Oracle_NK_t = {
     proc get(x : input) : output = {
+      var b : bool;
       
+      b <@ BFO.query(x);
+     
+      return if !b then f x else y0; 
     }
   }
   
-  module O_R_BFFind_Find : Oracle_NK_t = {
+  module O_R_BFFind_TCRNK_Find : Oracle_NK_t = {
     proc get(x : input) : output = {
       var b : bool;
-      var y : output;
       
       b <@ BFO.query(x);
      
@@ -1440,13 +1426,13 @@ module (R_BFFind_TCRNK (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
   proc find() : input = {
     var x' : input;
     
-    x0 <@ O_R_BFFind_TCRNK(A).pick();
-    
     y0 <$ doutput;
     
     f <$ MUFF_In.dfun (fun (_ : input) => doutput \ (pred1 y0));
+    
+    x0 <@ R_TCRNK_TCR(A, O_R_BFFind_TCRNK_Pick).pick();
             
-    x' <@ R_TCRNK_TCR(A, O_R_BFFind_TCRNK).find();
+    x' <@ R_TCRNK_TCR(A, O_R_BFFind_TCRNK_Find).find();
     
     return x';
   }
@@ -1454,7 +1440,290 @@ module (R_BFFind_TCRNK (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
 
 section.
 
-declare module A <: Adv_TCR {-KHFO.O_Default, -R_BFFind_TCRNK, -O_TCRNK_Default, -BFOF, -BFOD}.
+declare module A <: Adv_TCR {-KHFO.O_Default, -R_BFFind_TCRNK, -O_NK_Default, -BFOF, -BFOD}.
 
+local module TCR_SS = {
+  var k0 : key
+  
+  module O_TCR_SS : Oracle_t = {  
+    var g : key -> input -> output
+    
+    proc init() : unit = {
+      var gk : input -> output;
+      
+      gk <$ dfun (fun (_ : input) => doutput);
+      
+      g <$ dfun (fun (k : key) => 
+            dfun (fun (_ : input) => doutput)).[k0 <- dunit gk];
+    }
+    
+    proc get(k : key, x : input) = {
+      return g k x;
+    }
+  }
+  
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    O_TCR_SS.init();
+    
+    x <@ A(O_TCR_SS).pick();
+    y <@ O_TCR_SS.get(k0, x);
+    
+    x' <@ A(O_TCR_SS).find(k0);
+    y' <@ O_TCR_SS.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local lemma EqPr_TCR_TCRSS &m:
+  Pr[TCR(A, O_Default).main() @ &m : res]
+  =
+  Pr[TCR_SS.main() @ &m : res].
+proof.
+byequiv => //=.
+proc; inline *.
+swap{1} 3 -2.
+seq 1 1: (={glob A} /\ k{1} = TCR_SS.k0{2}); 1: by rnd.
+wp.
+conseq (: _ ==>    ={x, x', y} 
+                /\ k{1} = TCR_SS.k0{2} 
+                /\ O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by smt().
+call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
+wp; call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
+conseq (: _ ==> O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
+transitivity{1} {O_Default.f <$ dfun (fun (_ : key) => dfun (fun (_ : input) => doutput));}
+                (true ==> ={O_Default.f})
+                (true ==>  O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
++ rnd; skip => />.
+  split => f fin.
+  - congr; apply eq_funi_ll.
+    * rewrite is_full_funiform. 
+      - by rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
+      by rewrite dfun_uni => k; rewrite dfun_uni => x /=; rewrite dunifin_uni.
+    * by rewrite dfun_ll => k; rewrite dfun_ll => x /=; rewrite dunifin_ll.
+    * by rewrite is_full_funiform 1:df_fu 1:df_uni.
+    by rewrite df_ll.
+  by move=> ?; rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
+rnd: *0 *0.       
+wp; skip => /> &2.
+split => [g gin | eqmug f fin]. 
++ rewrite dmap_id; congr.
+  rewrite (MUFF_Key.dfunE_dlet_fix1 _ (TCR_SS.k0{2})) /=.
+  by congr; rewrite fun_ext => f; rewrite dmap_id.
+rewrite supp_dlet /=; exists (f TCR_SS.k0{2}).
+split; 1: by rewrite dfun_fu /= 1:dunifin_fu dmap_id //= dfun_fu.
+rewrite dmap_id dfun_supp => k @/(_.[_<-_]). 
+case (TCR_SS.k0{2} = k) => [-> | ?]; 1: by rewrite supp_dunit.
+by rewrite dmap_id dfun_supp in fin => /#.
+qed.
+
+local lemma EqPr_TCRSS_TCRNK &m:
+  Pr[TCR_SS.main() @ &m : res]
+  =
+  Pr[TCR_NK(R_TCRNK_TCR(A), O_NK_Default).main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+swap{2} 2 -1.
+seq 3 3 : (   ={glob A} 
+           /\ ={k0}(TCR_SS, R_TCRNK_TCR)
+           /\ TCR_SS.O_TCR_SS.g{1} 
+              = 
+              (fun (k : key) => 
+                if k = R_TCRNK_TCR.k0{2}
+                then O_NK_Default.gk{2}
+                else R_TCRNK_TCR.g{2} k)).
+  (* 
+    Don't know how to approach, but looks reasonable. 
+    Feels similar to what was already proved for lambda reprogramming. 
+    Perhaps only able to do it procedurally, instead of directly in sampling?
+  *)
++ admit. 
+wp.
+call (:   TCR_SS.k0{1} = R_TCRNK_TCR.k0{2} 
+       /\ TCR_SS.O_TCR_SS.g{1} 
+          =
+          (fun (k : key) =>
+            if k = R_TCRNK_TCR.k0{2}
+            then O_NK_Default.gk{2}
+            else R_TCRNK_TCR.g{2} k)).
++ proc; inline *.
+  by wp; skip.
+wp.
+call (: TCR_SS.O_TCR_SS.g{1} 
+        =
+        (fun (k : key) =>
+          if k = R_TCRNK_TCR.k0{2} 
+          then O_NK_Default.gk{2}
+          else R_TCRNK_TCR.g{2} k)).
++ by proc; inline *; wp; skip.
+by skip.
+qed.
+
+
+local module TCR_NK_Rep (A : Adv_TCR_NK) = {
+  var k0 : key
+  var x0 : input
+  var y0 : output
+  var f : input -> output
+  var xs : input list
+  
+  module O_TCR_NK_Rep_Pick : Oracle_NK_t = {
+    proc get(x : input) : output = {
+      var b;
+      
+      xs <- rcons xs x;
+      
+      b <@ BFOF.query(x);
+      
+      return if !b then f x else y0;
+    }
+  }
+
+  module O_TCR_NK_Rep_Find : Oracle_NK_t = {
+    proc get(x : input) : output = {
+      var b;
+      
+      b <@ BFOF.query(x);
+      
+      return if !b /\ x <> x0 then f x else y0;
+    }
+  }
+
+  proc main() : bool = {
+    var x' : input;
+    var y' : output;
+    
+    BFOF.init();
+    
+    xs <- [];
+    y0 <$ doutput;
+    f <$ MUFF_In.dfun (fun _ => doutput \ (pred1 y0));    
+    
+    x0 <@ A(O_TCR_NK_Rep_Pick).pick();
+        
+    x' <@ A(O_TCR_NK_Rep_Find).find();
+    
+    y' <@ O_TCR_NK_Rep_Find.get(x');
+    
+    return x' <> x0 /\ y' = y0;
+  }
+}.
+
+local lemma EqPr_TCRNK_TCRNKRep &m :
+  Pr[TCR_NK(R_TCRNK_TCR(A), O_NK_Default).main() @ &m : res]
+  =
+  Pr[TCR_NK_Rep(R_TCRNK_TCR(A)).main() @ &m : res /\ ! (TCR_NK_Rep.x0 \in TCR_NK_Rep.xs)].
+proof.
+byequiv=> //=.
+proc; inline *.
+wp.
+call (:   ={R_TCRNK_TCR.k0, R_TCRNK_TCR.g} 
+       /\ (forall (x : input), 
+            O_NK_Default.gk{1} x 
+            = 
+            if !BFOF.f{2} x /\ x <> TCR_NK_Rep.x0{2}
+            then TCR_NK_Rep.f{2} x 
+            else TCR_NK_Rep.y0{2})).
++ by proc; inline *; auto => /> &1 &2 /(_ x{2}).
+wp.
+call (:   ,
+          ={R_TCRNK_TCR.k0, R_TCRNK_TCR.g} 
+       /\ (forall (x : input), 
+            O_NK_Default.gk{1} x 
+            = 
+            if !BFOF.f{2} x
+            then TCR_NK_Rep.f{2} x 
+            else TCR_NK_Rep.y0{2})).
+ 
+rnd; rnd; wp.
+swap{1} 2 -1; swap{2} 2 -1.
+seq 1 1 : (={glob A} /\ x{1} = TCR_NK_Rep.x0{2}); 1: by rnd.
+conseq (_ : _ 
+            ==> 
+            (forall (x : input), 
+              O_NK_Default.gk{1} x 
+              = 
+              if !BFOF.f{2} x /\ x <> TCR_NK_Rep.x0{2} 
+              then TCR_NK_Rep.f{2} x 
+              else TCR_NK_Rep.y0{2})).
++ move=> /> &2 gk fl y0 br ih k kin gL glin r.
+  by rewrite (eq_sym r); congr; rewrite !ih //= /#.
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.left();}
+                (true ==> ={O_NK_Default.gk})
+                (x{1} = TCR_NK_Rep.x0{2} 
+                 ==> 
+                 (forall (x : input),
+                   O_NK_Default.gk{1} x 
+                   =
+                   if ! BFOF.f{2} x /\ x <> TCR_NK_Rep.x0{2} 
+                   then TCR_NK_Rep.f{2} x
+                   else TCR_NK_Rep.y0{2})); 1,2: by smt().
++ inline *.
+  by wp; rnd.
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.right(x);}
+                (true ==> ={O_NK_Default.gk})
+                (x{1} = TCR_NK_Rep.x0{2} 
+                 ==> 
+                 (forall (x : input),
+                   O_NK_Default.gk{1} x 
+                   =
+                   if ! BFOF.f{2} x /\ x <> TCR_NK_Rep.x0{2} 
+                   then TCR_NK_Rep.f{2} x
+                   else TCR_NK_Rep.y0{2})); 1,2: by smt().
++ by call LR.main_theorem.
+inline *.
+wp; rnd.
+swap{2} 1 1.
+by rnd; rnd; wp; skip.
+qed.  
+
+
+local lemma EqPr_TCR_TCRNKRep &m:
+  Pr[TCR(A, O_Default).main() @ &m : res]
+  =
+  Pr[TCR_NK_Rep(R_TCRNK_TCR(A)).main() @ &m : res].
+proof. 
+by rewrite EqPr_TCR_TCRSS EqPr_TCRSS_TCRNK EqPr_TCRNK_TCRNKRep. 
+qed.
+
+local lemma TCRNKRep_Implies_BFFind &m :
+  Pr[TCR_NK_Rep(R_TCRNK_TCR(A)).main() @ &m : res] 
+  <= 
+  Pr[BF_Find(R_BFFind_TCRNK(A), BFOF).main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+wp.
+conseq (: ={glob A} ==> ={BFOF.f, x'0} /\ TCR_NK_Rep.f{1} x'0{1} <> TCR_NK_Rep.y0{1}) => // />; 1: by smt().
+call (:   ={glob BFOF, R_TCRNK_TCR.k0, R_TCRNK_TCR.g}
+       /\ TCR_NK_Rep.y0{1} = R_BFFind_TCRNK.y0{2}
+       /\ TCR_NK_Rep.f{1} = R_BFFind_TCRNK.f{2}
+       /\ TCR_NK_Rep.x0{1} = R_BFFind_TCRNK.x0{2}).
++ proc; inline *.
+  by wp; skip.
+rnd; rnd; wp; rnd; rnd; rnd; rnd; skip =>/> fL flin x0 x0in y0 y0in fl' flpin k kin g gin r.
+move/MUFF_In.dfun_supp: flpin => /= /(_ r).
+by rewrite supp_dexcepted /pred1 /=.
+qed.
+
+local lemma TCR_Implies_BFDistinguish &m:
+  Pr[KHFO_TCR.TCR(A, KHFO.O_Default).main() @ &m : res]
+  <=
+  `| Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCRNK(A)), BFOD).main(false) @ &m : res] - 
+     Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCRNK(A)), BFOD).main(true) @ &m : res] |.
+proof.
+apply (StdOrder.RealOrder.ler_trans Pr[BF_Find(R_BFFind_TCRNK(A), BFOF).main() @ &m : res]); last first.
++ by rewrite (Find_Implies_Distinguish &m (R_BFFind_TCRNK(A))).
+by rewrite EqPr_TCR_TCRNKRep TCRNKRep_Implies_BFFind.
+qed.
+
+
+end section.
 
 end TCRBound.

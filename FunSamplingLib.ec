@@ -364,7 +364,7 @@ module LambdaRepro = {
        ystar <$ dy;                                         
        bf <$ dboolf;                                         
        gy <$ dfun (fun (_ : X) => dy \ pred1 ystar);
-       h  <-  fun x => if ! bf x /\ x <> xstar then gy x else ystar;
+       h  <- fun x => if ! bf x /\ x <> xstar then gy x else ystar;
        return h;
    } 
 }.

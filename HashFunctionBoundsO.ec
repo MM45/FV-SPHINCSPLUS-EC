@@ -63,6 +63,41 @@ clone import KeyedHashFunctionsO as KHFO with
   realize df_ll by exact: df_ll.
 
 
+(* Concrete instantiation of df *)
+op dfcs : (input -> output) distr = 
+  dfun (fun (_ : input) => doutput).
+
+lemma dfcs_ll : is_lossless dfcs.
+proof. by rewrite dfun_ll => x; rewrite dunifin_ll. qed.
+
+lemma dfcs_fu : is_full dfcs.
+proof. by rewrite dfun_fu => x; rewrite dunifin_fu. qed.
+
+lemma dfcs_uni : is_uniform dfcs.
+proof. by rewrite dfun_uni => x; rewrite dunifin_uni. qed.
+
+
+op kdfcs = fun (_ : key) => dfcs.
+
+op dfc : (key -> input -> output) distr = dfun kdfcs.
+
+lemma dfc_ll : is_lossless dfc.
+proof. by rewrite dfun_ll => x; rewrite dfcs_ll. qed.
+
+lemma dfc_fu : is_full dfc.
+proof. by rewrite dfun_fu => x; rewrite dfcs_fu. qed.
+
+lemma dfc_uni : is_uniform dfc.
+proof. by rewrite dfun_uni => x; rewrite dfcs_uni. qed.
+
+lemma eq_df_dfc : df = dfc.
+proof.
+apply eq_funi_ll; 2,4: by rewrite ?(df_ll, dfc_ll).
++ by apply is_full_funiform; 1,2 : rewrite ?(df_uni, df_fu).
+by apply is_full_funiform; 1,2 : rewrite ?(dfc_uni, dfc_fu).
+qed.
+
+
 (* 
   Auxiliary module types for non-keyed hash function properties.
   Not essential, but used for better readability.
@@ -87,6 +122,99 @@ module O_NK_Default : Oracle_NKi_t = {
     return gk x;  
   }
 }.
+
+
+(* 
+  Auxiliary module for query counting.
+*)
+module Counting_O (O : Oracle_t) : Oracle_t = {
+  var ctr : int
+  
+  proc get(k : key, x : input) : output = {
+    var y : output;
+    
+    ctr <- ctr + 1;
+    
+    y <@ O.get(k, x);
+    
+    return y;
+  }
+}.
+
+
+
+(* Auxiliary results used in multiple proofs *)
+clone import DMapSampling as DMS with
+  type t1 <- (input -> output) * (key -> input -> output),
+  type t2 <- key -> input -> output
+  
+  proof *.
+
+module EquivSamplings = {
+  proc fixone_dfc(k : key) = {
+    var gk : input -> output;
+    var g : key -> input -> output;
+    
+    gk <$ dfcs;
+    
+    g <$ dfun kdfcs.[k <- dunit gk];
+    
+    return g;    
+  }
+  
+  proc if_dfc(k : key) = {
+    var gk : input -> output;
+    var g : key -> input -> output;
+    
+    gk <$ dfcs;
+    
+    g <$ dfc;
+    
+    return (fun k' => if k' = k then gk else g k');
+  }
+}.
+
+equiv Eqv_fixone_if_dfc :
+  EquivSamplings.fixone_dfc ~ EquivSamplings.if_dfc : ={k} ==> ={res}.
+proof.
+proc.
+print S.
+pose d := dlet dfcs (fun gk => dmap dfc (fun g => (gk, g))).
+transitivity{1} {g <@ S.sample(d, fun (gkg : _ * _) (k' : key) => 
+                                    if k' = k then gkg.`1 else gkg.`2 k'); }
+                (={k} ==> ={g})
+                (={k} ==> g{1} = fun k' => if k' = k{2} then gk{2} else g{2} k'); 1,2: by smt().
++ inline *.
+  wp; sp.
+  rnd : *0 *0.
+  skip => /> &2; rewrite ?dmap_id.
+  split => [g gin | h g].
+  - congr => @/d.
+    rewrite dmap_dlet /=; congr.
+    rewrite fun_ext => gk.
+    rewrite dmap_comp /(\o) dmap_id /dfc /"_.[_<-_]".
+    rewrite (MUFF_Key.dmap_dfun _ (fun k' f => if k' = k{2} then gk else f)) /=.
+    congr; rewrite fun_ext => k'.
+    case (k{2} = k') => [->|] /=; 1: by rewrite dmap_cst 1:dfcs_ll.
+    by rewrite eq_sym => -> /=; rewrite dmap_id.
+  rewrite supp_dlet => -[gk [gkin /=]]; rewrite supp_dmap => -[gfix [+ ->] /=]. 
+  rewrite dfun_supp supp_dmap => gfixin; exists (gk, gfix); split => /=.
+  + rewrite /d supp_dlet; exists gk; rewrite gkin /= supp_dmap.
+    by exists gfix; rewrite dfc_fu. 
+  rewrite fun_ext => k'; move: (gfixin k').
+  rewrite  /"_.[_<-_]" /=; case (k' = k{2}) => [-> /=|]; 1: by rewrite supp_dunit.
+  by rewrite eq_sym.
+transitivity{1} {g <@ S.map(d, fun (gkg : _ * _) (k' : key) => 
+                                    if k' = k then gkg.`1 else gkg.`2 k'); }
+                (={k} ==> ={g})
+                (={k} ==> g{1} = fun k' => if k' = k{2} then gk{2} else g{2} k'); 1,2: by smt().
++ by call sample.
+inline *.
+wp; sp.
+rnd : *0 *0.
+skip => />.
+by rewrite dmap_id.
+qed.
 
 
 theory SPRBound.
@@ -155,8 +283,7 @@ module (R_SPRNK_SPR (A : Adv_SPR) : Adv_SPR_NK) (O : Oracle_NK_t) = {
     
     k0 <$ dkey;
     
-    g <$ dfun (fun (k : key) => 
-          (dfun (fun (x : input) => doutput)));
+    g <$ dfc;
     
     x' <@ A(O_R_SPRNK_SPR).find(k0, x);
      
@@ -197,58 +324,6 @@ module (R_BFFind_SPRNK (A : Adv_SPR) : Adv_BFFind) (BFO : BFOF_t) = {
 section.
 
 declare module A <: Adv_SPR {-KHFO.O_Default, -R_BFFind_SPRNK, -O_NK_Default, -BFOF, -BFOD}.
-(*
-print eq_dlet.
-search dlet dfun.
-
-local module Foo = {
-  var k0 : key
-  var gk : input -> output
-  var g : key -> input -> output
-  
-  module O : Oracle_t = {
-    proc get(k : key, x : input) : output = {
-      var y : output;
-      
-      if (k = k0) {
-        y <- gk x; 
-      } else {
-        y <- g k x;
-      }
-      
-      return y;
-    }
-  }
-  
-  proc main_f() = {
-    k0 <$ dkey;
-    
-    gk <$ dfun (fun _ : input => doutput);
-    g <$ dfun (fun _ : key => dfun (fun _ : input => doutput));
-    
-    return (fun k => if k0 = k then gk else g k);
-  }
-    
-  proc main_g() = {
-    k0 <$ dkey;
-    
-    gk <$ dfun (fun _ : input => doutput);
-    g <$ dfun (fun _ : key => dfun (fun _ : input => doutput));
-    
-    return g;
-  }
-  
-  proc main_s() = {
-    k0 <$ dkey;
-    
-    gk <$ dfun (fun _ : input => doutput);
-    g <$ dfun (fun (_ : key) => 
-            dfun (fun (_ : input) => doutput)).[k0 <- dunit gk];
-     
-    return g;
-  }
-}.
-*)
 
 local module SPR_SS = {
   var k0 : key
@@ -259,10 +334,9 @@ local module SPR_SS = {
     proc init() : unit = {
       var gk : input -> output;
       
-      gk <$ dfun (fun (_ : input) => doutput);
+      gk <$ dfcs;
       
-      g <$ dfun (fun (k : key) => 
-            dfun (fun (_ : input) => doutput)).[k0 <- dunit gk];
+      g <$ dfun kdfcs.[k0 <- dunit gk];
     }
     
     proc get(k : key, x : input) = {
@@ -303,25 +377,16 @@ conseq (: _ ==>    ={x, x', y}
                 /\ O_Default.f{1} = SPR_SS.O_SPR_SS.g{2}); 1: by smt().
 call (: O_Default.f{1} = SPR_SS.O_SPR_SS.g{2}); 1: by proc.
 wp; rnd => />; 1: by smt().
-transitivity{1} {O_Default.f <$ dfun (fun (_ : key) => dfun (fun (_ : input) => doutput));}
+transitivity{1} {O_Default.f <$ dfc;}
                 (true ==> ={O_Default.f})
                 (true ==>  O_Default.f{1} = SPR_SS.O_SPR_SS.g{2}) => //.
-+ rnd; skip => />.
-  split => f fin.
-  - congr; apply eq_funi_ll.
-    * rewrite is_full_funiform. 
-      - by rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
-      by rewrite dfun_uni => k; rewrite dfun_uni => x /=; rewrite dunifin_uni.
-    * by rewrite dfun_ll => k; rewrite dfun_ll => x /=; rewrite dunifin_ll.
-    * by rewrite is_full_funiform 1:df_fu 1:df_uni.
-    by rewrite df_ll.
-  by move=> ?; rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
++ by rnd; skip => />; rewrite eq_df_dfc.
 rnd: *0 *0.       
 wp; skip => /> &2.
-split => [g gin | eqmug f fin]. 
+split => [g gin | eqmug f fin].
 + rewrite dmap_id; congr.
-  rewrite (MUFF_Key.dfunE_dlet_fix1 _ (SPR_SS.k0{2})) /=.
-  by congr; rewrite fun_ext => f; rewrite dmap_id.
+  rewrite /dfc (MUFF_Key.dfunE_dlet_fix1 _ (SPR_SS.k0{2})) /=.
+  by rewrite /dfcs /kdfcs /dfcs; congr; rewrite fun_ext => f; rewrite dmap_id.
 rewrite supp_dlet /=; exists (f SPR_SS.k0{2}).
 split; 1: by rewrite dfun_fu /= 1:dunifin_fu dmap_id //= dfun_fu.
 rewrite dmap_id dfun_supp => k @/(_.[_<-_]). 
@@ -345,12 +410,42 @@ seq 3 3 : (   ={glob A}
                 if k = R_SPRNK_SPR.k0{2}
                 then O_NK_Default.gk{2}
                 else R_SPRNK_SPR.g{2} k)).
-  (* 
-    Don't know how to approach, but looks reasonable. 
-    Feels similar to what was already proved for lambda reprogramming. 
-    Perhaps only able to do it procedurally, instead of directly in sampling?
-  *)
-+ admit. 
++ seq 1 1 : (={glob A} /\ ={k0}(SPR_SS, R_SPRNK_SPR)); 1: by rnd.
+  conseq (: _ ==> SPR_SS.O_SPR_SS.g{1} 
+                  =
+                  fun (k : key) =>
+                    if k = R_SPRNK_SPR.k0{2} 
+                    then O_NK_Default.gk{2}
+                    else R_SPRNK_SPR.g{2} k) => //.
+  transitivity{1} {SPR_SS.O_SPR_SS.g <@ EquivSamplings.fixone_dfc(SPR_SS.k0);}
+                  (={SPR_SS.k0} ==> ={SPR_SS.O_SPR_SS.g})
+                  (SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
+                   ==> 
+                   SPR_SS.O_SPR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = R_SPRNK_SPR.k0{2}
+                     then O_NK_Default.gk{2}
+                     else R_SPRNK_SPR.g{2} k)); 1,2: by smt().
+  - inline *.
+    wp; sp.
+    rnd; rnd.
+    by skip.
+  transitivity{1} {SPR_SS.O_SPR_SS.g <@ EquivSamplings.if_dfc(SPR_SS.k0);}
+                  (={SPR_SS.k0} ==> ={SPR_SS.O_SPR_SS.g})
+                  (SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
+                   ==> 
+                   SPR_SS.O_SPR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = R_SPRNK_SPR.k0{2}
+                     then O_NK_Default.gk{2}
+                     else R_SPRNK_SPR.g{2} k)); 1,2: by smt().
+  - by call Eqv_fixone_if_dfc.
+  inline *.
+  wp; sp.
+  rnd; rnd.
+  by skip.
 wp.
 call (:   SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
        /\ SPR_SS.O_SPR_SS.g{1} 
@@ -363,204 +458,6 @@ call (:   SPR_SS.k0{1} = R_SPRNK_SPR.k0{2}
   by wp; skip.
 by wp; rnd; skip.
 qed.
-
-(*
-local op df'_prod : (key * input -> output) distr =
-  dfun (fun (kx : key * input) => doutput).
-
-local lemma df'_prod_ll : is_lossless df'_prod.
-proof. by rewrite &(dfun_ll) /= dunifin_ll. qed.
-
-local lemma df'_prod_fu : is_full df'_prod.
-proof. by rewrite &(dfun_fu) /= dunifin_fu. qed.
-
-local lemma df'_prod_uni : is_uniform df'_prod.
-proof. by rewrite &(dfun_uni) /= dunifin_uni. qed.
-
-local op df' : (key -> input -> output) distr =
-  dmap df'_prod (fun (f : key * input -> output) => 
-                  (fun (k : key) => fun (x : input) => f (k, x))).
-                  
-local lemma df'_ll : is_lossless df'.
-proof. by rewrite &(dmap_ll) /= df'_prod_ll. qed.
-
-local lemma df'_fu : is_full df'.
-proof. 
-rewrite &(dmap_fu) /= 2:df'_prod_fu /surjective.
-move=> f; exists (fun (kx : key * input) => f kx.`1 kx.`2).
-by rewrite fun_ext => k; rewrite fun_ext => x.
-qed.
-
-local lemma df'_uni : is_uniform df'.
-proof.
-rewrite &(dmap_uni) /= 2:df'_prod_uni /injective.
-by move=> f g eqfg; rewrite fun_ext => kx /#.
-qed.
-
-local lemma df'_funi : is_funiform df'.
-proof. by rewrite is_full_funiform 1:df'_fu df'_uni. qed.
-
-local lemma eq_df_df' : df = df'.
-proof. by rewrite &(eq_funi_ll) 1:df_funi 1:df_ll 1:df'_funi df'_ll. qed.
-
-
-local clone import KeyedHashFunctionsO as KHFO' with
-  type key_t <- key,
-  type in_t <- input,
-  type out_t <- output,
-  
-    op df <- df'
-    
-  proof *.
-  realize df_ll by exact: df'_ll.
-
-local clone import KHFO'.SPR as KHFO'_SPR with
-  op din <- dinput,
-  op dkey <- dkey
-  
-  proof *.
-  realize din_ll by exact: dinput_ll.
-  realize dkey_ll by exact: dkey_ll.
-
-
-local equiv Equiv_KHFO_SPR_KHFO'_SPR :
-   KHFO_SPR.SPR(A, KHFO.O_Default).main ~ KHFO'_SPR.SPR(A, KHFO'.O_Default).main : ={glob A} ==> ={res}.
-proof.
-proc; inline *.
-wp; call (: ={f}(KHFO.O_Default, KHFO'.O_Default)); 1: by proc.
-wp; rnd; wp; rnd; rnd; skip => />.
-by rewrite eq_df_df'.
-qed.
-
-
-local clone import DMapSampling as DMS with
-  type t1 <- key -> input -> output,
-  type t2 <- key * input -> output
-  
-  proof *.
-
-local module O_Default_Uncurry : Oracle_t = {
-  var f : key * input -> output
-  
-  proc init(f_init : key * input -> output) = {
-    f <- f_init;
-  }
-  
-  proc get(k : key, x : input) : output = {
-    return f (k, x);
-  }
-}.
-
-local module SPR_DMS = {
-  proc main() : bool = {
-    var f : key -> input -> output;
-    var k : key;
-    var x : input;
-    var x' : input;
-
-    f <$ df';
-    k <$ dkey;
-    O_Default_Uncurry.init((fun (kx : key * input) => f kx.`1 kx.`2));
-    x <$ dinput;
-    x' <@ A(O_Default_Uncurry).find(k, x);
-    
-    return x' <> x /\ f k x' = f k x;
-  }
-
-  proc main_sample() : bool = {
-    var f : key * input -> output;
-    var k : key;
-    var x : input;
-    var x' : input;
-
-    f <@ S.sample(df', fun f => (fun (kx : key * input) => f kx.`1 kx.`2));
-    k <$ dkey;
-    O_Default_Uncurry.init(f);
-    x <$ dinput;
-    x' <@ A(O_Default_Uncurry).find(k, x);
-
-    return x' <> x /\ f (k, x') = f (k, x);
-  }
-
-  proc main_map() : bool = {
-    var f : key * input -> output;
-    var k : key;
-    var x : input;
-    var x' : input;
-
-    f <@ S.map(df', fun f => (fun (kx : key * input) => f kx.`1 kx.`2));
-    k <$ dkey;
-    O_Default_Uncurry.init(f);
-    x <$ dinput;
-    x' <@ A(O_Default_Uncurry).find(k, x);
-    
-    return x' <> x /\ f (k, x') = f (k, x);
-  }
-}.
-
-local equiv Equiv_KHFO'_SPR_SPR_DMS_Main :
-  KHFO'_SPR.SPR(A, O_Default).main ~ SPR_DMS.main : ={glob A} ==> ={res}. 
-proof.
-proc; inline *.
-wp; call (: forall (k : key) (x : input),
-              O_Default.f{1} k x = O_Default_Uncurry.f{2} (k, x)).
-by proc; skip => /> /#.
-by wp; rnd; wp; rnd; rnd; skip.
-qed.
-
-local module SPR_Uncurry = {
-  proc main() : bool = {
-    var f : key * input -> output;
-    var x, x' : input;
-    var k : key;
-    
-    f <$ df'_prod;
-    k <$ dkey;
-    O_Default_Uncurry.init(f);
-    x <$ dinput;
-    x' <@ A(O_Default_Uncurry).find(k, x);
-
-    return x' <> x /\ f (k, x') = f (k, x);
-  }
-}.
-
-local equiv Equiv_SPR_DMS_Main_SPR_Uncurry :
-  SPR_DMS.main ~ SPR_Uncurry.main : ={glob A} ==> ={res}. 
-proof.
-transitivity SPR_DMS.main_map (={glob A} ==> ={res}) (={glob A} ==> ={res}) => [/# | // | |].
-+ proc; inline *.
-  call (: ={O_Default_Uncurry.f}); 1: by proc.
-  swap{1} 2 -1; swap{2} 5 -4.
-  by rnd; wp; rnd; wp; rnd; skip.
-transitivity SPR_DMS.main_sample (={glob A} ==> ={res}) (={glob A} ==> ={res}) => [/# | // | |].
-+ proc; inline O_Default_Uncurry.init.
-  call (: ={O_Default_Uncurry.f}); 1: by proc.
-  rnd; wp; rnd => /=.
-  by symmetry; call DMS.sample.
-proc; inline *.
-call (: ={O_Default_Uncurry.f}); 1: by proc.
-rnd; wp; rnd; wp; rnd; wp; skip => />. 
-split => [fR fRin | _ fL] /=; 2: by rewrite df'_prod_fu.
-by rewrite dmap_comp dmap1E /(\o) /pred1; congr; rewrite fun_ext => f /#.
-qed.
-
-local lemma EqPr_SPR_SPR_Uncurry &m :
-  Pr[KHFO_SPR.SPR(A, KHFO.O_Default).main() @ &m : res]
-  =
-  Pr[SPR_Uncurry.main() @ &m : res].
-proof.
-byequiv=> //=.
-transitivity KHFO'_SPR.SPR(A, KHFO'.O_Default).main 
-             (={glob A} ==> ={res}) 
-             (={glob A} ==> ={res}) => [/# | // | |].
-+ by apply Equiv_KHFO_SPR_KHFO'_SPR.                
-transitivity SPR_DMS.main 
-             (={glob A} ==> ={res}) 
-             (={glob A} ==> ={res}) => [/# | // | |].
-+ by apply Equiv_KHFO'_SPR_SPR_DMS_Main.                
-by apply Equiv_SPR_DMS_Main_SPR_Uncurry.
-qed.
-*)
 
 
 local module SPR_NK_Rep (A : Adv_SPR_NK) = {
@@ -1312,7 +1209,12 @@ end section.
 end SPRBound.
 *)
 
+(* 
+  Try and use Reprogramming.ec theory to do this prove.
+*)
 theory TCRBound.
+
+require import FelTactic.
 
 op [lossless] dkey : key distr.
 
@@ -1365,9 +1267,7 @@ module (R_BFFind_TCR (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
     y0 <$ doutput;
     
     f <$ MUFF_In.dfun (fun (_ : input) => doutput \ (pred1 y0));
-    g <$ dfun (fun (k : key) => 
-          (dfun (fun (x : input) => doutput)));
-
+    g <$ dfc;
     
     x0 <@ A(O_R_BFFind_TCR_Pick).pick();
             
@@ -1380,7 +1280,7 @@ module (R_BFFind_TCR (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
 
 section.
 
-declare module A <: Adv_TCR {-KHFO.O_Default, -BFOF, -BFOD, -R_BFFind_TCR}.
+declare module A <: Adv_TCR {-KHFO.O_Default, -BFOF, -BFOD, -R_BFFind_TCR, -Counting_O}.
 
 declare axiom A_pick_ll (O <: Oracle_t{-A}):
   islossless O.get => islossless A(O).pick.
@@ -1397,10 +1297,9 @@ local module TCR_SS = {
     proc init() : unit = {
       var gk : input -> output;
       
-      gk <$ dfun (fun (_ : input) => doutput);
+      gk <$ dfcs;
       
-      g <$ dfun (fun (k : key) => 
-            dfun (fun (_ : input) => doutput)).[k0 <- dunit gk];
+      g <$ dfun kdfcs.[k0 <- dunit gk];
     }
     
     proc get(k : key, x : input) = {
@@ -1442,24 +1341,15 @@ conseq (: _ ==>    ={x, x', y}
 call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
 wp; call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
 conseq (: _ ==> O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
-transitivity{1} {O_Default.f <$ dfun (fun (_ : key) => dfun (fun (_ : input) => doutput));}
+transitivity{1} {O_Default.f <$ dfc;}
                 (true ==> ={O_Default.f})
                 (true ==>  O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
-+ rnd; skip => />.
-  split => f fin.
-  - congr; apply eq_funi_ll.
-    * rewrite is_full_funiform. 
-      - by rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
-      by rewrite dfun_uni => k; rewrite dfun_uni => x /=; rewrite dunifin_uni.
-    * by rewrite dfun_ll => k; rewrite dfun_ll => x /=; rewrite dunifin_ll.
-    * by rewrite is_full_funiform 1:df_fu 1:df_uni.
-    by rewrite df_ll.
-  by move=> ?; rewrite dfun_fu => k; rewrite dfun_fu => x /=; rewrite dunifin_fu.
++ by rnd; skip => />; rewrite eq_df_dfc.
 rnd: *0 *0.       
 wp; skip => /> &2.
 split => [g gin | eqmug f fin]. 
 + rewrite dmap_id; congr.
-  rewrite (MUFF_Key.dfunE_dlet_fix1 _ (TCR_SS.k0{2})) /=.
+  rewrite /dfc /kdfcs /dfcs (MUFF_Key.dfunE_dlet_fix1 _ (TCR_SS.k0{2})) /=.
   by congr; rewrite fun_ext => f; rewrite dmap_id.
 rewrite supp_dlet /=; exists (f TCR_SS.k0{2}).
 split; 1: by rewrite dfun_fu /= 1:dunifin_fu dmap_id //= dfun_fu.
@@ -1513,9 +1403,8 @@ local module TCR_SSR = {
     
     ks <- [];
     
-    gk <$ dfun (fun (_ : input) => doutput);  
-    g <$ dfun (fun (k : key) => 
-            dfun (fun (_ : input) => doutput));
+    gk <$ dfcs;  
+    g <$ dfc;
     
     x <@ A(O_TCR_SSR_Pick).pick();
     y <@ O_TCR_SSR_Find.get(k0, x);
@@ -1542,12 +1431,43 @@ seq 3 4 : (   ={glob A}
                 if k = TCR_SSR.k0{2}
                 then TCR_SSR.gk{2}
                 else TCR_SSR.g{2} k)).
-  (* 
-    Don't know how to approach, but looks reasonable. 
-    Feels similar to what was already proved for lambda reprogramming. 
-    Perhaps only able to do it procedurally, instead of directly in sampling?
-  *)
-+ admit. 
++ seq 1 1 : (={glob A} /\ ={k0}(TCR_SS, TCR_SSR)); 1: by rnd.
+  sp.
+  conseq (: _ ==> TCR_SS.O_TCR_SS.g{1} 
+                  =
+                  fun (k : key) =>
+                    if k = TCR_SSR.k0{2} 
+                    then TCR_SSR.gk{2}
+                    else TCR_SSR.g{2} k) => //.
+  transitivity{1} {TCR_SS.O_TCR_SS.g <@ EquivSamplings.fixone_dfc(TCR_SS.k0);}
+                  (={TCR_SS.k0} ==> ={TCR_SS.O_TCR_SS.g})
+                  (TCR_SS.k0{1} = TCR_SSR.k0{2} 
+                   ==> 
+                   TCR_SS.O_TCR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = TCR_SSR.k0{2}
+                     then TCR_SSR.gk{2}
+                     else TCR_SSR.g{2} k)); 1,2: by smt().
+  - inline *.
+    wp; sp.
+    rnd; rnd.
+    by skip.
+  transitivity{1} {TCR_SS.O_TCR_SS.g <@ EquivSamplings.if_dfc(TCR_SS.k0);}
+                  (={TCR_SS.k0} ==> ={TCR_SS.O_TCR_SS.g})
+                  (TCR_SS.k0{1} = TCR_SSR.k0{2} 
+                   ==> 
+                   TCR_SS.O_TCR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = TCR_SSR.k0{2}
+                     then TCR_SSR.gk{2}
+                     else TCR_SSR.g{2} k)); 1,2: by smt().
+  - by call Eqv_fixone_if_dfc.
+  inline *.
+  wp; sp.
+  rnd; rnd.
+  by skip. 
 wp.
 call (:   TCR_SS.k0{1} = TCR_SSR.k0{2} 
        /\ TCR_SS.O_TCR_SS.g{1} 
@@ -1615,9 +1535,8 @@ local module TCR_SSR_Nin = {
     
     ks <- [];
     
-    gk <$ dfun (fun (_ : input) => doutput);  
-    g <$ dfun (fun (k : key) => 
-            dfun (fun (_ : input) => doutput));
+    gk <$ dfcs;  
+    g <$ dfc;
     
     x <@ A(O_TCR_SSR_Pick).pick();
     y <@ O_TCR_SSR_Find.get(k0, x);
@@ -1734,7 +1653,7 @@ local module TCR_Rep = {
     y0 <$ doutput;
     
     gk <$ MUFF_In.dfun (fun _ => doutput \ (pred1 y0));    
-    g <$ MUFF_Key.dfun (fun (_ : key) => dfun (fun (_ : input) => doutput));
+    g <$ dfc;
     
     x0 <@ A(O_TCR_Rep_Pick).pick();
         
@@ -1855,8 +1774,202 @@ rewrite EqPr_TCR_TCRSSR Pr[mu_split (! TCR_SSR.k0 \in TCR_SSR.ks)] /= StdOrder.R
 by apply LePr_TCRSSR_In.
 qed.
 
+
 (* Query counting *)
 declare op q : { int | 0 <= q } as ge0_q.
+
+declare axiom A_pick_qs (O <: Oracle_t{-A}) (n : int) :
+  hoare[A(Counting_O(O)).pick : Counting_O.ctr = n ==> Counting_O.ctr <= n + q].
+
+
+local module TCR_SSR_C = {
+  import var TCR_SSR   
+ 
+  module O_TCR_SSR_C_Pick : Oracle_t = {
+    proc get(k : key, x : input) = {
+      var y : output;
+      
+      ks <- if size ks < q then rcons ks k else ks;
+      
+      if (k = k0) { 
+        y <- gk x;
+      } else { 
+        y <- g k x;
+      }
+      
+      return y;
+    }
+  }
+  
+  module O_TCR_SSR_C_Find : Oracle_t = TCR_SSR.O_TCR_SSR_Find
+   
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    Counting_O.ctr <- 0;
+    ks <- [];
+    
+    k0 <$ dkey;
+    
+    gk <$ dfcs;  
+    g <$ dfc;
+    
+    x <@ A(Counting_O(O_TCR_SSR_C_Pick)).pick();
+    y <@ O_TCR_SSR_C_Find.get(k0, x);
+    
+    x' <@ A(O_TCR_SSR_C_Find).find(k0);
+    y' <@ O_TCR_SSR_C_Find.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+(* 
+  The following only works due to the fact that O_TCR_SSR_C_Pick still returns 
+  the same values after q queries have been issued (as it returns before q queries are issued). 
+  I want this to be cleaner:
+  I want O_TCR_SSR_C_Pick to simply return an error/witness whenever the size of the
+  list of keys (ks) has reached q (i.e., q queries have been issued).
+  The following lemma should then still hold simply because, by assumption, it should 
+  be impossible for the size of ks to already be q in a query, as the adversary 
+  is assumed to not query more than q times (Counting_O.ctr <= q, and size ks is invariably
+  the same as Counting_O.ctr up until reaching q).
+  However, I cannot get this to work.
+*)
+local lemma EqPr_TCRSSR_TCRSSRC &m:
+  Pr[TCR_SSR.main() @ &m : (TCR_SSR.k0 \in TCR_SSR.ks)]
+  =
+  Pr[TCR_SSR_C.main() @ &m : (TCR_SSR.k0 \in TCR_SSR.ks)].
+proof.
+(*
+rewrite Pr[mu_split (size TCR_SSR.ks <= q)] eq_sym Pr[mu_split (Counting_O.ctr <= q)] eq_sym.
+congr. admit.
+rewrite 2!lezNgt /=.
+byequiv=> //=.
+proc; inline *.
+seq 4 5 : (   ={glob A, TCR_SSR.k0, TCR_SSR.ks, TCR_SSR.gk, TCR_SSR.g}
+           /\ TCR_SSR.ks{1} = []
+           /\ Counting_O.ctr{2} = 0); 1: by auto.
+wp => /=.
+call (: true).
+
+           seq 1 1 : (   ={glob A, TCR_SSR.k0, TCR_SSR.gk, TCR_SSR.g}
+           /\ TCR_SSR.ks{1} = []
+           /\ Counting_O.ctr{2} = 0
+           rewrite eq_sym Pr[mu_split (Counting_O.ctr <= q)] eq_sym.
+*)
+rewrite eq_sym Pr[mu_split (Counting_O.ctr <= q)] eq_sym.
+rewrite -(StdOrder.RealOrder.Domain.addr0 Pr[TCR_SSR.main() @ &m : TCR_SSR.k0 \in TCR_SSR.ks]).
+congr; last first.
++ byphoare => //.
+  hoare.
+  conseq (: _ ==> Counting_O.ctr <= q); 1: by smt().
+  proc; inline *.
+  wp.
+  call (: true); 1: by proc; wp; skip.
+  wp.
+  call (A_pick_qs TCR_SSR_C.O_TCR_SSR_C_Pick 0).
+  by do 3! rnd; wp; skip. 
+byequiv => //.
+proc; inline *.
+wp => /=.
+call{1} (: true ==> true); 2: call{2} (: true ==> true).
++ apply (A_find_ll TCR_SSR.O_TCR_SSR_Find).
+  by proc; wp.     
++ apply (A_find_ll TCR_SSR_C.O_TCR_SSR_C_Find).
+  by proc; wp.
+wp => /=.
+call (:   ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}
+       /\ Counting_O.ctr{2} = 0
+       /\ size TCR_SSR.ks{2} = 0
+       ==>
+          ={TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g} 
+       /\ Counting_O.ctr{2} <= q
+       /\ (Counting_O.ctr{2} <= q => 
+             ={TCR_SSR.ks} /\
+             Counting_O.ctr{2} = size TCR_SSR.ks{2})).
++ conseq (:    ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}
+            /\ Counting_O.ctr{2} = 0 /\ size TCR_SSR.ks{2} = 0
+            ==>
+               ={TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g}
+            /\ (Counting_O.ctr{2} <= q => 
+                   size TCR_SSR.ks{2} = Counting_O.ctr{2}
+                /\ ={TCR_SSR.ks})) 
+         (: true ==> true)
+         (A_pick_qs TCR_SSR_C.O_TCR_SSR_C_Pick 0) => //. smt().
+  proc (={TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g}
+            /\ (Counting_O.ctr{2} <= q => 
+                   size TCR_SSR.ks{2} = Counting_O.ctr{2}
+                /\ ={TCR_SSR.ks})).
+  smt().
+  smt().
+  proc.
+  inline *.
+  wp. skip => />. progress. smt(size_rcons).
+         smt(size_rcons). smt(size_rcons). smt(size_rcons). 
+by rnd; rnd; wp; rnd; wp; skip => />. 
+qed.
+
+(*
+local lemma EqPr_TCRSSR_TCRSSRC &m:
+  Pr[TCR_SSR.main() @ &m : (TCR_SSR.k0 \in TCR_SSR.ks)]
+  =
+  Pr[TCR_SSR_C.main() @ &m : (TCR_SSR.k0 \in TCR_SSR.ks)].
+proof.
+byequiv => //.
+proc; inline *.
+seq 5 6 : (   ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}); last first.
++ by conseq (: _ ==> true) => //; sim.
+call (: ={TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}).
++ proc; inline *.
+  by wp; skip.
+(*
+call (:   ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}
+       /\ Counting_O.ctr{2} = 0
+       ==>
+          ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks} 
+       /\ Counting_O.ctr{2} <= q).
++ conseq (: ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}
+            ==>
+            ={glob A, TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}) 
+         (: true ==> true)
+         (A_pick_qs TCR_SSR.O_TCR_SSR_Pick 0) => //.
+  proc (={TCR_SSR.gk, TCR_SSR.k0, TCR_SSR.g, TCR_SSR.ks}) => //.
+  proc; inline *.
+  by wp; skip.
+*)
+by rnd; rnd; wp; rnd; wp; skip.
+qed.
+*)
+
+
+(* Check LeakyEager/SuperEager; fel doesn't work *)
+local lemma Bound_TCRSSRC &m:
+ Pr[TCR_SSR_C.main() @ &m : (TCR_SSR.k0 \in TCR_SSR.ks)]
+ <=
+ q%r * mu1 witness dkey.
+proof.
+print TCR_SSR_C.
+fel 3
+    (size TCR_SSR.ks) 
+    (fun (i : int) => mu1 witness dkey) 
+    q 
+    (TCR_SSR.k0 \in TCR_SSR.ks)
+    [TCR_SSR_C.O_TCR_SSR_C_Pick.get : (size TCR_SSR.ks < q)]
+    (size TCR_SSR.ks <= q).
+by rewrite (: q%r = (q - 0)%r) 1:// StdBigop.Bigreal.sumri_const 1:ge0_q.
+smt().
+rnd; wp; skip => />. by rewrite ge0_q.
+proc.
+(* Move sampling to oracle procedure? *) 
+admit.
+move=> c.
+proc. 
+wp; skip => />.  smt(size_rcons).
+move=> b c.
+proc. by wp; skip => />.
+qed.
 
 local lemma TCR_Implies_BFDistinguish &m:
   Pr[KHFO_TCR.TCR(A, KHFO.O_Default).main() @ &m : res]
@@ -1865,7 +1978,10 @@ local lemma TCR_Implies_BFDistinguish &m:
      Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(true) @ &m : res] |
   +
   q%r * mu1 witness dkey.
-proof. admit. qed.
+proof.
+move: (TCR_Implies_BFDistinguish_A &m); rewrite EqPr_TCRSSR_TCRSSRC.
+by move: (Bound_TCRSSRC &m) => /#.
+qed.
 
 end section.
 

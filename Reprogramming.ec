@@ -2,37 +2,36 @@ require import AllCore List Int Distr RealExp SmtMap FinType StdOrder StdBigop.
 (*---*) import Bigreal.BRA Bigreal RField RealOrder.
 require (*--*) ROM.
 
-type from.
+type in_t.
 
-type hash.
+type out_t.
 
-type pT = from distr.
+type pT = in_t distr.
 
-clone import FinType as FinFrom with
-  type t <- from.
+clone import FinType as FinIn with
+  type t <- in_t.
 
-op [lossless] dhash : hash distr.
+op [lossless] dout : out_t distr.
 
 const p_max_bound : real.
 
 clone import ROM as ROM_ with
-  type in_t <- from,
-  type out_t <- hash,
-  op dout <- fun _ => dhash,
+  type in_t <- in_t,
+  type out_t <- out_t,
+  op dout <- fun _ => dout,
   type d_in_t <- int,
   type d_out_t <- bool
   
   proof *.
  
 clone import ROM_.LazyEager as LE with 
-  theory FinType <- FinFrom
+  theory FinType <- FinIn
   
   proof *.
   
-
 module type Oracle_r = {
     include Oracle
-    proc set(x : from, Y : hash) : unit
+    proc set(x : in_t, y : out_t) : unit
 }.
 
 module type POracle_r = {
@@ -40,7 +39,7 @@ module type POracle_r = {
 }.
 
 module Wrapped_Oracle (O: POracle) : Oracle_r = {
-   var prog_list : (from * hash) list  
+   var prog_list : (in_t * out_t) list  
    var ch : int
 
    proc init() : unit = {
@@ -48,9 +47,9 @@ module Wrapped_Oracle (O: POracle) : Oracle_r = {
      ch <- 0;
    }
 
-  proc o(x : from): hash = {
-     var r,c : hash;
-     var tmp : hash option;
+  proc o(x : in_t): out_t = {
+     var r,c : out_t;
+     var tmp : out_t option;
     
      r <@ O.o(x);
 
@@ -60,7 +59,7 @@ module Wrapped_Oracle (O: POracle) : Oracle_r = {
      return c; 
   }
 
-   proc set (x : from, y: hash) : unit = {
+   proc set (x : in_t, y: out_t) : unit = {
      prog_list <- (x,y) :: prog_list;
    }
 
@@ -68,7 +67,7 @@ module Wrapped_Oracle (O: POracle) : Oracle_r = {
 
 module type RepO_ti = {
     proc init(b : bool) : unit
-    proc repro(p : pT) : from
+    proc repro(p : pT) : in_t
 }.
 
 module type RepO_t = {
@@ -86,13 +85,13 @@ module RepO(RO: POracle_r) : RepO_ti = {
         se <- true;
     }
 
-    proc repro(p: pT) : from = {
+    proc repro(p: pT) : in_t = {
         var x,y;
         se <- if p_max p <= p_max_bound then se else false;
         ctr <- ctr + 1;
         x <$ p;
         if (b) {
-            y <$ dhash;
+            y <$ dout;
             RO.set(x,y);
         } 
         return x;
@@ -136,9 +135,9 @@ local module Wrapped_Oracle1 (O: POracle) : Oracle_r = {
   include var Wrapped_Oracle(O) [-o]
   import var Bad
  
-  proc o(x : from): hash = {
-    var r,c : hash;
-    var tmp : hash option;
+  proc o(x : in_t): out_t = {
+    var r,c : out_t;
+    var tmp : out_t option;
 
     c <- witness;
     if (co <  query_ctr) { 
@@ -163,9 +162,9 @@ local module Wrapped_Oracle2 (O: POracle) : Oracle_r = {
   include var Wrapped_Oracle(O) [-o]
   import var Bad
  
-  proc o(x : from): hash = {
-    var r,c : hash;
-    var tmp : hash option;
+  proc o(x : in_t): out_t = {
+    var r,c : out_t;
+    var tmp : out_t option;
 
     c <- witness;
     if (co <  query_ctr) { 
@@ -186,9 +185,9 @@ local module Wrapped_Oracle2' (O: POracle) : Oracle_r = {
   include var Wrapped_Oracle(O) [-o]
   import var Bad
 
-  proc o(x : from): hash = {
-    var r,c : hash;
-    var tmp : hash option;
+  proc o(x : in_t): out_t = {
+    var r,c : out_t;
+    var tmp : out_t option;
 
     c <- witness;
     if (co < query_ctr) { 
@@ -207,14 +206,14 @@ local module RepO1(RO: POracle_r) : RepO_ti = {
   include var RepO(RO) [-repro]
   import var Bad
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (b) {
-        y <$ dhash;
+        y <$ dout;
         RO.set(x,y);
       }
       cr <- cr + 1;
@@ -222,7 +221,7 @@ local module RepO1(RO: POracle_r) : RepO_ti = {
       bad <- true;
       x <$ p;
       if (b) {
-        y <$ dhash;
+        y <$ dout;
         RO.set(x,y);
       }
       cr <- cr + 1;
@@ -236,14 +235,14 @@ local module RepO2(RO: POracle_r) : RepO_ti = {
   include var RepO(RO) [-repro]
   import var Bad
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (b) {
-        y <$ dhash;
+        y <$ dout;
         RO.set(x,y);
       } 
       cr <- cr + 1;
@@ -326,7 +325,7 @@ proof.
   have -> : Pr[ReproGame1(ERO, A).main(b) @ &m : (res /\ Wrapped_Oracle.ch <= query_ctr /\ RepO.ctr <= rep_ctr /\ RepO.se) /\ Bad.bad] = 0%r.
   + byphoare => //; hoare.
     proc. call (: Bad.cr <= RepO.ctr /\ Bad.co <= Wrapped_Oracle.ch /\ (Bad.bad => ! (Wrapped_Oracle.ch <= query_ctr /\ RepO.ctr <= rep_ctr /\ RepO.se))). 
-    + by proc; sp; wp; if; auto; call (: true); auto => /#.
+    + proc; sp; wp; if; auto; call (: true); auto => /#.
     + proc; sp; wp; if; auto. 
       + by conseq (: true); auto => /#.
       by swap 1 2; wp; conseq (:true); auto => /#.
@@ -344,14 +343,14 @@ local module RepO2i : RepO_ti = {
   include var RepO(Wrapped_Oracle2'(ERO)) [-repro]
   import var Bad
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (i <= cr) {
-        y <$ dhash;
+        y <$ dout;
         Wrapped_Oracle2(ERO).set(x,y);
       }
       cr <- cr + 1;
@@ -414,21 +413,24 @@ local module RepO2i1 (RO: POracle) : RepO_ti = {
   import var Bad
 
   include var RepO(Wrapped_Oracle2'(RO)) [-repro]
-  var x_ : from
+  
+  var x_ : in_t
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (i + 1 <= cr) {
-        y <$ dhash;
+        y <$ dout;
         Wrapped_Oracle2'(RO).set(x,y);
-      } else { if (i = cr) {
-        x_ <- x;
-        y <@ RO.o(x);
-      } } 
+      } else { 
+        if (i = cr) {
+          x_ <- x;
+          y <@ RO.o(x);
+        } 
+      } 
       cr <- cr + 1;
     } 
     ctr <- ctr + 1;
@@ -468,22 +470,22 @@ qed.
 local lemma Hi1_ERO_LRO  &m i_ : Pr[ Exp(ERO,Hi1).main(i_) @ &m : res] = Pr[ Exp(Lazy.LRO,Hi1).main(i_) @ &m : res].
 proof.
   byequiv (: ={glob Hi1, arg} ==> ={res}) => //; symmetry.
-  conseq (eq_eager_sampling Hi1 _) => // *;apply dhash_ll.
+  conseq (eq_eager_sampling Hi1 _) => // *; apply dout_ll.
 qed.
 
 local module RepO2i2 : RepO_ti = {
   import var Bad
   include var RepO(Wrapped_Oracle2'(Lazy.LRO)) [-repro]
-  var x_ : from
+  var x_ : in_t
 
-  proc repro(p : pT) : from = {
+  proc repro(p : pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\  cr < rep_ctr) { 
       x <$ p;
       if (i + 1 <= cr) {
-        y <$ dhash;
+        y <$ dout;
         Wrapped_Oracle2'(Lazy.LRO).set(x,y);
       } else { if (i = cr /\ fsize Lazy.LRO.m <= query_ctr) {
         x_ <- x;
@@ -521,14 +523,14 @@ local module RepO2i3 : RepO_ti = {
   import var Bad
   include var RepO(Wrapped_Oracle2'(Lazy.LRO)) [-repro]
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (i + 1 <= cr) {
-        y <$ dhash;
+        y <$ dout;
         Wrapped_Oracle2'(Lazy.LRO).set(x,y);
       } else { if (i = cr /\ fsize Lazy.LRO.m <= query_ctr) {
         RepO2i2.x_ <- x;
@@ -601,7 +603,7 @@ move=> hi; fel 4 (b2i (Bad.i < Bad.cr)) (fun x => query_ctr%r * p_max_bound) 1 B
   + by auto.
   + rnd (fun p => p \in Lazy.LRO.m); auto.
     move=> &hr /> _ _ _ hmax _ _ hsz.
-    apply (ler_trans (mu p{hr} (fun (p0 : from ) => exists x, dom Lazy.LRO.m{hr} x /\ x = p0))).
+    apply (ler_trans (mu p{hr} (fun (p0 : in_t ) => exists x, dom Lazy.LRO.m{hr} x /\ x = p0))).
     + by apply mu_le => /> x0 *; exists x0.
     apply (ler_trans ((fsize Lazy.LRO.m{hr})%r * p_max_bound)).
     apply: Mu_mem.mu_mem_le_fsize.
@@ -636,7 +638,7 @@ move=> hi; fel 4 (b2i (Bad.i < Bad.cr)) (fun x => query_ctr%r * p_max_bound) 1 B
   + by auto.
   + rnd (fun p  => p \in Lazy.LRO.m); auto.
     move=> &hr /> _ _ _ hmax _ _ hsz.
-    apply (ler_trans (mu p{hr} (fun (p0 : from) => exists x, dom Lazy.LRO.m{hr} x /\ x = p0))).
+    apply (ler_trans (mu p{hr} (fun (p0 : in_t) => exists x, dom Lazy.LRO.m{hr} x /\ x = p0))).
     + by apply mu_le => /> x0 *; exists x0.
     apply (ler_trans ((fsize Lazy.LRO.m{hr})%r * p_max_bound)).
     apply: Mu_mem.mu_mem_le_fsize.
@@ -658,16 +660,16 @@ qed.
 local module RepO2i4 (RO: POracle) : RepO_ti = {
   import var Bad
   include var RepO(Wrapped_Oracle2'(RO)) [-repro]
-  var x_ : from
+  var x_ : in_t
 
-  proc repro(p: pT) : from = {
+  proc repro(p: pT) : in_t = {
     var x,y;
     se <- if p_max p <= p_max_bound then se else false;
     x <- witness;
     if (se /\ cr < rep_ctr) { 
       x <$ p;
       if (i <= cr) {
-        y <$ dhash;
+        y <$ dout;
         Wrapped_Oracle2'(RO).set(x,y);
       }
       cr <- cr + 1;
@@ -723,7 +725,7 @@ qed.
 local lemma Hi4_LRO_ERO &m i_: Pr[Exp(Lazy.LRO, Hi4).main(i_) @ &m : res] = Pr[Exp(ERO, Hi4).main(i_) @ &m : res].
 proof.
   byequiv (: ={glob Hi4, arg} ==> ={res}) => //.
-  conseq (eq_eager_sampling Hi4 _) => // *;apply dhash_ll.
+  conseq (eq_eager_sampling Hi4 _) => // *;apply dout_ll.
 qed.
 
 local lemma Hi4_Hi &m i_ : Pr[Exp(ERO, Hi4).main(i_) @ &m : res] = Pr[Hi.main(i_) @ &m : res].

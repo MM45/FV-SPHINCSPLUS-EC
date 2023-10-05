@@ -235,7 +235,7 @@ clone import SPR as KHFO_SPR with
   Definitions concerning SPR for non-keyed functions.
   Used as intermediate step; could inline reduction
   to remove all these extra definitions (but makes reduction
-  bit less intuitive/readable).
+  bit less readable).
 *)
 module type Adv_SPR_NK (O : Oracle_NK_t) = {
   proc find(x : input) : input
@@ -1983,6 +1983,18 @@ move: (TCR_Implies_BFDistinguish_A &m); rewrite EqPr_TCRSSR_TCRSSRC.
 by move: (Bound_TCRSSRC &m) => /#.
 qed.
 
+(* Idea for doing this with Reprogramming.eca:
+  - Locally clone Reprogramming.eca and use ERO obtained from there
+  - Prove that sampling from df is equivalent to a while loop over the key space which
+    in each iteration samples a function of type input -> output from dkfs
+  - The above allows to jump from original game to a game that uses ERO (which first
+    initializes via a while loop over the key space and then is called in each query
+    to the TCR oracle instead of simply computing g)
+  - Prove equivalence of this game to one that sets the k0-th function to a reprogrammed one
+    to the one using the BFOF.f and x0 to determine the image (so after pick has returned, before that just answer queries with the regular function). Do this reprogramming using Wrapped_Oracle(MCO).set.
+  - The reduction then does the same as the latter game and calls repro in its (main) distinguish function (which will reprogram only if we are in the "true" case of the reprogramming game; if we are in the "false" case, no reprogramming will occur and hence the simulated function will match the former game's) and o to answer queries.
+  *)
+print BFOF.
 end section.
 
 end TCRBound.

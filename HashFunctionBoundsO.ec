@@ -1994,7 +1994,6 @@ qed.
     to the one using the BFOF.f and x0 to determine the image (so after pick has returned, before that just answer queries with the regular function). Do this reprogramming using Wrapped_Oracle(MCO).set.
   - The reduction then does the same as the latter game and calls repro in its (main) distinguish function (which will reprogram only if we are in the "true" case of the reprogramming game; if we are in the "false" case, no reprogramming will occur and hence the simulated function will match the former game's) and o to answer queries.
   *)
-print BFOF.
 end section.
 
 end TCRBound.

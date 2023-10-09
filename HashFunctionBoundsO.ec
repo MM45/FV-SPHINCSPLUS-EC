@@ -1,6 +1,6 @@
-require import AllCore List Distr FinType Dexcepted DMap.
+require import AllCore List Distr FinType Dexcepted DMap DFun.
 require import FunSamplingLib.
-require BooleanFunctions KeyedHashFunctionsO.
+require BooleanFunctions KeyedHashFunctionsO Reprogramming.
 
 
 type key.
@@ -1214,8 +1214,6 @@ end SPRBound.
 *)
 theory TCRBound.
 
-require import FelTactic.
-
 op [lossless] dkey : key distr.
 
 clone import KHFO.TCR as KHFO_TCR with 
@@ -1278,6 +1276,280 @@ module (R_BFFind_TCR (A : Adv_TCR) : Adv_BFFind) (BFO : BFOF_t) = {
 }.
 
 
+section.
+
+declare module A <: Adv_TCR {-KHFO.O_Default, -BFOF, -BFOD, -R_BFFind_TCR, -Counting_O}.
+
+declare axiom A_pick_ll (O <: Oracle_t{-A}):
+  islossless O.get => islossless A(O).pick.
+
+declare axiom A_find_ll (O <: Oracle_t{-A}):
+  islossless O.get => islossless A(O).find.
+
+local module TCR_SS = {
+  var k0 : key
+  
+  module O_TCR_SS : Oracle_t = {  
+    var g : key -> input -> output
+    
+    proc init() : unit = {
+      var gk : input -> output;
+      
+      gk <$ dfcs;
+      
+      g <$ dfun kdfcs.[k0 <- dunit gk];
+    }
+    
+    proc get(k : key, x : input) = {
+      return g k x;
+    }
+  }
+  
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    O_TCR_SS.init();
+    
+    x <@ A(O_TCR_SS).pick();
+    y <@ O_TCR_SS.get(k0, x);
+    
+    x' <@ A(O_TCR_SS).find(k0);
+    y' <@ O_TCR_SS.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local lemma EqPr_TCR_TCRSS &m:
+  Pr[TCR(A, O_Default).main() @ &m : res]
+  =
+  Pr[TCR_SS.main() @ &m : res].
+proof.
+byequiv => //=.
+proc; inline *.
+swap{1} 3 -2.
+seq 1 1: (={glob A} /\ k{1} = TCR_SS.k0{2}); 1: by rnd.
+wp.
+conseq (: _ ==>    ={x, x', y} 
+                /\ k{1} = TCR_SS.k0{2} 
+                /\ O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by smt().
+call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
+wp; call (: O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}); 1: by proc.
+conseq (: _ ==> O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
+transitivity{1} {O_Default.f <$ dfc;}
+                (true ==> ={O_Default.f})
+                (true ==>  O_Default.f{1} = TCR_SS.O_TCR_SS.g{2}) => //.
++ by rnd; skip => />; rewrite eq_df_dfc.
+rnd: *0 *0.       
+wp; skip => /> &2.
+split => [g gin | eqmug f fin]. 
++ rewrite dmap_id; congr.
+  rewrite /dfc /kdfcs /dfcs (MUFF_Key.dfunE_dlet_fix1 _ (TCR_SS.k0{2})) /=.
+  by congr; rewrite fun_ext => f; rewrite dmap_id.
+rewrite supp_dlet /=; exists (f TCR_SS.k0{2}).
+split; 1: by rewrite dfun_fu /= 1:dunifin_fu dmap_id //= dfun_fu.
+rewrite dmap_id dfun_supp => k @/(_.[_<-_]). 
+case (TCR_SS.k0{2} = k) => [-> | ?]; 1: by rewrite supp_dunit.
+by rewrite dmap_id dfun_supp in fin => /#.
+qed.
+
+
+local module TCR_SSR = {
+  var k0 : key
+  var gk : input -> output
+  var g : key -> input -> output
+  
+  module O_TCR_SSR_Pick : Oracle_t = {  
+    proc get(k : key, x : input) = {
+      var y : output;
+      
+      if (k = k0) {
+        y <- gk x;
+      } else {
+        y <- g k x;
+      } 
+      
+      return y;
+    }
+  }
+
+ module O_TCR_SSR_Find : Oracle_t = {  
+    proc get(k : key, x : input) = {
+      var y : output;
+      
+      if (k = k0) {
+        y <- gk x;
+      } else {
+        y <- g k x;
+      } 
+      
+      return y;
+    }
+  }
+  
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    gk <$ dfcs;  
+    g <$ dfc;
+    
+    x <@ A(O_TCR_SSR_Pick).pick();
+    y <@ O_TCR_SSR_Find.get(k0, x);
+    
+    x' <@ A(O_TCR_SSR_Find).find(k0);
+    y' <@ O_TCR_SSR_Find.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local lemma EqPr_TCRSS_TCRSSR &m:
+  Pr[TCR_SS.main() @ &m : res]
+  =
+  Pr[TCR_SSR.main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+seq 3 3 : (   ={glob A} 
+           /\ ={k0}(TCR_SS, TCR_SSR)
+           /\ TCR_SS.O_TCR_SS.g{1} 
+              = 
+              (fun (k : key) => 
+                if k = TCR_SSR.k0{2}
+                then TCR_SSR.gk{2}
+                else TCR_SSR.g{2} k)).
++ seq 1 1 : (={glob A} /\ ={k0}(TCR_SS, TCR_SSR)); 1: by rnd.
+  sp.
+  conseq (: _ ==> TCR_SS.O_TCR_SS.g{1} 
+                  =
+                  fun (k : key) =>
+                    if k = TCR_SSR.k0{2} 
+                    then TCR_SSR.gk{2}
+                    else TCR_SSR.g{2} k) => //.
+  transitivity{1} {TCR_SS.O_TCR_SS.g <@ EquivSamplings.fixone_dfc(TCR_SS.k0);}
+                  (={TCR_SS.k0} ==> ={TCR_SS.O_TCR_SS.g})
+                  (TCR_SS.k0{1} = TCR_SSR.k0{2} 
+                   ==> 
+                   TCR_SS.O_TCR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = TCR_SSR.k0{2}
+                     then TCR_SSR.gk{2}
+                     else TCR_SSR.g{2} k)); 1,2: by smt().
+  - inline *.
+    wp; sp.
+    rnd; rnd.
+    by skip.
+  transitivity{1} {TCR_SS.O_TCR_SS.g <@ EquivSamplings.if_dfc(TCR_SS.k0);}
+                  (={TCR_SS.k0} ==> ={TCR_SS.O_TCR_SS.g})
+                  (TCR_SS.k0{1} = TCR_SSR.k0{2} 
+                   ==> 
+                   TCR_SS.O_TCR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = TCR_SSR.k0{2}
+                     then TCR_SSR.gk{2}
+                     else TCR_SSR.g{2} k)); 1,2: by smt().
+  - by call Eqv_fixone_if_dfc.
+  inline *.
+  wp; sp.
+  rnd; rnd.
+  by skip. 
+wp.
+call (:   TCR_SS.k0{1} = TCR_SSR.k0{2} 
+       /\ TCR_SS.O_TCR_SS.g{1} 
+          =
+          (fun (k : key) =>
+            if k = TCR_SSR.k0{2}
+            then TCR_SSR.gk{2}
+            else TCR_SSR.g{2} k)).
++ proc; inline *.
+  by wp; skip.
+wp.
+call (: TCR_SS.O_TCR_SS.g{1} 
+        =
+        (fun (k : key) =>
+          if k = TCR_SSR.k0{2} 
+          then TCR_SSR.gk{2}
+          else TCR_SSR.g{2} k)).
++ by proc; inline *; wp; skip.
+by skip.
+qed.
+
+
+local lemma EqPr_TCR_TCRSSR &m:
+  Pr[TCR(A, O_Default).main() @ &m : res]
+  =
+  Pr[TCR_SSR.main() @ &m : res].
+proof. 
+by rewrite EqPr_TCR_TCRSS EqPr_TCRSS_TCRSSR. 
+qed.
+
+
+local module TCR_SSR_Nin = {
+  var k0 : key
+  var gk : input -> output
+  var g : key -> input -> output
+  
+  module O_TCR_SSR_Pick : Oracle_t = {  
+    proc get(k : key, x : input) = {
+      return g k x;
+    }
+  }
+
+ module O_TCR_SSR_Find : Oracle_t = {  
+    proc get(k : key, x : input) = {
+      var y : output;
+      
+      if (k = k0) {
+        y <- gk x;
+      } else {
+        y <- g k x;
+      } 
+      
+      return y;
+    }
+  }
+  
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    gk <$ dfcs;  
+    g <$ dfc;
+    
+    x <@ A(O_TCR_SSR_Pick).pick();
+    y <@ O_TCR_SSR_Find.get(k0, x);
+    
+    x' <@ A(O_TCR_SSR_Find).find(k0);
+    y' <@ O_TCR_SSR_Find.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+
+(*
+ Idea:
+ Bound difference between TCR_SSR_Nin and TCR_SSR by Reprogramming advantage.
+ This by reducing TCR_SSR_Nin from Reprogram.main(false), and 
+ TCR_SSR from Reprogram.main(true).
+ (Possibly need to create auxiliary games to do the reduction instead of the TCR_SSR.
+  These auxiliary games would only have the first part of the game (up to A.pick)
+  and return x. Reduce this from Reprogame. Then, in actual prove, use seq just after 
+  calling A.pick and use transitivity)
+ Then, continue proof as before, getting to the BF properties.
+*)
+
+(*
 section.
 
 declare module A <: Adv_TCR {-KHFO.O_Default, -BFOF, -BFOD, -R_BFFind_TCR, -Counting_O}.
@@ -1982,8 +2254,13 @@ proof.
 move: (TCR_Implies_BFDistinguish_A &m); rewrite EqPr_TCRSSR_TCRSSRC.
 by move: (Bound_TCRSSRC &m) => /#.
 qed.
+end section.
+*)
 
-(* Idea for doing this with Reprogramming.eca:
+(*
+section.
+(* 
+  Idea for doing this with Reprogramming.eca:
   - Locally clone Reprogramming.eca and use ERO obtained from there
   - Prove that sampling from df is equivalent to a while loop over the key space which
     in each iteration samples a function of type input -> output from dkfs
@@ -1993,7 +2270,215 @@ qed.
   - Prove equivalence of this game to one that sets the k0-th function to a reprogrammed one
     to the one using the BFOF.f and x0 to determine the image (so after pick has returned, before that just answer queries with the regular function). Do this reprogramming using Wrapped_Oracle(MCO).set.
   - The reduction then does the same as the latter game and calls repro in its (main) distinguish function (which will reprogram only if we are in the "true" case of the reprogramming game; if we are in the "false" case, no reprogramming will occur and hence the simulated function will match the former game's) and o to answer queries.
-  *)
-end section.
+*)
 
+declare module A <: Adv_TCR {-KHFO.O_Default, -BFOF, -BFOD, -R_BFFind_TCR, -Counting_O}.
+
+declare axiom A_pick_ll (O <: Oracle_t{-A}):
+  islossless O.get => islossless A(O).pick.
+
+declare axiom A_find_ll (O <: Oracle_t{-A}):
+  islossless O.get => islossless A(O).find.
+
+
+local clone import DFun as DF with
+  type in_t <- key,
+  type out_t <- input -> output,
+    op dout <- dfcs,
+    
+  theory FT_In <- FinKey
+  
+  proof *.
+  realize dout_ll by exact: dfcs_ll.
+
+local clone import Reprogramming as Repro with
+  type in_t <- key,
+  type out_t <- input -> output,
+    op dout <- dfcs,
+    
+  theory FT_In <- FinKey
+  
+  proof *.
+  realize dout_ll by exact: dfcs_ll.
+
+import LE.
+
+require import SmtMap.
+
+local module TCR_Fmap_Rep = {
+  module O_TCR_Fmap_Rep : Oracle_t = {
+    var m : (key, input -> output) fmap
+    var g : key -> input -> output
+    
+    proc init() : unit = {
+      var y : input -> output;
+      var w : key list;
+      var k : key;
+      
+      m <- empty;
+      w <- FinKey.enum;
+      while (w <> []){
+        k <- head witness w;
+        y <$ dfcs;
+        m.[k] <- y;
+        w <- behead w;
+      }
+      
+      g <- fun (k : key) => oget m.[k];
+    }
+    
+    proc get(k : key, x : input) : output = {
+      return g k x;
+    }
+  }
+  
+  proc main() = {
+    var k : key;
+    var x, x' : input;
+    var y, y' : output;
+    
+    BFOF.init();
+    O_TCR_Fmap.init();
+    
+    x <@ A(O_TCR_Fmap).pick();
+    
+    k <$ dkey;
+    
+    O_TCR_Fmap_Rep <-
+    
+    y <@ O_TCR_Fmap.get(k, x);
+        
+    x' <@ A(O_TCR_Fmap).find(k);
+    y' <@ O_TCR_Fmap.get(k, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local equiv Eqv_TCR_TCR_Fmap :
+  KHFO_TCR.TCR(A, O_Default).main ~ TCR_Fmap.main :
+    ={glob A} ==> ={res}.
+proof.
+proc.
+inline *.
+seq 1 4: (={glob A} /\ O_Default.f{1} = TCR_Fmap.O_TCR_Fmap.g{2}).
++ transitivity{1} {O_Default.f <$ dfc;}
+                  (={glob A} ==> ={glob A} /\ ={O_Default.f})
+                  (={glob A} ==> ={glob A} /\ O_Default.f{1} = TCR_Fmap.O_TCR_Fmap.g{2}); 1,2:  by smt().
+  - by rnd; skip => /=; rewrite eq_df_dfc.
+  transitivity{1} {O_Default.f <@ Direct.sample();}
+                  (={glob A} ==> ={glob A} /\ ={O_Default.f})
+                  (={glob A} ==> ={glob A} /\ O_Default.f{1} = TCR_Fmap.O_TCR_Fmap.g{2}); 1,2:  by smt().
+  - inline *. 
+    by wp; rnd; skip.
+  wp.
+  transitivity{2} {TCR_Fmap.O_TCR_Fmap.m <@ Loop_Fmap_Head.sample();}
+                  (={glob A} ==> ={glob A} /\ O_Default.f{1} = fun (k' : key) => oget TCR_Fmap.O_TCR_Fmap.m{2}.[k'])
+                  (={glob A} ==> ={glob A} /\ ={TCR_Fmap.O_TCR_Fmap.m}); 1,2: by smt().
+  - symmetry.
+    conseq (: ={glob A} 
+              ==> 
+                 ={glob A} 
+              /\ (fun (k' : key) => oget TCR_Fmap.O_TCR_Fmap.m{1}.[k']) = O_Default.f{2}) => //.
+    call Eqv_Loop_Fmap_Head_Direct_Map.
+    by skip.
+  inline *.
+  by wp; swap{1} 1 1; sim.
+wp.
+call (: O_Default.f{1} = TCR_Fmap.O_TCR_Fmap.g{2}).
++ by proc.
+wp; rnd.
+call (: O_Default.f{1} = TCR_Fmap.O_TCR_Fmap.g{2}).
++ by proc.
+by skip.
+qed.
+
+
+local module TCR_ERO = {
+  module O_TCR_ERO : Oracle_r = {
+    var m : (key, input -> output) fmap
+    var g : key -> input -> output
+    
+    proc init() : unit = {
+      var y : input -> output;
+      var w : key list;
+      var k : key;
+      
+      m <- empty;
+      w <- FinKey.enum;
+      while (w <> []){
+        k <- head witness w;
+        y <$ dfcs;
+        m.[k] <- y;
+        w <- behead w;
+      }
+      
+      g <- fun (k : key) => oget m.[k];
+    }
+    
+    proc get(k : key, x : input) : output = {
+      return g k x;
+    }
+  }
+  
+  proc main() = {
+    var k : key;
+    var x, x' : input;
+    var y, y' : output;
+    
+    O_TCR_Fmap.init();
+    
+    x <@ A(O_TCR_Fmap).pick();
+    
+    k <$ dkey;
+    
+    y <@ O_TCR_Fmap.get(k, x);
+        
+    x' <@ A(O_TCR_Fmap).find(k);
+    y' <@ O_TCR_Fmap.get(k, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local module TCR_ERO_Rep = {
+  var k0 : key
+  
+  module O_TCR_ERO : Oracle_t = {
+    var g : key -> input -> output
+    
+    proc init() : unit = {
+      g <$ dfc;
+    }
+    
+    proc get(k : key, x : input) : output = {
+      return g k x;
+    }
+  }
+  
+  proc main() = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    O_TCR_ERO.init();
+    
+    k0 <$ dkey;
+    
+    x <@ A(O_TCR_ERO).pick();
+    y <@ O_TCR_ERO.get(k0, x);
+        
+    x' <@ A(O_TCR_ERO).find(k0);
+    y' <@ O_TCR_ERO.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+
+
+
+
+end section.
+*)
+end section.
 end TCRBound.

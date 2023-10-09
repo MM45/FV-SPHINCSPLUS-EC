@@ -390,7 +390,7 @@ qed.
 
 equiv Eqv_Loop_Fmap_Head_Direct_Map :
   Loop_Fmap_Head.sample ~ Direct.sample : 
-    true ==> (fun x : in_t => oget res{1}.[x]) = res{2}.
+    true ==> (fun (x : in_t) => oget res{1}.[x]) = res{2}.
 proof.
 conseq (: _ ==> tofun (unzip2 (tolist res{1})) = res{2}) => />.
 + by move=> r; rewrite tofun_unzip2_tolist.

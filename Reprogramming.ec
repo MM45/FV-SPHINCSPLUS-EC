@@ -8,7 +8,7 @@ type out_t.
 
 type pT = in_t distr.
 
-clone import FinType as FinIn with
+clone import FinType as FT_In with
   type t <- in_t.
 
 op [lossless] dout : out_t distr.
@@ -25,7 +25,7 @@ clone import ROM as ROM_ with
   proof *.
  
 clone import ROM_.LazyEager as LE with 
-  theory FinType <- FinIn
+  theory FinType <- FT_In
   
   proof *.
   

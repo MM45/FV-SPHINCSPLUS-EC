@@ -97,7 +97,7 @@ apply eq_funi_ll; 2,4: by rewrite ?(df_ll, dfc_ll).
 by apply is_full_funiform; 1,2 : rewrite ?(dfc_uni, dfc_fu).
 qed.
 
-
+(*
 (* 
   Auxiliary module types for non-keyed hash function properties.
   Not essential, but used for better readability.
@@ -122,7 +122,7 @@ module O_NK_Default : Oracle_NKi_t = {
     return gk x;  
   }
 }.
-
+*)
 
 (* 
   Auxiliary module for query counting.
@@ -151,7 +151,23 @@ clone import DMapSampling as DMS with
   proof *.
 
 module EquivSamplings = {
-  proc fixone_dfc(k : key) = {
+  proc df() = {
+   var g : key -> input -> output;
+    
+    g <$ df;
+    
+    return g;
+  }
+  
+  proc dfc() = {
+    var g : key -> input -> output;
+    
+    g <$ dfc;
+    
+    return g;
+  }
+
+  proc dfc_dep(k : key) = {
     var gk : input -> output;
     var g : key -> input -> output;
     
@@ -162,7 +178,7 @@ module EquivSamplings = {
     return g;    
   }
   
-  proc if_dfc(k : key) = {
+  proc dfc_indep(k : key) = {
     var gk : input -> output;
     var g : key -> input -> output;
     
@@ -174,6 +190,57 @@ module EquivSamplings = {
   }
 }.
 
+equiv Eqv_df_dfc_indep :
+  EquivSamplings.df ~ EquivSamplings.dfc_indep : true ==> ={res}.
+proof.
+proc.
+transitivity{1} {g <$ dfc;}
+                (true ==> ={g})
+                (true ==> g{1} = fun (k' : key) => if k' = k{2} then gk{2} else g{2} k') => //.
++ rnd; skip => />.
+  by rewrite eq_df_dfc.
+transitivity{2} {g <$ dlet (kdfcs k) (fun gk => dfun kdfcs.[k <- dunit gk]);}
+                (true ==> ={g})
+                (={k} ==> g{1} = fun (k' : key) => if k' = k{2} then gk{2} else g{2} k'); 1,2: smt().
++ rnd; skip => /> &2.
+  by rewrite -(MUFF_Key.dfunE_dlet_fix1 _ k{2}).    
+pose d := dlet dfcs (fun gk => dmap dfc (fun g => (gk, g))).
+transitivity{1} {g <@ S.sample(d, fun (gkg : _ * _) (k' : key) => 
+                                    if k' = k then gkg.`1 else gkg.`2 k'); }
+                (={k} ==> ={g})
+                (={k} ==> g{1} = fun k' => if k' = k{2} then gk{2} else g{2} k'); 1,2: by smt().
++ inline *.
+  wp; sp.
+  rnd.
+  skip => /> &2; rewrite ?dmap_id.
+  split => [g gin | h g].
+  - congr => @/d.
+    rewrite dmap_dlet; congr => //.
+    rewrite fun_ext => gk.
+    rewrite dmap_comp /(\o) /dfc /kdfcs /"_.[_<-_]" /=.
+    rewrite (MUFF_Key.dmap_dfun _ (fun k' f => if k' = k{2} then gk else f)) /=.
+    congr; rewrite fun_ext => k'.
+    case (k{2} = k') => [->|] /=; 1: by rewrite dmap_cst 1:dfcs_ll.
+    by rewrite eq_sym => -> /=; rewrite dmap_id.
+  rewrite supp_dlet => -[gk [gkin /=]]; rewrite supp_dmap dfun_supp => gin. 
+  exists (gk, g); split => /=.  
+  + rewrite /d supp_dlet; exists gk; rewrite gkin /= supp_dmap.
+    by exists g; rewrite dfc_fu. 
+  rewrite fun_ext => k'. move: (gin k').
+  rewrite  /"_.[_<-_]" /=; case (k' = k{2}) => [-> /=|]; 1: by rewrite supp_dunit.
+  by rewrite eq_sym.
+transitivity{1} {g <@ S.map(d, fun (gkg : _ * _) (k' : key) => 
+                                    if k' = k then gkg.`1 else gkg.`2 k'); }
+                (={k} ==> ={g})
+                (={k} ==> g{1} = fun k' => if k' = k{2} then gk{2} else g{2} k'); 1,2: by smt().
++ by call sample.
+inline *.
+wp; sp.
+rnd : *0 *0.
+skip => />.
+by rewrite dmap_id.
+qed.
+(*
 equiv Eqv_fixone_if_dfc :
   EquivSamplings.fixone_dfc ~ EquivSamplings.if_dfc : ={k} ==> ={res}.
 proof.
@@ -214,6 +281,7 @@ rnd : *0 *0.
 skip => />.
 by rewrite dmap_id.
 qed.
+*)
 
 
 theory SPRBound.
@@ -230,12 +298,429 @@ clone import SPR as KHFO_SPR with
   realize dkey_ll by exact: dkey_ll.
 
 
+print BFOF.
+
+module (R_BFFind_SPR (A : Adv_SPR) : Adv_BFFind) (BFO : BFOF_t) = {
+  var k0 : key
+  var x0 : input
+  var y0 : output
+  var gk : input -> output
+  var g : key -> input -> output
+    
+  module O_R_BFFind_SPR : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var b : bool;
+      var y : output;
+      
+      if (k = k0) {
+        b <@ BFO.query(x);
+        y <- if !b /\ x <> x0 then gk x else y0;
+      } else { 
+        y <- g k x;
+      }
+      
+      return y;
+    }
+  }
+
+  proc find() : input = {
+    var x' : input;
+    
+    k0 <$ dkey;
+    x0 <$ dinput;
+    y0 <$ doutput;
+    
+    gk <$ dfun (fun (_ : input) => doutput \ (pred1 y0));
+    g <$ dfc;
+            
+    x' <@ A(O_R_BFFind_SPR).find(k0, x0);
+    
+    return x';
+  }
+}.
+
+
+section.
+
+declare module A <: Adv_SPR {-KHFO.O_Default, -R_BFFind_SPR, -BFOF, -BFOD}.
+(*
+local module SPR_SS = {
+  var k0 : key
+  var g : key -> input -> output
+  
+  module O_SPR_SS : Oracle_t = {
+    proc get(k : key, x : input) = {
+      
+      return g k x;
+    }
+  }
+  
+  proc main() : bool = {
+    var gk : input -> output;
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    gk <$ dfcs;
+    g <$ dfc;
+    
+    x <$ dinput;
+    y <@ O_SPR_SS.get(k0, x);
+    
+    x' <@ A(O_SPR_SS).find(k0, x);
+    y' <@ O_SPR_SS.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+*)
+
+(*
+local module SPR_SS = {
+  var k0 : key
+  var g : key -> input -> output
+  
+  module O_SPR_SS : Oracle_t = {
+    proc get(k : key, x : input) = {
+      return g k x;
+    }
+  }
+  
+  proc main() : bool = {
+    var gk : input -> output;
+    var x, x' : input;
+    var y, y' : output;
+    
+    k0 <$ dkey;
+    
+    gk <$ dfcs;
+    g <$ dfun kdfcs.[k0 <- dunit gk];
+    
+    x <$ dinput;
+    y <@ O_SPR_SS.get(k0, x);
+    
+    x' <@ A(O_SPR_SS).find(k0, x);
+    y' <@ O_SPR_SS.get(k0, x');
+    
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local lemma EqPr_SPR_SPRSS &m:
+  Pr[SPR(A, O_Default).main() @ &m : res]
+  =
+  Pr[SPR_SS.main() @ &m : res].
+proof.
+byequiv => //=.
+proc; inline *.
+swap{1} 2 -1.
+seq 1 1 : (={glob A} /\ k{1} = SPR_SS.k0{2}); 1: by rnd.
+wp.
+conseq (: _ ==>    ={x, x', y} 
+                /\ k{1} = SPR_SS.k0{2} 
+                /\ O_Default.f{1} = SPR_SS.g{2}); 1: by smt().
+call (: O_Default.f{1} = SPR_SS.g{2}); 1: by proc.
+wp; rnd => />; 1: by smt().
+transitivity{1} {O_Default.f <$ dfc;}
+                (true ==> ={O_Default.f})
+                (true ==>  O_Default.f{1} = SPR_SS.g{2}) => //.
++ by rnd; skip => />; rewrite eq_df_dfc.
+rnd: *0 *0.
+wp; skip => /> &2.
+split => [g gin | eqmug f fin].
++ rewrite dmap_id; congr.
+  rewrite /dfc (MUFF_Key.dfunE_dlet_fix1 _ (SPR_SS.k0{2})) /=.
+  by rewrite /dfcs /kdfcs /dfcs; congr; rewrite fun_ext => f; rewrite dmap_id.
+rewrite supp_dlet /=; exists (f SPR_SS.k0{2}).
+split; 1: by rewrite dfun_fu /= 1:dunifin_fu dmap_id //= dfun_fu.
+rewrite dmap_id dfun_supp => k @/Logic."_.[_<-_]". 
+case (SPR_SS.k0{2} = k) => [-> | ?]; 1: by rewrite supp_dunit.
+by rewrite dmap_id dfun_supp in fin => /#.
+qed.
+
+local lemma EqPr_SPRSS_SPRNK &m:
+  Pr[SPR_SS.main() @ &m : res]
+  =
+  Pr[SPR_NK(R_SPRNK_SPR(A), O_NK_Default).main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+swap{2} 6 -5; swap{2} 7 -4.
+seq 3 3 : (   ={glob A} 
+           /\ ={k0}(SPR_SS, R_SPRNK_SPR)
+           /\ SPR_SS.O_SPR_SS.g{1} 
+              = 
+              (fun k => 
+                if k = R_SPRNK_SPR.k0{2}
+                then O_NK_Default.gk{2}
+                else R_SPRNK_SPR.g{2} k)).
++ seq 1 1 : (={glob A} /\ ={k0}(SPR_SS, R_SPRNK_SPR)); 1: by rnd.
+  conseq (: _ ==> SPR_SS.O_SPR_SS.g{1} 
+                  =
+                  fun (k : key) =>
+                    if k = R_SPRNK_SPR.k0{2} 
+                    then O_NK_Default.gk{2}
+                    else R_SPRNK_SPR.g{2} k) => //.
+  transitivity{1} {SPR_SS.O_SPR_SS.g <@ EquivSamplings.fixone_dfc(SPR_SS.k0);}
+                  (={SPR_SS.k0} ==> ={SPR_SS.O_SPR_SS.g})
+                  (SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
+                   ==> 
+                   SPR_SS.O_SPR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = R_SPRNK_SPR.k0{2}
+                     then O_NK_Default.gk{2}
+                     else R_SPRNK_SPR.g{2} k)); 1,2: by smt().
+  - inline *.
+    wp; sp.
+    rnd; rnd.
+    by skip.
+  transitivity{1} {SPR_SS.O_SPR_SS.g <@ EquivSamplings.if_dfc(SPR_SS.k0);}
+                  (={SPR_SS.k0} ==> ={SPR_SS.O_SPR_SS.g})
+                  (SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
+                   ==> 
+                   SPR_SS.O_SPR_SS.g{1}
+                   = 
+                   (fun k =>  
+                     if k = R_SPRNK_SPR.k0{2}
+                     then O_NK_Default.gk{2}
+                     else R_SPRNK_SPR.g{2} k)); 1,2: by smt().
+  - by call Eqv_fixone_if_dfc.
+  inline *.
+  wp; sp.
+  rnd; rnd.
+  by skip.
+wp.
+call (:   SPR_SS.k0{1} = R_SPRNK_SPR.k0{2} 
+       /\ SPR_SS.O_SPR_SS.g{1} 
+          =
+          (fun (k : key) =>
+            if k = R_SPRNK_SPR.k0{2}
+            then O_NK_Default.gk{2}
+            else R_SPRNK_SPR.g{2} k)).
++ proc; inline *.
+  by wp; skip.
+by wp; rnd; skip.
+qed.
+
+
+local module SPR_NK_Rep (A : Adv_SPR_NK) = {
+  var x0 : input
+  var y0 : output
+  var f : input -> output
+  
+  module O_SPR_NK_Rep : Oracle_NK_t = {
+    proc get(x : input) : output = {
+      var b;
+      
+      b <@ BFOF.query(x);
+      
+      return if !b /\ x <> x0 then f x else y0;
+    }
+  }
+
+  proc main() : bool = {
+    var x' : input;
+    var y' : output;
+    
+    BFOF.init();
+
+    x0 <$ dinput;
+    y0 <$ doutput;
+
+    f <$ MUFF_In.dfun (fun _ => doutput \ (pred1 y0));    
+    
+    x' <@ A(O_SPR_NK_Rep).find(x0);
+    
+    y' <@ O_SPR_NK_Rep.get(x');
+    
+    return x' <> x0 /\ y' = y0;
+  }
+}.
+
+local lemma EqPr_SPRNK_SPRNKRep &m :
+  Pr[SPR_NK(R_SPRNK_SPR(A), O_NK_Default).main() @ &m : res]
+  =
+  Pr[SPR_NK_Rep(R_SPRNK_SPR(A)).main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+wp.
+call (: ={R_SPRNK_SPR.k0, R_SPRNK_SPR.g} /\
+        (forall (x : input), 
+          O_NK_Default.gk{1} x 
+          = 
+          if !BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
+          then SPR_NK_Rep.f{2} x 
+          else SPR_NK_Rep.y0{2})).
++ by proc; inline *; auto => /> &1 &2 /(_ x{2}).
+rnd; rnd; wp.
+swap{1} 2 -1; swap{2} 2 -1.
+seq 1 1 : (={glob A} /\ x{1} = SPR_NK_Rep.x0{2}); 1: by rnd.
+conseq (_ : _ 
+            ==> 
+            (forall (x : input), 
+              O_NK_Default.gk{1} x 
+              = 
+              if !BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
+              then SPR_NK_Rep.f{2} x 
+              else SPR_NK_Rep.y0{2})).
++ move=> /> &2 gk fl y0 br ih k kin gL glin r.
+  by rewrite (eq_sym r); congr; rewrite !ih //= /#.
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.left();}
+                (true ==> ={O_NK_Default.gk})
+                (x{1} = SPR_NK_Rep.x0{2} 
+                 ==> 
+                 (forall (x : input),
+                   O_NK_Default.gk{1} x 
+                   =
+                   if ! BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
+                   then SPR_NK_Rep.f{2} x
+                   else SPR_NK_Rep.y0{2})); 1,2: by smt().
++ inline *.
+  by wp; rnd.
+transitivity{1} {O_NK_Default.gk <@ LR.LambdaRepro.right(x);}
+                (true ==> ={O_NK_Default.gk})
+                (x{1} = SPR_NK_Rep.x0{2} 
+                 ==> 
+                 (forall (x : input),
+                   O_NK_Default.gk{1} x 
+                   =
+                   if ! BFOF.f{2} x /\ x <> SPR_NK_Rep.x0{2} 
+                   then SPR_NK_Rep.f{2} x
+                   else SPR_NK_Rep.y0{2})); 1,2: by smt().
++ by call LR.main_theorem.
+inline *.
+wp; rnd.
+swap{2} 1 1.
+by rnd; rnd; wp; skip.
+qed.  
+
+
+local lemma EqPr_SPR_SPRNKRep &m:
+  Pr[SPR(A, O_Default).main() @ &m : res]
+  =
+  Pr[SPR_NK_Rep(R_SPRNK_SPR(A)).main() @ &m : res].
+proof. 
+by rewrite EqPr_SPR_SPRSS EqPr_SPRSS_SPRNK EqPr_SPRNK_SPRNKRep. 
+qed.
+*)
+
+local lemma SPR_Implies_BFFind &m :
+  Pr[KHFO_SPR.SPR(A, KHFO.O_Default).main() @ &m : res] 
+  <= 
+  Pr[BF_Find(R_BFFind_SPR(A), BFOF).main() @ &m : res].
+proof.
+byequiv=> //=.
+proc; inline *.
+wp.
+swap{1} [2..3] -1; swap{2} [2..3] -1.
+seq 2 2 : (={glob A} /\ k{1} = R_BFFind_SPR.k0{2} /\ x{1} = R_BFFind_SPR.x0{2}).
++ by rnd; rnd.
+seq 1 4 : (   #pre 
+           /\ (forall (k : key, x : input),
+                 O_Default.f{1} k x
+                 =
+                 if k = R_BFFind_SPR.k0{2}
+                 then (if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                      then R_BFFind_SPR.gk{2} x 
+                      else R_BFFind_SPR.y0{2})
+                 else R_BFFind_SPR.g{2} k x)
+           /\ (forall (x : input),
+                 R_BFFind_SPR.gk{2} x <> R_BFFind_SPR.y0{2})).
++ conseq (: true 
+            ==>
+               (forall (k : key, x : input),
+                   O_Default.f{1} k x
+                   =
+                   if k = R_BFFind_SPR.k0{2}
+                   then (if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                        then R_BFFind_SPR.gk{2} x 
+                        else R_BFFind_SPR.y0{2})
+                   else R_BFFind_SPR.g{2} k x)
+            /\ (forall (x : input),
+                 R_BFFind_SPR.gk{2} x <> R_BFFind_SPR.y0{2})) => //.
+  transitivity{1} {O_Default.f <@ EquivSamplings.df();}
+                  (true ==> ={O_Default.f})
+                  (true 
+                   ==>
+                     (forall (k : key, x : input),
+                       O_Default.f{1} k x
+                       =
+                       if k = R_BFFind_SPR.k0{2}
+                       then (if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                            then R_BFFind_SPR.gk{2} x 
+                            else R_BFFind_SPR.y0{2})
+                       else R_BFFind_SPR.g{2} k x)
+                   /\ (forall (x : input),
+                         R_BFFind_SPR.gk{2} x <> R_BFFind_SPR.y0{2})); 1,2: smt().
+  - inline *.
+    by wp; rnd.
+  transitivity{1} {O_Default.f <@ EquivSamplings.dfc_indep(k);}
+                  (true ==> ={O_Default.f})
+                  (k{1} = R_BFFind_SPR.k0{2}
+                   ==>
+                     (forall (k : key, x : input),
+                       O_Default.f{1} k x
+                       =
+                       if k = R_BFFind_SPR.k0{2}
+                       then (if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                            then R_BFFind_SPR.gk{2} x 
+                            else R_BFFind_SPR.y0{2})
+                       else R_BFFind_SPR.g{2} k x)
+                   /\ (forall (x : input), 
+                         R_BFFind_SPR.gk{2} x <> R_BFFind_SPR.y0{2})); 1,2: smt().
+  - by call Eqv_df_dfc_indep.
+  inline *.
+  wp; sp.
+  seq 1 3 : (   #pre
+             /\ (forall (x : input), 
+                   gk{1} x 
+                   =
+                   if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                   then R_BFFind_SPR.gk{2} x 
+                   else R_BFFind_SPR.y0{2})
+             /\ (forall (x : input),
+                   R_BFFind_SPR.gk{2} x <> R_BFFind_SPR.y0{2})).
+                   admit.
+  - by rnd; skip => /> /#.
+sp.
+call (:  (forall (k : key, x : input),
+           O_Default.f{1} k x
+           =
+           if k = R_BFFind_SPR.k0{2}
+           then (if !BFOF.f{2} x /\ x <> R_BFFind_SPR.x0{2} 
+                then R_BFFind_SPR.gk{2} x 
+                else R_BFFind_SPR.y0{2})
+           else R_BFFind_SPR.g{2} k x)).
++ proc; inline *.
+  by wp; skip => /> /#.
+by skip => /> /#.
+qed.
+
+local lemma SPR_Implies_BFDistinguish &m:
+  Pr[KHFO_SPR.SPR(A, KHFO.O_Default).main() @ &m : res]
+  <=
+  `| Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_SPR(A)), BFOD).main(false) @ &m : res] - 
+     Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_SPR(A)), BFOD).main(true) @ &m : res] |.
+proof.
+apply (StdOrder.RealOrder.ler_trans Pr[BF_Find(R_BFFind_SPR(A), BFOF).main() @ &m : res]); last first.
++ by rewrite (Find_Implies_Distinguish &m (R_BFFind_SPR(A))).
+by rewrite SPR_Implies_BFFind.
+qed.
+
+end section.
+
+end SPRBound.
+
+
 (* 
   Definitions concerning SPR for non-keyed functions.
   Used as intermediate step; could inline reduction
   to remove all these extra definitions (but makes reduction
   bit less readable).
-*)
+
 module type Adv_SPR_NK (O : Oracle_NK_t) = {
   proc find(x : input) : input
 }.
@@ -319,6 +804,7 @@ module (R_BFFind_SPRNK (A : Adv_SPR) : Adv_BFFind) (BFO : BFOF_t) = {
     return x';
   }
 }.
+
 
 section.
 
@@ -594,6 +1080,7 @@ qed.
 end section.
 
 end SPRBound.
+*)
 
 (*
 theory SPRBound.

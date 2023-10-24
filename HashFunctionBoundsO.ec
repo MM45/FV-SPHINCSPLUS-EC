@@ -1213,7 +1213,7 @@ end SPRBound.
 *)
 theory TCRBound.
 
-op [lossless] dkey : key distr.
+op [lossless full uniform] dkey : key distr.
 
 clone import KHFO.TCR as KHFO_TCR with 
   op dkey <- dkey
@@ -1517,6 +1517,7 @@ local clone import Reprogramming as Repro with
   type in_t <- key,
   type out_t <- input -> output,
     op dout <- dfcs,
+    op p_max_bound <- 1%r / FinKey.card%r,
     
   theory FT_In <- FinKey
   
@@ -1929,6 +1930,162 @@ apply (StdOrder.RealOrder.ler_trans Pr[BF_Find(R_BFFind_TCR(A), BFOF).main() @ &
 + by rewrite EqPr_TCR_Rep_TCR_BFRep LePr_TCRBFRep_BFFind.
 by rewrite (Find_Implies_Distinguish &m (R_BFFind_TCR(A))).
 qed.
+
+
+declare op qP : { int | 0 <= qP } as ge0_qP.
+declare op qF : { int | 0 <= qF } as ge0_qF.
+
+op q : int = qP + qF.
+
+lemma ge0_q : 0 <= q.
+proof. by rewrite StdOrder.IntOrder.addr_ge0 1:ge0_qP ge0_qF. qed.
+
+declare axiom A_Pick_queries (O <: Oracle_t{-A}) (n : int):
+  hoare[A(Counting_O(O)).pick : Counting_O.ctr = n ==> Counting_O.ctr <= n + qP].
+
+declare axiom A_Find_queries (O <: Oracle_t{-A}) (n : int):
+  hoare[A(Counting_O(O)).find : Counting_O.ctr = n ==> Counting_O.ctr <= n + qF].
+
+local module (R_Repro_TCR_C : DistA) (O : POracle, RepO : RepO_t) = {  
+  import var R_Repro_TCR
+  
+  module O_R_Repro_TCR_C = Counting_O(R_Repro_TCR(O, RepO).O_R_Repro_TCR) 
+  
+  proc distinguish() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    
+    Counting_O.ctr <- 0;
+    
+    x <@ A(O_R_Repro_TCR_C).pick();
+    
+    k0 <@ RepO.repro(dkey);
+    y <@ O_R_Repro_TCR_C.get(k0, x);
+    
+    x' <@ A(O_R_Repro_TCR_C).find(k0);
+    y' <@ O_R_Repro_TCR_C.get(k0, x');
+ 
+    return x' <> x /\ y' = y;
+  }
+}.
+
+local hoare R_Repro_TCR_C_queries :
+  R_Repro_TCR_C(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).distinguish :
+    Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se 
+    ==>
+    Wrapped_Oracle.ch <= q + 2 /\ RepO.ctr <= 1 /\ RepO.se.
+proof.
+proc.
+sp.
+inline 5; inline 8; inline 10; inline 11.
+wp => /=.
+seq 2 : (   Counting_O.ctr = Wrapped_Oracle.ch
+         /\ Wrapped_Oracle.ch <= qP 
+         /\ RepO.ctr = 1 
+         /\ RepO.se).
++ call (: arg = dkey /\ RepO.ctr = 0 /\ RepO.se ==> RepO.ctr = 1 /\ RepO.se).
+  - proc; inline *.
+    sp.
+    conseq (: _ ==> true) => // /> ? _.
+    rewrite uniform_pmaxE 1:dkey_uni dkey_ll.
+    rewrite StdBigop.Bigreal.Num.Domain.div1r.
+    rewrite card_size_to_seq StdOrder.RealOrder.ler_eqVlt; left.
+    rewrite (: support dkey = predT) // /predT fun_ext => k.
+    by rewrite dkey_fu.
+  conseq (: _ 
+            ==> 
+               Counting_O.ctr = Wrapped_Oracle.ch 
+            /\ Wrapped_Oracle.ch <= qP) => //.
+  call (:    Counting_O.ctr = 0 
+          /\ Wrapped_Oracle.ch = 0
+          ==>
+             Counting_O.ctr = Wrapped_Oracle.ch 
+          /\ Counting_O.ctr <= qP) => //.
+  conseq (: Counting_O.ctr = Wrapped_Oracle.ch ==> Counting_O.ctr = Wrapped_Oracle.ch)
+         (A_Pick_queries (<: R_Repro_TCR(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).O_R_Repro_TCR) 0) => //. 
+  proc (Counting_O.ctr = Wrapped_Oracle.ch) => //.
+  proc; inline *.
+  by wp; skip.
+seq 1 : (   Counting_O.ctr = Wrapped_Oracle.ch
+         /\ Wrapped_Oracle.ch <= qP + 1 
+         /\ RepO.ctr = 1 
+         /\ RepO.se).
++ inline *.
+  by wp; skip => /> /#.
+call (:    Counting_O.ctr = Wrapped_Oracle.ch 
+        /\ Wrapped_Oracle.ch <= qP + 1 
+        /\ RepO.ctr = 1 
+        /\ RepO.se
+        ==>
+        Counting_O.ctr = Wrapped_Oracle.ch 
+        /\ Wrapped_Oracle.ch <= qP + 1 + qF 
+        /\ RepO.ctr = 1 
+        /\ RepO.se).
++ conseq (: Counting_O.ctr = Wrapped_Oracle.ch ==> Counting_O.ctr = Wrapped_Oracle.ch)
+         (: Counting_O.ctr <= qP + 1 ==> Counting_O.ctr <= qP + 1 + qF) => //.
+  - exists* Counting_O.ctr; elim* => ctr.
+    conseq (A_Find_queries (<: R_Repro_TCR(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).O_R_Repro_TCR) ctr) => //; 1: by smt().
+  proc (Counting_O.ctr = Wrapped_Oracle.ch) => //.
+  proc; inline *.
+  by wp.
+by skip => /> /#.
+qed.
+
+lemma TCR_Implies_BFDistinguish &m:
+  Pr[KHFO_TCR.TCR(A, KHFO.O_Default).main() @ &m : res]
+  <=
+  `| Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(false) @ &m : res] - 
+     Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(true) @ &m : res] |
+  +
+  (q + 2)%r / FinKey.card%r. 
+proof.
+move: (TCR_Implies_BFDistinguish_A &m).
+have -> :
+  `| Pr[ReproGame(ERO, R_Repro_TCR).main(false) @ &m : res] -
+     Pr[ReproGame(ERO, R_Repro_TCR).main(true) @ &m : res] |
+  =
+  `| Pr[ReproGame(ERO, R_Repro_TCR_C).main(false) @ &m : res] -
+     Pr[ReproGame(ERO, R_Repro_TCR_C).main(true) @ &m : res] |.
++ do 2! congr; last congr.
+  - byequiv=> //. 
+    proc. 
+    seq 3 3 : (={glob A, glob ERO, glob Wrapped_Oracle, glob RepO} /\ !RepO.b{1}).
+    * inline{1} 3; inline{2} 3.
+      wp.
+      conseq (: _ ==> ={glob ERO, glob Wrapped_Oracle}) => //.
+      by sim.
+    inline *.
+    rcondf{1} 6; 1: by auto; call (: true) => //.
+    rcondf{2} 7; 1: by auto; call (: true) => //; auto. 
+    wp.
+    call (: ={glob ERO, glob Wrapped_Oracle, glob RepO}).
+    * by proc; inline *; wp.
+    wp; rnd; wp.
+    call (: ={glob ERO, glob Wrapped_Oracle, glob RepO}). 
+    * by proc; inline *; wp.
+    by wp.
+  byequiv=> //. 
+  proc. 
+  seq 3 3 : (={glob A, glob ERO, glob Wrapped_Oracle, glob RepO} /\ RepO.b{1}).
+  - inline{1} 3; inline{2} 3.
+    wp.
+    conseq (: _ ==> ={glob ERO, glob Wrapped_Oracle}) => //.
+    by sim.
+  inline *.
+  rcondt{1} 6; 1: by auto; call (: true) => //.
+  rcondt{2} 7; 1: by auto; call (: true) => //; auto. 
+  wp.
+  call (: ={glob ERO, glob Wrapped_Oracle, glob RepO}).
+  - by proc; inline *; wp.
+  wp; rnd; wp; rnd; wp.
+  call (: ={glob ERO, glob Wrapped_Oracle, glob RepO}). 
+  - by proc; inline *; wp.
+  by wp.
+pose BFAdv := `| _ - _ |%Real; pose ReproAdv := `| _ - _ |%Real; move => tib.
+apply (StdOrder.RealOrder.ler_trans (BFAdv + ReproAdv)) => //.
+apply StdOrder.RealOrder.ler_add => //.
+by apply (rom_reprogramming R_Repro_TCR_C 1 _ (q + 2) _ &m R_Repro_TCR_C_queries) => //; smt(ge0_q).
+qed. 
 
 end section.
 
@@ -2853,5 +3010,3 @@ local module TCR_ERO_Rep = {
 
 end section.
 *)
-end section.
-end TCRBound.

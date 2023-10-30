@@ -28,6 +28,14 @@ clone import ROM_.LazyEager as LE with
   theory FinType <- FT_In
   
   proof *.
+
+
+(**
+  Adaptive reprogramming
+  The adversary is single-stage, simultaneously getting access to the 
+  original oracle as well as the reprogramming oracle.
+**)
+theory Adaptive.
   
 module type Oracleip_t = {
   include Oracle
@@ -47,7 +55,7 @@ module O_Programmable(O : POracle) : Oraclep_t = {
      ch <- 0;
    }
 
-  proc o(x : in_t): out_t = {
+  proc o(x : in_t) : out_t = {
     var r,c : out_t;
     var tmp : out_t option;
 
@@ -60,9 +68,9 @@ module O_Programmable(O : POracle) : Oraclep_t = {
     return c; 
   }
 
-   proc set (x : in_t, y: out_t) : unit = {
-     prog_list <- (x,y) :: prog_list;
-   }
+  proc set (x : in_t, y : out_t) : unit = {
+    prog_list <- (x, y) :: prog_list;
+  }
 }.
 
 module type Oracleir_t = {
@@ -124,6 +132,7 @@ module IND_Repro(O : Oracle, A : Adv_INDRepro) = {
     return b';
   } 
 }.
+
 
 section.
 
@@ -928,8 +937,8 @@ lemma Bound_IND_Repro &m :
              O_Programmable.ch = 0 /\ O_Reprogrammer.ctr = 0 /\ O_Reprogrammer.se 
              ==> O_Programmable.ch <= query_ctr /\ 
              O_Reprogrammer.ctr <= rep_ctr /\ O_Reprogrammer.se]
-  => `| Pr[IND_Repro(ERO, A).main(false) @ &m : res]
-       - Pr[IND_Repro(ERO, A).main(true) @ &m : res] |
+  => `| Pr[IND_Repro(ERO, A).main(false) @ &m : res] - 
+        Pr[IND_Repro(ERO, A).main(true) @ &m : res] |
       <= 
       rep_ctr%r * query_ctr%r * p_max_bound. 
 proof.
@@ -945,3 +954,123 @@ by rewrite sumri_const 1:ge0_repctr /#.
 qed.
 
 end section.
+
+end Adaptive.
+
+
+
+(**
+  Non-adaptive reprogramming
+  The adversary is double-stage, getting access to the original oracle in both
+  stages. Reprogramming of the oracle is performed by the game in between
+  the two stages.
+**)
+theory NonAdaptive.
+
+module type Oracleip_t = {
+  include Oracle
+  proc oc(x : in_t) : out_t
+  proc set(x : in_t, y : out_t) : unit
+}.
+
+module type Oraclep_t = {
+  include Oracleip_t [-init]
+}.
+
+module O_Programmable(O : POracle) : Oraclep_t = {
+   var prog_list : (in_t * out_t) list  
+   var ch : int
+
+   proc init() : unit = {
+     prog_list <- [];
+     ch <- 0;
+   }
+
+  proc o(x : in_t): out_t = {
+    var r,c : out_t;
+    var tmp : out_t option;
+
+    r <@ O.o(x);
+
+    tmp <- assoc prog_list x;
+    c <- if tmp = None then r else oget tmp;
+
+    return c; 
+  }
+
+  proc oc(x : in_t) : out_t = {
+    var c : out_t;
+    
+    ch <- ch + 1;
+    
+    c <@ o(x);
+    
+    return c;
+  }
+  
+  proc set (x : in_t, y : out_t) : unit = {
+    prog_list <- (x, y) :: prog_list;
+  }
+}.
+
+module type Adv_INDNARepro(O : Oraclep_t) = {
+  proc pick() : pT list {O.oc}
+  proc distinguish(xs : in_t list) : bool {O.o}
+}.
+
+module IND_NARepro(O : Oracle, A : Adv_INDNARepro) = {
+  module OP = O_Programmable(O)
+ 
+  proc main(b : bool, n : int) : bool = {
+    var b' : bool;
+    var x : in_t;
+    var y : out_t;
+    var ds : pT list;
+    var xs : in_t list;
+    
+    O.init();
+    OP.init();
+    
+    ds <@ A(OP).pick();
+    
+    xs <- [];
+    while (size xs < min (size ds) n) {
+      x <$ nth witness ds (size xs);
+      
+      if (b) {
+        y <$ dout;
+        OP.set(x, y);
+      }
+      
+      xs <- rcons xs x;
+    }
+    
+    b' <@ A(OP).distinguish(xs);
+    
+    return b';
+  } 
+}.
+
+
+section.
+
+declare module A <: Adv_INDNARepro {-IND_NARepro, -ERO}.
+
+declare op rep_ctr : { int | 0 <= rep_ctr } as ge0_repctr.
+declare op query_ctr : { int | 0 <= query_ctr } as ge0_queryctr.
+
+lemma Bound_IND_NARepro &m : 
+     hoare[A(O_Programmable(ERO)).pick : 
+             O_Programmable.ch = 0 
+             ==> 
+             O_Programmable.ch <= query_ctr /\ all ((>=) p_max_bound) (map p_max res)]
+  => `| Pr[IND_NARepro(ERO, A).main(false, rep_ctr) @ &m : res] - 
+        Pr[IND_NARepro(ERO, A).main(true, rep_ctr) @ &m : res] |
+      <= 
+      rep_ctr%r * query_ctr%r * p_max_bound. 
+proof.
+admit.
+qed.
+
+end section.
+end NonAdaptive.

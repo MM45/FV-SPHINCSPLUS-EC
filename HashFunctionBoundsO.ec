@@ -556,6 +556,7 @@ local clone import DFun as DF with
   
   proof *.
 
+(* Adaptive reprogramming bound for TCR *)
 local clone import Reprogramming as Repro with
   type in_t <- key,
   type out_t <- input -> output,
@@ -569,7 +570,7 @@ local clone import Reprogramming as Repro with
 
 import ROM_.
 import LE.
-
+import Adaptive.
 
 local module TCR_NoRep_ERO = {  
   module O_TCR_NoRep : Oracle_t = {
@@ -1139,3 +1140,621 @@ qed.
 end section.
 
 end TCRBound.
+
+(* Non-adaptive reprogramming bound for TCR *) 
+(*
+local clone import Reprogramming as Repro with
+  type in_t <- key,
+  type out_t <- input -> output,
+    op dout <- dfcs,
+    op p_max_bound <- 1%r / FinKey.card%r,
+    
+  theory FT_In <- FinKey
+  
+  proof *.
+  realize dout_ll by exact: dfcs_ll.
+
+import ROM_.
+import LE.
+import NonAdaptive.
+
+
+local module TCR_NoRep_ERO = {  
+  module O_TCR_NoRep_Pick : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O_Programmable(ERO).oc(k);
+      
+      return f x;
+    }
+  }
+
+  module O_TCR_NoRep_Distinguish : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O_Programmable(ERO).o(k);
+      
+      return f x;
+    }
+  }
+    
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    var k : key;
+    
+    ERO.init();
+    O_Programmable(ERO).init();
+    
+    x <@ A(O_TCR_NoRep_Pick).pick();
+    
+    k <$ dkey;
+    
+    y <@ O_TCR_NoRep_Distinguish.get(k, x);
+    
+    x' <@ A(O_TCR_NoRep_Distinguish).find(k);
+    y' <@ O_TCR_NoRep_Distinguish.get(k, x');
+    
+    return x' <> x /\ y' = y;
+  }  
+}.
+
+
+local module TCR_Rep_ERO = {  
+  module O_TCR_Rep_Pick : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O_Programmable(ERO).oc(k);
+      
+      return f x;
+    }
+  }
+
+  module O_TCR_Rep_Distinguish : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O_Programmable(ERO).o(k);
+      
+      return f x;
+    }
+  }
+    
+  proc main() : bool = {
+    var x, x' : input;
+    var y, y' : output;
+    var k : key;
+    var gk : input -> output;
+    
+    ERO.init();
+    O_Programmable(ERO).init();
+    
+    x <@ A(O_TCR_Rep_Pick).pick();
+    
+    k <$ dkey;
+    gk <$ dfcs;
+    
+    O_Programmable(ERO).set(k, gk);
+    
+    y <@ O_TCR_Rep_Distinguish.get(k, x);
+    
+    x' <@ A(O_TCR_Rep_Distinguish).find(k);
+    y' <@ O_TCR_Rep_Distinguish.get(k, x');
+    
+    return x' <> x /\ y' = y;
+  }  
+}.
+
+local lemma EqPr_TCR_TCR_ERO &m : 
+  `| Pr[TCR_NoRep.main() @ &m : res] - 
+     Pr[TCR_Rep.main() @ &m : res] |
+  =
+  `| Pr[TCR_NoRep_ERO.main() @ &m : res] - 
+     Pr[TCR_Rep_ERO.main() @ &m : res] |.
+proof.
+do 2! congr; last congr.
++ byequiv => //.
+  proc.
+  swap{1} 1 1; swap{2} 4 -2.
+  seq 2 2 : (   ={glob A}
+             /\ TCR_NoRep.k0{1} = k{2}
+             /\ TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])).
+  - rnd.
+    conseq (: true ==> TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])) => //.
+    transitivity{1} {TCR_NoRep.g <@ Direct_Fun.sample(kdfcs);}
+                    (true ==> ={TCR_NoRep.g})
+                    (true ==> TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])) => //.
+    * by inline *; wp; rnd; wp.
+    transitivity{2} {ERO.m <@ Loop_Fmap.sample(kdfcs, FinKey.enum);}
+                    (true ==> TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k']))
+                    (true ==> ={ERO.m}) => //.
+    * symmetry.
+      call (Eqv_Loop_Fmap_Direct_Fun kdfcs).
+      by skip.
+    inline *.
+    wp; sp. 
+    while (d{1} = kdfcs /\ m{1} = ERO.m{2} /\ xs{1} = w{2}).
+    * by wp; rnd; wp; skip.
+    by skip.
+  inline *.
+  wp; sp => /=.
+  call (:   TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])
+         /\ O_Programmable.prog_list{2} = []).
+  - proc; inline *.
+    by wp; skip.
+  wp.
+  call (:    TCR_NoRep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])
+          /\ O_Programmable.prog_list{2} = []).
+  - proc; inline *.
+    by wp; skip.
+  by skip.
+byequiv => //.
+proc.
+swap{1} 3 -2; swap{2} [4..5] -2.
+seq 3 3 : (   ={glob A}
+           /\ TCR_Rep.k0{1} = k{2}
+           /\ TCR_Rep.gk{1} = gk{2}
+           /\ TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])).
++ rnd; rnd.
+  conseq (: true ==> TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])) => //.
+  transitivity{1} {TCR_Rep.g <@ Direct_Fun.sample(kdfcs);}
+                  (true ==> ={TCR_Rep.g})
+                  (true ==> TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])) => //.
+  - by inline *; wp; rnd; wp.
+  transitivity{2} {ERO.m <@ Loop_Fmap.sample(kdfcs, FinKey.enum);}
+                  (true ==> TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k']))
+                  (true ==> ={ERO.m}) => //.
+  - symmetry.
+    call (Eqv_Loop_Fmap_Direct_Fun kdfcs).
+    by skip.
+  inline *.
+  wp; sp. 
+  while (d{1} = kdfcs /\ m{1} = ERO.m{2} /\ xs{1} = w{2}).
+  - by wp; rnd; wp; skip.
+  by skip.
+inline *.
+wp; sp => /=.
+call (:   TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])
+       /\ O_Programmable.prog_list{2} = [(TCR_Rep.k0{1}, TCR_Rep.gk{1})]).
++ proc; inline *.
+  wp; skip => /> &1 &2 neqk.
+  by rewrite assoc_cons neqk assoc_nil.
+wp => /=.
+call (:   TCR_Rep.g{1} = (fun (k' : key) => oget ERO.m{2}.[k'])
+       /\ O_Programmable.prog_list{2} = []).
++ proc; inline *.
+  by wp; skip.
+by skip.
+qed.
+
+local module (R_Repro_TCR : Adv_INDNARepro) (O : Oraclep_t) = {  
+  var x0 : input
+  
+  module O_R_Repro_TCR_Pick : Oracle_t = {
+    proc get(k : key, x : input) = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O.oc(k);
+      
+      return f x;
+    }
+  }
+  
+  module O_R_Repro_TCR_Distinguish : Oracle_t = {
+    proc get(k : key, x : input) = {
+      var f : input -> output;
+      var y : output;
+      
+      f <@ O.o(k);
+      
+      return f x;
+    }
+  }
+  
+  proc pick() : key distr list = {
+    
+    x0 <@ A(O_R_Repro_TCR_Pick).pick();
+    
+    return [dkey];
+  }
+  
+  proc distinguish(ks : key list) : bool = {
+    var k0 : key;
+    var x' : input;
+    var y0, y' : output;
+    
+    k0 <- head witness ks;
+    
+    y0 <@ O_R_Repro_TCR_Distinguish.get(k0, x0);
+    
+    x' <@ A(O_R_Repro_TCR_Distinguish).find(k0);
+    y' <@ O_R_Repro_TCR_Distinguish.get(k0, x');
+ 
+    return x' <> x0 /\ y' = y0;
+  }
+}.
+  
+local lemma EqPr_TCR_ERO_ReproGame &m :
+  `| Pr[TCR_NoRep_ERO.main() @ &m : res] - 
+     Pr[TCR_Rep_ERO.main() @ &m : res] |
+   =
+  `| Pr[IND_NARepro(ERO, R_Repro_TCR).main(false, 1) @ &m : res] - 
+     Pr[IND_NARepro(ERO, R_Repro_TCR).main(true, 1) @ &m : res] |.
+proof.
+do 2! congr; last congr.
++ byequiv => //.
+  proc => /=.
+  seq 2 2 : (   ={glob A, glob O_Programmable, ERO.m}
+             /\ b{2} = false
+             /\ n{2} = 1
+             /\ O_Programmable.prog_list{2} = []
+             /\ O_Programmable.ch{2} = 0).
+  - inline *.
+    wp => /=.
+    while (={w, ERO.m}).
+    * by wp; rnd; wp; skip.
+    by wp; skip.
+  inline *.
+  wp; sp => /=.
+  call (: ={glob O_Programmable, ERO.m}).
+  - proc; inline *.
+    by wp; skip.
+  wp.
+  rcondt{2} ^while. 
+  - auto.
+    by call (: true).
+  rcondf{2} ^if.
+  + auto.
+    by call (: true).
+  rcondf{2} ^while.
+  + auto.
+    by call (: true).
+  wp; rnd; wp.
+  call (: ={glob O_Programmable, ERO.m}).
+  - proc; inline *.
+    by wp; skip.
+  by skip.
+byequiv => //.
+proc => /=.
+seq 2 2 : (   ={glob A, glob O_Programmable, ERO.m}
+           /\ b{2} = true
+           /\ n{2} = 1
+           /\ O_Programmable.prog_list{2} = []
+           /\ O_Programmable.ch{2} = 0).
++ inline *.
+  wp => /=.
+  while (={w, ERO.m}).
+  - by wp; rnd; wp; skip.
+  by wp; skip.
+inline *.
+wp; sp => /=.
+call (: ={glob O_Programmable, ERO.m}).
++ proc; inline *.
+  by wp; skip.
+wp.
+rcondt{2} ^while.
++ auto.
+  by call (: true).
+rcondt{2} ^if.
++ auto.
+  by call (: true).
+rcondf{2} ^while.
++ auto.
+  by call (: true).
+wp; rnd; rnd; wp.
+call (: ={glob O_Programmable, ERO.m}).
++ proc; inline *.
+  by wp; skip.
+by skip.
+qed.
+
+
+local module TCR_BFRep = {
+  var k0 : key
+  var x0 : input
+  var y0 : output
+  var gk : input -> output
+  var g : key -> input -> output
+    
+  module O_TCR_Rep_Pick : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      return g k x;
+    }
+  }
+  
+  module O_TCR_Rep_Find : Oracle_t = {
+    proc get(k : key, x : input) : output = {
+      var b : bool;
+      var y : output;
+      
+      if (k = k0) {
+        b <@ BFOF.query(x);
+        y <- if !b /\ x <> x0 then gk x else y0; 
+      } else {
+        y <- g k x;
+      }
+      
+      return y;
+    }
+  }
+  
+  proc main() : bool = {
+    var x' : input;
+    var y' : output;
+    
+    g <$ dfc;
+    
+    x0 <@ A(O_TCR_Rep_Pick).pick();
+
+    k0 <$ dkey;
+    
+    BFOF.init();
+    y0 <$ doutput;
+    gk <$ dfun (fun (x : input) => doutput \ pred1 y0);
+ 
+    x' <@ A(O_TCR_Rep_Find).find(k0);
+    y' <@ O_TCR_Rep_Find.get(k0, x');
+    
+    return x' <> x0 /\ y' = y0;
+  }  
+}.
+
+local lemma EqPr_TCR_Rep_TCR_BFRep &m:
+  Pr[TCR_Rep.main() @ &m : res]
+  =
+  Pr[TCR_BFRep.main() @ &m : res].
+proof.
+byequiv => //.
+proc.
+swap{1} 3 -1; swap{1} 4 -1; swap{2} 3 -2.
+seq 3 3 : (   ={glob A} 
+           /\ ={k0, g}(TCR_Rep, TCR_BFRep)
+           /\ x{1} = TCR_BFRep.x0{2}).
++ call (: ={g}(TCR_Rep, TCR_BFRep)).
+  - by proc.
+  by rnd; rnd.
+inline{2} BFOF.init.
+swap{2} 2 -1.
+seq 1 3 : (   #pre
+           /\ (forall (x : input),
+                 TCR_Rep.gk{1} x 
+                 =
+                 if ! BFOF.f{2} x /\ x <> TCR_BFRep.x0{2}
+                 then TCR_BFRep.gk{2} x
+                 else TCR_BFRep.y0{2})).
++ conseq (_ : true ==> (forall (x : input),
+                         TCR_Rep.gk{1} x 
+                         =
+                         if ! BFOF.f{2} x /\ x <> TCR_BFRep.x0{2}
+                         then TCR_BFRep.gk{2} x
+                         else TCR_BFRep.y0{2})) => //.
+  transitivity{1} {TCR_Rep.gk <@ LR.LambdaRepro.left();}
+                  (true ==> ={TCR_Rep.gk})
+                  (true ==> (forall (x : input),
+                               TCR_Rep.gk{1} x 
+                               =
+                               if ! BFOF.f{2} x /\ x <> TCR_BFRep.x0{2}
+                               then TCR_BFRep.gk{2} x
+                               else TCR_BFRep.y0{2})) => //.
+  - inline *.
+    by wp; rnd.
+  transitivity{2} {TCR_BFRep.gk <@ LR.LambdaRepro.right(TCR_BFRep.x0);}
+                  (true ==> ={gk}(TCR_Rep, TCR_BFRep))
+                  (={TCR_BFRep.x0} ==> (forall (x : input),
+                                         TCR_BFRep.gk{1} x 
+                                         =
+                                         if ! BFOF.f{2} x /\ x <> TCR_BFRep.x0{2}
+                                         then TCR_BFRep.gk{2} x
+                                         else TCR_BFRep.y0{2})); 1,2: by smt().
+  + by call LR.main_theorem.
+  inline *.
+  wp; sp.
+  rnd; rnd; rnd.
+  by skip.
+inline *.
+wp => /=.
+call (:   ={k0, g}(TCR_Rep, TCR_BFRep)
+       /\ (forall (x : input),
+            TCR_Rep.gk{1} x 
+            =
+            if ! BFOF.f{2} x /\ x <> TCR_BFRep.x0{2}
+            then TCR_BFRep.gk{2} x
+            else TCR_BFRep.y0{2})).
++ proc; inline *.
+  by wp; skip => /> /#. 
+by wp; skip => /> /#.   
+qed.
+
+
+local lemma LePr_TCRBFRep_BFFind &m :
+  Pr[TCR_BFRep.main() @ &m : res]
+  <=
+  Pr[BF_Find(R_BFFind_TCR(A), BFOF).main() @ &m: res].
+proof.
+byequiv=> //.
+proc; inline *.
+wp => /=.
+call (:   ={BFOF.f}
+       /\ ={k0, x0, y0, g}(TCR_BFRep, R_BFFind_TCR)
+       /\ TCR_BFRep.gk{1} = R_BFFind_TCR.f{2}). 
++ proc; inline *.
+  by wp; skip.
+swap{1} 2 4; swap{2} [2..3] -1; swap{2} 6 -4.
+sp.
+call (: ={g}(TCR_BFRep, R_BFFind_TCR)).
++ proc.
+  by wp; skip.
+do 5! rnd; skip => /> g gin k kin f fin y yin gk gkin r r' neqrr.
+apply contraLR => -> /=.
+by move/dfun_supp /(_ r') /supp_dexcepted: gkin.
+qed.
+
+local lemma TCR_Implies_BFDistinguish_A &m:
+  Pr[KHFO_TCR.TCR(A, KHFO.O_Default).main() @ &m : res]
+  <=
+  `| Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(false) @ &m : res] - 
+     Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(true) @ &m : res] |
+  +
+  `| Pr[IND_NARepro(ERO, R_Repro_TCR).main(false, 1) @ &m : res] - 
+     Pr[IND_NARepro(ERO, R_Repro_TCR).main(true, 1) @ &m : res] |.  
+proof.
+rewrite EqPr_TCR_TCR_NoRep.
+rewrite -StdOrder.RealOrder.ger0_norm 1:Pr[mu_ge0] //-{1}StdOrder.RealOrder.Domain.subr0.
+rewrite -(StdOrder.RealOrder.Domain.subrr Pr[TCR_Rep.main() @ &m : res]).
+rewrite StdOrder.RealOrder.Domain.opprD StdOrder.RealOrder.Domain.addrA /=.
+apply (StdOrder.RealOrder.ler_trans
+         (`| Pr[TCR_NoRep.main() @ &m : res] - Pr[TCR_Rep.main() @ &m : res] | +
+             Pr[TCR_Rep.main() @ &m : res])).
++ rewrite -{4}(StdOrder.RealOrder.ger0_norm Pr[TCR_Rep.main() @ &m : res]) 1:Pr[mu_ge0] //.
+  by apply StdOrder.RealOrder.ler_norm_add.
+rewrite StdOrder.RealOrder.Domain.addrC StdOrder.RealOrder.ler_add; last first.
++ by rewrite EqPr_TCR_TCR_ERO EqPr_TCR_ERO_ReproGame.
+apply (StdOrder.RealOrder.ler_trans Pr[BF_Find(R_BFFind_TCR(A), BFOF).main() @ &m: res]).
++ by rewrite EqPr_TCR_Rep_TCR_BFRep LePr_TCRBFRep_BFFind.
+by rewrite (Find_Implies_Distinguish &m (R_BFFind_TCR(A))).
+qed.
+
+
+declare op qP : { int | 0 <= qP } as ge0_qP.
+
+declare axiom A_Pick_queries (O <: Oracle_t{-A}) (n : int):
+  hoare[A(Counting_O(O)).pick : Counting_O.ctr = n ==> Counting_O.ctr <= n + qP].
+
+
+local module (R_Repro_TCR_C : Adv_INDNARepro) (O : Oraclep_t) = {
+  import var R_Repro_TCR(O)
+   
+  module O_R_Repro_TCR_C_Pick = Counting_O(R_Repro_TCR(O).O_R_Repro_TCR_Pick) 
+  module O_R_Repro_TCR_C_Distinguish = R_Repro_TCR(O).O_R_Repro_TCR_Distinguish
+   
+  proc pick() : key distr list = {
+    Counting_O.ctr <- 0;
+    
+    x0 <@ A(O_R_Repro_TCR_C_Pick).pick();
+
+    return [dkey];
+  }
+
+  proc distinguish(ks : key list) : bool = {
+    var k0 : key;
+    var x' : input;
+    var y0, y' : output;
+    
+    k0 <- head witness ks;
+    
+    y0 <@ O_R_Repro_TCR_C_Distinguish.get(k0, x0);
+    
+    x' <@ A(O_R_Repro_TCR_C_Distinguish).find(k0);
+    y' <@ O_R_Repro_TCR_C_Distinguish.get(k0, x');
+ 
+    return x' <> x0 /\ y' = y0;
+  }
+}.
+
+local hoare R_Repro_TCR_C_queries :
+  R_Repro_TCR_C(O_Programmable(ERO)).pick :
+    O_Programmable.ch = 0 
+    ==>
+    O_Programmable.ch <= qP /\ all ((>=) (1%r / FinKey.card%r)) (map p_max res).
+proof.
+proc.
+sp.
+conseq (: _ ==> O_Programmable.ch <= qP).
++ move=> &1 eq0cs ch -> /=.
+  rewrite uniform_pmaxE 1:dkey_uni dkey_ll.
+  rewrite StdBigop.Bigreal.Num.Domain.div1r.
+  rewrite card_size_to_seq StdOrder.RealOrder.ler_eqVlt; left.
+  rewrite (: support dkey = predT) // /predT fun_ext => k.
+  by rewrite dkey_fu.
+call (: Counting_O.ctr = 0 /\ O_Programmable.ch = 0  
+        ==>
+        Counting_O.ctr = O_Programmable.ch /\ Counting_O.ctr <= qP).
++ conseq (: Counting_O.ctr = O_Programmable.ch ==> Counting_O.ctr = O_Programmable.ch)
+         (: Counting_O.ctr = 0 ==> Counting_O.ctr <= 0 + qP) => //.
+  - by apply (A_Pick_queries (<: R_Repro_TCR(O_Programmable(ERO)).O_R_Repro_TCR_Pick)).
+  proc (Counting_O.ctr = O_Programmable.ch) => //.
+  proc; inline *.
+  by wp; skip.
+by skip.
+qed.  
+
+lemma TCR_Implies_BFDistinguish &m:
+  Pr[KHFO_TCR.TCR(A, KHFO.O_Default).main() @ &m : res]
+  <=
+  `| Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(false) @ &m : res] - 
+     Pr[BF_Distinguish(R_BFDistinguish_BFFind(R_BFFind_TCR(A)), BFOD).main(true) @ &m : res] |
+  +
+  qP%r / FinKey.card%r. 
+proof.
+move: (TCR_Implies_BFDistinguish_A &m).
+have -> :
+  `| Pr[IND_NARepro(ERO, R_Repro_TCR).main(false, 1) @ &m : res] -
+     Pr[IND_NARepro(ERO, R_Repro_TCR).main(true, 1) @ &m : res] |
+  =
+  `| Pr[IND_NARepro(ERO, R_Repro_TCR_C).main(false, 1) @ &m : res] -
+     Pr[IND_NARepro(ERO, R_Repro_TCR_C).main(true, 1) @ &m : res] |.
++ do 2! congr; last congr.
+  - byequiv=> //. 
+    proc. 
+    inline{1} 3; inline{2} 3.
+    seq 4 5 : (   ={b, n, ds, R_Repro_TCR.x0, glob A, glob ERO, glob O_Programmable}
+               /\ ! b{1}
+               /\ n{1} = 1).
+    * wp.
+      call (: ={glob ERO, glob O_Programmable}).
+      + proc; inline *.
+        by wp; skip.
+      by wp; sim />.
+    inline *.
+    wp.
+    call (: ={glob ERO, glob O_Programmable}).
+    * proc; inline *.
+      by wp.
+    wp.
+    while (   ={b, xs, ds, n, glob O_Programmable, R_Repro_TCR.x0} 
+           /\ ! b{1}).
+    * rcondf{1} ^if; 1: by auto. 
+      rcondf{2} ^if; 1: by auto.
+      by wp; rnd; skip.
+    by wp; skip.
+  byequiv=> //. 
+  proc.
+  inline{1} 3; inline{2} 3.
+  seq 4 5 : (   ={b, n, ds, R_Repro_TCR.x0, glob A, glob ERO, glob O_Programmable}
+             /\ b{1}
+             /\ n{1} = 1).
+  - wp.
+    call (: ={glob ERO, glob O_Programmable}).
+    + proc; inline *.
+      by wp; skip.
+    by wp; sim />.
+  inline *.
+  wp.
+  call (: ={glob ERO, glob O_Programmable}).
+  - proc; inline *.
+    by wp.
+  wp.
+  while (   ={b, xs, ds, n, glob O_Programmable, R_Repro_TCR.x0} 
+         /\ b{1}).
+  - rcondt{1} ^if; 1: by auto. 
+    rcondt{2} ^if; 1: by auto.
+    by wp; rnd; rnd; skip.
+  by wp; skip.
+pose BFAdv := `| _ - _ |%Real; pose ReproAdv := `| _ - _ |%Real; move => tib.
+apply (StdOrder.RealOrder.ler_trans (BFAdv + ReproAdv)) => //.
+apply StdOrder.RealOrder.ler_add => //.
+by apply (Bound_IND_NARepro R_Repro_TCR_C 1 _ qP _ &m R_Repro_TCR_C_queries) => //; smt(ge0_qP).
+qed. 
+
+end section.
+
+end TCRBound.
+*)

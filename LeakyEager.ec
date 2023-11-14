@@ -29,6 +29,7 @@ module Eager : LeakySampler = {
 }.
 
 op preimage (f : 'a -> 'b) y x = f x = y.
+
 module Lazy : LeakySampler = {
   var d : t distr
 
@@ -288,7 +289,7 @@ move=> />; rewrite !dcond1E /=.
 case: (x \in Resampled.d{l})=> [x_in_d|]; 2:by rewrite /support; smt(ge0_mu).
 have gt0_mu_k: 0%r < mu Resampled.d{l} (preimage arg{l} (arg{l} x)).
 + by rewrite witness_support; exists x; rewrite x_in_d.
-by field; smt(RField.unitrM).
+by case (preimage arg{l} (arg{l} x) x) => /#.
 qed.
 
 local lemma eager_leak:
@@ -313,7 +314,7 @@ qed.
 local lemma eager_distinguish:
   eager [Resampled.resample();, D(Resampled).distinguish
        ~ D(Resampled).distinguish, Resampled.resample();:
-      ={glob D, glob Resampled} ==> ={res}].
+      ={glob D, glob Resampled} ==> ={res, glob Resampled}].
 proof.
 eager proc (H_: Resampled.resample(); ~ Resampled.resample();
               : ={glob Resampled} ==> ={glob Resampled})
@@ -321,5 +322,6 @@ eager proc (H_: Resampled.resample(); ~ Resampled.resample();
 + exact: eager_leak.
 + exact: eager_get.
 qed.
+
 
 end section.

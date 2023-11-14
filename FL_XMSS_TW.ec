@@ -660,7 +660,8 @@ proof.
 move=> valad valadp vali valip valj valjp neqij @/set_thtbidx.
 have: put (put (val ad) 0 j) 1 i <> put (put (val ad') 0 j') 1 i'. 
 + move: neqij => -[neqip_i | neqjp_j].
-  - by rewrite &(neq_from_nth witness _ _ 1) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen).  by rewrite &(neq_from_nth witness _ _ 0) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen). 
+  - by rewrite &(neq_from_nth witness _ _ 1) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen).
+  by rewrite &(neq_from_nth witness _ _ 0) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen). 
 rewrite -{1}(Adrs.insubdK (put _ _ i)) 2:-{1}(Adrs.insubdK (put _ _ i')) ?valid_xadrsidxs_adrsidxs ?valid_xadrstrhidxs_xadrsidxs 1,2:validxadrstrhidxs_putthtbidx //. 
 by apply contra => ->.
 qed.

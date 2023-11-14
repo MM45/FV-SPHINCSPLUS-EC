@@ -451,7 +451,7 @@ clone import Subtype as DBLL with
     op P l <- size l = len
   
   proof *.
-  realize inhabited by by exists (nseq len witness); smt(size_nseq ge2_len).
+  realize inhabited by exists (nseq len witness); smt(size_nseq ge2_len).
 
 type dgstblocklenlist = DBLL.sT.
 

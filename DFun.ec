@@ -137,7 +137,6 @@ transitivity S.sample
                (={d, xs} /\ xs{1} = enum ==> size res{2} = card /\ res{1} = zip enum res{2}) => //; 1: smt(enum_uniq).
   - move=> /> &1 &2 eqx eqc.
     rewrite fun_ext => x; rewrite eqx /tofun.
-    search assoc uniq. search assoc index.
     rewrite assoc_zip 1:eqc // (onth_nth witness) 2:oget_some //.
     by rewrite index_ge0 eqc index_mem enumP.
   - by apply Eqv_Loop_Fmap_Loop_List_Rcons.

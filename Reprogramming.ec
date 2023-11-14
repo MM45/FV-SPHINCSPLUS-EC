@@ -15,6 +15,7 @@ op [lossless] dout : out_t distr.
 
 const p_max_bound : real.
 
+(*** TODO: Rewrite using PROM ***)
 clone import ROM as ROM_ with
   type in_t <- in_t,
   type out_t <- out_t,
@@ -963,7 +964,7 @@ end Adaptive.
   Non-adaptive reprogramming
   The adversary is double-stage, getting access to the original oracle in both
   stages. Reprogramming of the oracle is performed by the game in between
-  the two stages.
+  the two stages. Only queries of the first stage are counted.
 **)
 theory NonAdaptive.
 
@@ -1051,7 +1052,14 @@ module IND_NARepro(O : Oracle, A : Adv_INDNARepro) = {
   } 
 }.
 
-
+(*
+Replace while loop by sampling from djoin ds and while loop that reprograms.
+Move to same game, but instead y and set, use RO.sample (PROM.ec) (both with b = true).
+Bad event: sampled x is in previous queries from first adversary call (A.pick()).
+Bound this bad event (try to use new ehoare logic if possible; similar example should exist in repo).
+| Pr[G1 : E] - Pr[G2 : E] | <= Pr[G2 : bad], where G1 := IND_NARepro(true) and G2 := IND_NARepro(true) using RO.sample in the if statement.
+Then, IND_NARepro(true) with RO = IND_NARepro(true) with LRO = IND_NARepro(false) with LRO or RO (doesn't matter because no reprogramming is done).
+*)
 section.
 
 declare module A <: Adv_INDNARepro {-IND_NARepro, -ERO}.
@@ -1067,7 +1075,7 @@ lemma Bound_IND_NARepro &m :
   => `| Pr[IND_NARepro(ERO, A).main(false, rep_ctr) @ &m : res] - 
         Pr[IND_NARepro(ERO, A).main(true, rep_ctr) @ &m : res] |
       <= 
-      rep_ctr%r * query_ctr%r * p_max_bound. 
+      rep_ctr%r * query_ctr%r * p_max_bound.
 proof.
 admit.
 qed.

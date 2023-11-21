@@ -13,7 +13,7 @@ require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
 (* - Parameters - *)
 (* -- General -- *)
 (* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
-const adrs_len : { int | 5 <= adrs_len} as ge4_adrslen.
+const adrs_len : { int | 5 <= adrs_len} as ge5_adrslen.
 
 (* Byte-length of each private key element, public key element, and signature element *)
 const n : { int | 1 <= n } as ge1_n.
@@ -317,7 +317,7 @@ clone import HashAddresses as HA with
     op valid_idxvals <- valid_idxvals,
     op valid_adrsidxs <- valid_adrsidxs
     
-    proof ge1_l by smt(ge4_adrslen).
+    proof ge1_l by smt(ge5_adrslen).
     
 import Adrs.
 
@@ -642,7 +642,8 @@ type fadrs = FAddress.sT.
 (* - Specification - *)
 (* 
   Fixed-Length FORS-TW in Encompassing Structure.
-  Addresses given to main procedures (keygen, sign, verify) should be of trhtype
+  Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme.
+  Represents single FORS-TW instance that signs fixed-length messages. 
 *)
 module FL_FORS_TW_ES = {
   proc gen_leaves_single_tree(idxt : int, ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
@@ -758,41 +759,159 @@ module FL_FORS_TW_ES = {
   } 
 }.
 
-(* Multi-instance FORS-TW in Encompassing Structure *)
+(* 
+  Multi-instance FORS-TW in Encompassing Structure.
+*)
 module M_FORS_TW_ES = {
-  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkMFORSTW * skMFORSTW =  {
+  proc gen_pkFORSs (ss : sseed, ps : pseed, ad : adrs) : pkFORS list list = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list;
+    var pkFORSs : pkFORS list list;
+     
+    (* 
+      Total of d instances, but these are divided in 
+      s sets (SPHINCS+: XMSS instances on bottom layer) 
+      each containing l instances (SPHINCS+: leaves of XMSS instance on bottom layer)
+    *)
+    pkFORSs <- [];
+    pkFORSl <- [];
+    while (size pkFORSs < s) {
+      while (size pkFORSl < l) {
+        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) l);
+        pkFORSl <- rcons pkFORSl pkFORS; 
+      }
+      
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
     
-    return witness;
+    return pkFORSs;
+  }
+   
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : (pkFORS list list * pseed * adrs) * skFORSTW =  {
+    var pkFORSs : pkFORS list list;
+    var pk : (pkFORS list list * pseed * adrs);
+    var sk : skFORSTW;
+    
+    pkFORSs <@ gen_pkFORSs(ss, ps, set_typeidx ad trhtype);
+    
+    pk <- (pkFORSs, ps, ad);
+    sk <- (ss, ps, ad);
+    
+    return (pk, sk);
   }
   
-  proc sign(sk : skMFORSTW, m : msg) : sigFORSTW = {
-  
-    return witness;
+  proc sign(sk : skFORSTW, m : msg) : mkey * sigFORSTW = {
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var mc : msgFORSTW;
+    var idx : iid;
+    var tidx, kpidx : int;
+    var sig : sigFORSTW;
+    
+    (ss, ps, ad) <- sk;
+    
+    mk <$ dmkey;
+    
+    (mc, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) s;
+    
+    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    
+    return (mk, sig);
   }
   
-  proc verify(pk : pkMFORSTW, m : msg, sig : sigFORSTW) : bool = {
-  
-    return witness;
+  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORSTW) : bool = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list list;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var sigFORSTW : sigFORSTW;
+    var mc : msgFORSTW;
+    var idx : iid;
+    var tidx, kpidx : int;
+    var is_valid : bool; 
+        
+    (pkFORSl, ps, ad) <- pk;
+    (mk, sigFORSTW) <- sig;
+    
+    (mc, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) s;
+    
+    pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
+    
+    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
+    
+    return is_valid;
   } 
 }.
 
 
 
 (* - Proof - *)
-(* -- Oracles -- *)
-module type Oraclei_EUFCMA_FLFORSTWES = {
-  proc init(sk_init : skFORSTW) : unit
-  proc sign(m : msgFORSTW) : 
-}.
-
-module type Oracle_EUFCMA_FLFORSTWES = {
-  
+(* -- Oracle types -- *)
+module type Oracle_EUFCMA_MFORSTWES = {
+  proc init(sk : skFORSTW) : unit
+  proc sign(m : msg) : mkey * sigFORSTW
+  proc fresh(m : msg) : bool
 }.
 
 
 (* -- Adversary classes -- *)
-module type Adv_EUFCMA_FLFORSTWES (O : Oracle_EUFCMA_FLFORSTWES) = {
-  proc forge(pk : pkFORSTW) : msgFORSTW * sigFORSTW 
+module type Adv_EUFCMA_MFORSTWES (O : Oracle_EUFCMA_MFORSTWES) = {
+  proc choose() : fadrs {}
+  proc forge(ps : pseed) : msg * (mkey * sigFORSTW) { O.sign }
 }.
 
+
 (* -- Notions -- *)
+module EUFCMA_MFORSTWES (O : Oracle_EUFCMA_MFORSTWES, A : Adv_EUFCMA_MFORSTWES) = {
+  module A = A(O)
+  
+  proc main() : bool = {
+    var ss : sseed;
+    var ps : pseed;
+    var fad : fadrs;
+    var ad : adrs;
+    var pk : pkFORS list list * pseed * adrs;
+    var sk : skFORSTW;
+    var m' : msg;
+    var sig' : mkey * sigFORSTW;
+    var is_valid, is_fresh : bool;
+    
+    fad <@ A.choose();
+    
+    ad <- val fad;
+    
+    ss <$ dsseed;
+    ps <$ dpseed;
+    
+    (pk, sk) <@ M_FORS_TW_ES.keygen(ss, ps, ad);
+    
+    O.init(sk);
+    
+    (m', sig') <@ A.forge(ps);
+    
+    is_fresh <@ O.fresh(m');
+    
+    is_valid <@ M_FORS_TW_ES.verify(pk, m', sig');
+    
+    return is_valid /\ is_fresh;
+  }
+}.
+
+
+(* -- Oracle Implementations -- *)
+
+
+
+(* -- Reduction Adversaries -- *)
+
+
+section EUFCMA_M_FORS_TW_ES.
+
+end section EUFCMA_M_FORS_TW_ES.

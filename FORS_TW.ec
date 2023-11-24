@@ -7,7 +7,7 @@ require import AllCore List Distr FinType IntDiv BitEncoding.
 (* -- Local -- *)
 require import MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
-
+require (*--*) DigitalSignatures.
 
 
 (* - Parameters - *)
@@ -616,29 +616,7 @@ op val_ap_trh (ap : apFORSTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : 
   val_ap_trh_gen (val ap) (rev (int2bs a idx)) leaf ps ad a bidx.
 
 
-
-(* - Types (3/3) - *)
-(*
-  FORS-TW addresses
-  Introduced only for the purpose of the proof; specifically, to ensure that 
-  the adversary provides us with a valid FORST-TW addresses in the security notion. 
-  Essentially, this excludes the "irrelevant"
-  adversaries that provide invalid addresses from the considered class of
-  adversaries. Equivalently, we could introduce a behavioral check on the adversary
-  at the end of the game (i.e., only let the adversary succeed if the
-  provided address is a valid FORS-TW address). Furthermore, this approach
-  would also be equivalent to having no subtype or extended behavioral check
-  but instead have the considered scheme/oracle do input sanitization (i.e., have the scheme
-  check whether the provided address ia a valid FORS-TW addresses).
-*)
-clone import Subtype as FAddress with
-  type T <- adrs,
-    op P <- valid_fadrs.
-    
-type fadrs = FAddress.sT.
-
-
-
+print chunk.
 (* - Specification - *)
 (* 
   Fixed-Length FORS-TW in Encompassing Structure.
@@ -697,7 +675,7 @@ module FL_FORS_TW_ES = {
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
-    var mc : bool list list;
+    var bsidx : bool list;
     var idx : int;
     var skFORS_ele : dgstblock;
     var leaves : dgstblock list;
@@ -706,11 +684,10 @@ module FL_FORS_TW_ES = {
     
     (ss, ps, ad) <- sk;
     
-    mc <- chunk a (val m);
-    
     sig <- [];
     while (size sig < k) {
-      idx <- bs2int (rev (nth witness mc (size sig)));
+      bsidx <- take a (drop (a * (size sig)) (val m));  
+      idx <- bs2int (rev bsidx);
       skFORS_ele <- skg ss (ps, set_thtbidx ad 0 (size sig * t + idx));
       leaves <@ gen_leaves_single_tree(size sig, ss, ps, ad);
       ap <- cons_ap_trh (list2tree leaves) idx ps ad (size sig);
@@ -723,18 +700,17 @@ module FL_FORS_TW_ES = {
   proc pkFORS_from_sigFORSTW(sig : sigFORSTW, m : msgFORSTW, ps : pseed, ad : adrs) : pkFORS = {
     var skFORS_ele : dgstblock;
     var ap : apFORSTW;
-    var mc : bool list list;
     var leaf : dgstblock;
+    var bsidx : bool list;
     var idx : int;
     var rs : dgstblock list;
     var root : dgstblock;
     var pkFORS : pkFORS;
     
-    mc <- chunk a (val m);
-    
     rs <- [];
     while (size rs < k) {
-      idx <- bs2int (rev (nth witness mc (size rs)));
+      bsidx <- take a (drop (a * (size rs)) (val m));  
+      idx <- bs2int (rev bsidx);
       (skFORS_ele, ap) <- nth witness (val sig) (size rs);
       leaf <- f ps (set_thtbidx ad 0 (size rs * t + idx)) (val skFORS_ele);
       root <- val_ap_trh ap idx leaf ps ad (size rs);
@@ -787,10 +763,17 @@ module M_FORS_TW_ES = {
     return pkFORSs;
   }
    
-  proc keygen(ss : sseed, ps : pseed, ad : adrs) : (pkFORS list list * pseed * adrs) * skFORSTW =  {
+  proc keygen() : (pkFORS list list * pseed * adrs) * skFORSTW =  {
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
     var pkFORSs : pkFORS list list;
     var pk : (pkFORS list list * pseed * adrs);
     var sk : skFORSTW;
+    
+    ss <$ dsseed;
+    ps <$ dpseed;
+    ad <- witness;
     
     pkFORSs <@ gen_pkFORSs(ss, ps, set_typeidx ad trhtype);
     
@@ -816,7 +799,7 @@ module M_FORS_TW_ES = {
     
     (mc, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) s;
+    (tidx, kpidx) <- edivz (val idx) l;
     
     sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
     
@@ -840,7 +823,7 @@ module M_FORS_TW_ES = {
     
     (mc, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) s;
+    (tidx, kpidx) <- edivz (val idx) l;
     
     pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
     
@@ -853,64 +836,15 @@ module M_FORS_TW_ES = {
 
 
 (* - Proof - *)
-(* -- Oracle types -- *)
-module type Oracle_EUFCMA_MFORSTWES = {
-  proc init(sk : skFORSTW) : unit
-  proc sign(m : msg) : mkey * sigFORSTW
-  proc fresh(m : msg) : bool
-}.
-
-
-(* -- Adversary classes -- *)
-module type Adv_EUFCMA_MFORSTWES (O : Oracle_EUFCMA_MFORSTWES) = {
-  proc choose() : fadrs {}
-  proc forge(ps : pseed) : msg * (mkey * sigFORSTW) { O.sign }
-}.
-
-
-(* -- Notions -- *)
-module EUFCMA_MFORSTWES (O : Oracle_EUFCMA_MFORSTWES, A : Adv_EUFCMA_MFORSTWES) = {
-  module A = A(O)
+clone import DigitalSignatures as DSS_MFORSTWES with
+  type pk_t <- pkFORS list list * pseed * adrs,
+  type sk_t <- skFORSTW,
+  type msg_t <- msg,
+  type sig_t <- mkey * sigFORSTW
   
-  proc main() : bool = {
-    var ss : sseed;
-    var ps : pseed;
-    var fad : fadrs;
-    var ad : adrs;
-    var pk : pkFORS list list * pseed * adrs;
-    var sk : skFORSTW;
-    var m' : msg;
-    var sig' : mkey * sigFORSTW;
-    var is_valid, is_fresh : bool;
-    
-    fad <@ A.choose();
-    
-    ad <- val fad;
-    
-    ss <$ dsseed;
-    ps <$ dpseed;
-    
-    (pk, sk) <@ M_FORS_TW_ES.keygen(ss, ps, ad);
-    
-    O.init(sk);
-    
-    (m', sig') <@ A.forge(ps);
-    
-    is_fresh <@ O.fresh(m');
-    
-    is_valid <@ M_FORS_TW_ES.verify(pk, m', sig');
-    
-    return is_valid /\ is_fresh;
-  }
-}.
+  proof *.
 
-
-(* -- Oracle Implementations -- *)
-
-
-
-(* -- Reduction Adversaries -- *)
-
+import Stateless.
 
 section EUFCMA_M_FORS_TW_ES.
 

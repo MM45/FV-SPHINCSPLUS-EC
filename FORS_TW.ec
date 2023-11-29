@@ -557,6 +557,7 @@ clone import TRCOC.SMDTTCRC as TRCOC_TCR with
 
 
 (* -- Merkle trees -- *)
+(*
 (* 
   Computes the (hash) value corresponding to the root of the binary tree w.r.t.
   a certain public seed, address, height index, and breadth index. 
@@ -566,7 +567,21 @@ op val_bt_trh (bt : dgstblock bintree) (ps : pseed) (ad : adrs) (hidx : int) (bi
   with bt = Node l r => 
     trh ps (set_thtbidx ad hidx bidx) 
         (val (val_bt_trh l ps ad (hidx - 1) (2 * bidx)) ++ val (val_bt_trh r ps ad (hidx - 1) (2 * bidx + 1))).
+*)
+op trhi (ps : pseed) (ad : adrs) (hidx bidx : int) (x x' : dgstblock) : dgstblock =
+  trh ps (set_thtbidx ad hidx bidx) (val x ++ val x').
 
+op val_bt (trh : int -> int -> 'a -> 'a -> 'a)
+          (bt : 'a bintree)
+          (hidx bidx : int) : 'a =
+  with bt = Leaf x => x
+  with bt = Node l r =>
+    trh hidx bidx (val_bt trh l (hidx - 1) (2 * bidx)) (val_bt trh r (hidx - 1) (2 * bidx + 1)). 
+
+op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
+  val_bt (trhi ps ad) bt hidx bidx.
+
+(*     
 (* 
   Constructs an authentication path (without embedding it in the corresponding subtype)
   from a binary tree and a path represented by a boolean list w.r.t. a certain 
@@ -579,22 +594,23 @@ op cons_ap_trh_gen (bt : dgstblock bintree) (bs : bool list) (ps : pseed) (ad : 
   with bt = Node l r, bs = b :: bs' =>
     (val_bt_trh (if b then l else r) ps ad (hidx - 1) (if b then 2 * bidx else 2 * bidx + 1)) 
      :: cons_ap_trh_gen (if b then r else l) bs' ps ad (hidx - 1) (if b then 2 * bidx + 1 else 2 * bidx). 
+*)
+op cons_ap (trh : int -> int -> 'a -> 'a -> 'a) 
+           (bt : 'a bintree) 
+           (bs : bool list) 
+           (hidx bidx : int) : 'a list =
+  with bt = Leaf _, bs = [] => []
+  with bt = Leaf _, bs = _ :: _ => witness
+  with bt = Node _ _, bs = [] => witness
+  with bt = Node l r, bs = b :: bs' =>
+    (val_bt trh (if b then l else r) (hidx - 1) (if b then 2 * bidx else 2 * bidx + 1)) 
+     :: cons_ap trh (if b then r else l) bs' (hidx - 1) (if b then 2 * bidx + 1 else 2 * bidx). 
+
+op cons_ap_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bs : bool list) (hidx bidx : int) : dgstblock list =
+  cons_ap (trhi ps ad) bt bs hidx bidx.
+
 
 (*
-  Computes the (hash) value corresponding to an authentication path, a leaf, and a 
-  path represented by a boolean list w.r.t a certain public seed, address, height index, 
-  and breadth index.
-*)  
-op val_ap_trh_gen (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (ps : pseed) (ad : adrs) (hidx : int) (bidx : int) : dgstblock =
-  with ap = [], bs = [] => leaf
-  with ap = [], bs = _ :: _ => witness 
-  with ap = _ :: _, bs = [] => witness
-  with ap = x :: ap', bs = b :: bs' =>
-    trh ps (set_thtbidx ad hidx bidx) 
-        (if b 
-         then val x ++ val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx + 1))
-         else val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx)) ++ val x).
-
 (* 
   Constructs authentication path (embedding it in the corresponding subtype)
   for the special case of binary trees of height a w.r.t. a certain public seed, address, 
@@ -604,7 +620,44 @@ op val_ap_trh_gen (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (ps 
 *)
 op cons_ap_trh (bt : dgstblock bintree) (idx : int) (ps : pseed) (ad : adrs) (bidx : int) : apFORSTW =
   DBAL.insubd (cons_ap_trh_gen bt (rev (int2bs a idx)) ps ad a bidx).
+*)
+op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) (bidx : int) : apFORSTW =
+  DBAL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs a idx)) a bidx).
 
+  
+(*
+(*
+  Computes the (hash) value corresponding to an authentication path, a leaf, and a 
+  path represented by a boolean list w.r.t a certain public seed, address, height index, 
+  and breadth index.
+*)        
+op val_ap_trh_gen (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (ps : pseed) (ad : adrs) (hidx : int) (bidx : int) : dgstblock =
+  with ap = [], bs = [] => leaf
+  with ap = [], bs = _ :: _ => witness 
+  with ap = _ :: _, bs = [] => witness
+  with ap = x :: ap', bs = b :: bs' =>
+    trh ps (set_thtbidx ad hidx bidx) 
+        (if b 
+         then val x ++ val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx + 1))
+         else val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx)) ++ val x).
+*)
+op val_ap (trh : int -> int -> 'a -> 'a -> 'a) 
+          (ap : 'a list) 
+          (bs : bool list)
+          (leaf : 'a) 
+          (hidx bidx : int) : 'a = 
+  with ap = [], bs = [] => leaf
+  with ap = [], bs = _ :: _ => witness 
+  with ap = _ :: _, bs = [] => witness
+  with ap = x :: ap', bs = b :: bs' =>
+    trh hidx bidx 
+        (if b then x else val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx))
+        (if b then val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1) else x).
+
+op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx bidx : int) : dgstblock =
+  val_ap (trhi ps ad) ap bs leaf hidx bidx.
+
+(*
 (* 
   Computes value corresponding to an authentication path, leaf, and a path represented 
   by the big-endian binary representation of an index  w.r.t. a certain public seed, address, 
@@ -614,9 +667,53 @@ op cons_ap_trh (bt : dgstblock bintree) (idx : int) (ps : pseed) (ad : adrs) (bi
 *)
 op val_ap_trh (ap : apFORSTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : adrs) (bidx : int) : dgstblock = 
   val_ap_trh_gen (val ap) (rev (int2bs a idx)) leaf ps ad a bidx.
+*)
+
+op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFORSTW) (idx : int) (leaf : dgstblock) (bidx : int) : dgstblock =
+  val_ap_trh_gen ps ad (val ap) (rev (int2bs a idx)) leaf a bidx. 
 
 
-print chunk.
+op extract_collision_bt_ap (trh : int -> int -> 'a -> 'a -> 'a) 
+                           (bt : 'a bintree)
+                           (ap : 'a list) 
+                           (bs : bool list)
+                           (leaf : 'a) 
+                           (hidx bidx : int) : 'a * 'a * 'a * 'a * int * int =
+  with bt = Leaf _, ap = [], bs = [] => witness
+  with bt = Leaf _, ap = [], bs = b :: bs' => witness
+  with bt = Leaf _, ap = x :: ap', bs = [] => witness
+  with bt = Leaf _, ap = x :: ap', bs = b :: bs' => witness
+  with bt = Node _ _, ap = [], bs = [] => witness
+  with bt = Node _ _, ap = [], bs = b :: bs' => witness
+  with bt = Node _ _, ap = x :: ap', bs = [] => witness
+  with bt = Node l r, ap = x :: ap', bs = b :: bs' =>
+    if b
+    then
+      if    (val_bt trh l (hidx - 1) (2 * bidx), val_bt trh r (hidx - 1) (2 * bidx + 1)) 
+            <> 
+            (x, val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1))
+         /\ val_bt trh bt hidx bidx = val_ap trh ap bs leaf hidx bidx
+      then (val_bt trh l (hidx - 1) (2 * bidx), 
+            val_bt trh r (hidx - 1) (2 * bidx + 1), 
+            x, 
+            val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1), 
+            hidx, 
+            bidx)
+      else extract_collision_bt_ap trh r ap' bs' leaf (hidx - 1) (2 * bidx + 1)
+    else
+      if    (val_bt trh l (hidx - 1) (2 * bidx), val_bt trh r (hidx - 1) (2 * bidx + 1)) 
+            <> 
+            (val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx), x)
+         /\ val_bt trh bt hidx bidx = val_ap trh ap bs leaf hidx bidx
+      then (val_bt trh l (hidx - 1) (2 * bidx), 
+            val_bt trh r (hidx - 1) (2 * bidx + 1), 
+            val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx), 
+            x, 
+            hidx, 
+            bidx)
+      else extract_collision_bt_ap trh l ap' bs' leaf (hidx - 1) (2 * bidx).
+  
+
 (* - Specification - *)
 (* 
   Fixed-Length FORS-TW in Encompassing Structure.
@@ -649,7 +746,7 @@ module FL_FORS_TW_ES = {
     rs <- [];
     while (size rs < k) {
       leaves <@ gen_leaves_single_tree(size rs, ss, ps, ad); 
-      r <- val_bt_trh (list2tree leaves) ps ad a (size rs);
+      r <- val_bt_trh ps ad (list2tree leaves) a (size rs);
       rs <- rcons rs r;
     }
      
@@ -690,7 +787,7 @@ module FL_FORS_TW_ES = {
       idx <- bs2int (rev bsidx);
       skFORS_ele <- skg ss (ps, set_thtbidx ad 0 (size sig * t + idx));
       leaves <@ gen_leaves_single_tree(size sig, ss, ps, ad);
-      ap <- cons_ap_trh (list2tree leaves) idx ps ad (size sig);
+      ap <- cons_ap_trh ps ad (list2tree leaves) idx (size sig);
       sig <- rcons sig (skFORS_ele, ap);
     }
     
@@ -713,7 +810,7 @@ module FL_FORS_TW_ES = {
       idx <- bs2int (rev bsidx);
       (skFORS_ele, ap) <- nth witness (val sig) (size rs);
       leaf <- f ps (set_thtbidx ad 0 (size rs * t + idx)) (val skFORS_ele);
-      root <- val_ap_trh ap idx leaf ps ad (size rs);
+      root <- val_ap_trh ps ad ap idx leaf (size rs);
       rs <- rcons rs root;
     }
     
@@ -845,6 +942,27 @@ clone import DigitalSignatures as DSS_MFORSTWES with
   proof *.
 
 import Stateless.
+
+print Adv_ITSR.
+module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
+  proc find() : mkey * msg = {
+    return witness;
+  } 
+}.
+
+module R_EUFCMA_FCSMDTTCR = {
+
+}.
+
+
+module R_EUFCMA_TRHSMDTTCR = {
+
+}.
+
+module R_EUFCMA_TRCOSMDTTCR = {
+
+}.
+
 
 section EUFCMA_M_FORS_TW_ES.
 

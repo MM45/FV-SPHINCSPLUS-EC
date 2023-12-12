@@ -2,15 +2,15 @@ require import AllCore List BinaryTrees BitEncoding.
 (*---*) import BS2Int.
 
 op val_bt (trh : 'b -> 'a -> 'a -> 'a)
-          (updct : bool -> 'b -> 'b)
+          (updct : 'b -> bool -> 'b)
           (bt : 'a bintree)
           (ct : 'b) : 'a =
   with bt = Leaf x => x
   with bt = Node l r =>
-    trh ct (val_bt trh updct l (updct false ct)) (val_bt trh updct r (updct true ct)).
+    trh ct (val_bt trh updct l (updct ct false)) (val_bt trh updct r (updct ct true)).
   
 op cons_ap (trh : 'b -> 'a -> 'a -> 'a)
-           (updct : bool -> 'b -> 'b)
+           (updct : 'b -> bool -> 'b)
            (bt : 'a bintree) 
            (bs : bool list) 
            (ct : 'b) : 'a list =
@@ -18,11 +18,11 @@ op cons_ap (trh : 'b -> 'a -> 'a -> 'a)
   with bt = Leaf _, bs = _ :: _ => witness
   with bt = Node _ _, bs = [] => witness
   with bt = Node l r, bs = b :: bs' =>
-    (val_bt trh updct (if !b then r else l) (updct (!b) ct)) 
-     :: cons_ap trh updct (if b then r else l) bs' (updct b ct). 
+    (val_bt trh updct (if !b then r else l) (updct ct (!b))) 
+     :: cons_ap trh updct (if b then r else l) bs' (updct ct b). 
 
 op val_ap (trh : 'b -> 'a -> 'a -> 'a)
-          (updct : bool -> 'b -> 'b)
+          (updct : 'b -> bool -> 'b)
           (ap : 'a list) 
           (bs : bool list)
           (leaf : 'a) 
@@ -32,11 +32,11 @@ op val_ap (trh : 'b -> 'a -> 'a -> 'a)
   with ap = _ :: _, bs = [] => witness
   with ap = x :: ap', bs = b :: bs' =>
     trh ct 
-        (if b then x else val_ap trh updct ap' bs' leaf (updct false ct))
-        (if b then val_ap trh updct ap' bs' leaf (updct true ct) else x).
+        (if b then x else val_ap trh updct ap' bs' leaf (updct ct false))
+        (if b then val_ap trh updct ap' bs' leaf (updct ct true) else x).
 
 op extract_collision_bt_ap (trh : 'b -> 'a -> 'a -> 'a) 
-                           (updct : bool -> 'b -> 'b)
+                           (updct : 'b -> bool -> 'b)
                            (bt : 'a bintree)
                            (ap : 'a list) 
                            (bs : bool list)
@@ -52,36 +52,36 @@ op extract_collision_bt_ap (trh : 'b -> 'a -> 'a -> 'a)
   with bt = Node l r, ap = x :: ap', bs = b :: bs' =>
     if b
     then
-      if    (val_bt trh updct l (updct false ct), val_bt trh updct r (updct true ct)) 
+      if    (val_bt trh updct l (updct ct false), val_bt trh updct r (updct ct true)) 
             <> 
-            (x, val_ap trh updct ap' bs' leaf (updct true ct))
+            (x, val_ap trh updct ap' bs' leaf (updct ct true))
          /\ val_bt trh updct bt ct = val_ap trh updct ap bs leaf ct
-      then (val_bt trh updct l (updct false ct), 
-            val_bt trh updct r (updct true ct), 
+      then (val_bt trh updct l (updct ct false), 
+            val_bt trh updct r (updct ct true), 
             x, 
-            val_ap trh updct ap' bs' leaf (updct true ct), 
+            val_ap trh updct ap' bs' leaf (updct ct true), 
             ct,
             l,
             r,
             bs')
-      else extract_collision_bt_ap trh updct r ap' bs' leaf (updct true ct)
+      else extract_collision_bt_ap trh updct r ap' bs' leaf (updct ct true)
     else
-      if    (val_bt trh updct l (updct false ct), val_bt trh updct r (updct true ct)) 
+      if    (val_bt trh updct l (updct ct false), val_bt trh updct r (updct ct true)) 
             <> 
-            (val_ap trh updct ap' bs' leaf (updct false ct), x)
+            (val_ap trh updct ap' bs' leaf (updct ct false), x)
          /\ val_bt trh updct bt ct = val_ap trh updct ap bs leaf ct
-      then (val_bt trh updct l (updct false ct), 
-            val_bt trh updct r (updct true ct), 
-            val_ap trh updct ap' bs' leaf (updct false ct),
+      then (val_bt trh updct l (updct ct false), 
+            val_bt trh updct r (updct ct true), 
+            val_ap trh updct ap' bs' leaf (updct ct false),
             x,  
             ct,
             l,
             r,
             bs')
-      else extract_collision_bt_ap trh updct l ap' bs' leaf (updct false ct).
+      else extract_collision_bt_ap trh updct l ap' bs' leaf (updct ct false).
 
 lemma ecbtapP (trh : 'b -> 'a -> 'a -> 'a) 
-              (updct : bool -> 'b -> 'b)
+              (updct : 'b -> bool -> 'b)
               (bt : 'a bintree)
               (ap : 'a list) 
               (bs : bool list)
@@ -105,7 +105,7 @@ by case=> /#.
 qed.
 
 lemma ecbtabp_props (trh : 'b -> 'a -> 'a -> 'a)
-                    (updct : bool -> 'b -> 'b)
+                    (updct : 'b -> bool -> 'b)
                     (bt : 'a bintree)
                     (ap : 'a list) 
                     (bs : bool list)
@@ -140,7 +140,7 @@ qed.
 
 (* (oget (sub_bt bt (rcons (take (height bt - i) bs) true))) (i - 1) (2 * j + 1) *)
 lemma ecbtap_vals (trh : 'b -> 'a -> 'a -> 'a)
-                  (updct : bool -> 'b -> 'b)
+                  (updct : 'b -> bool -> 'b)
                   (bt : 'a bintree)
                   (ap : 'a list) 
                   (bs : bool list)
@@ -153,15 +153,15 @@ lemma ecbtap_vals (trh : 'b -> 'a -> 'a -> 'a)
   => val_bt trh updct bt ct = val_ap trh updct ap bs leaf ct
   => vallf_subbt bt bs = Some leaf'
   => let (x1, x1', x2, x2', ct', l, r, bs') = extract_collision_bt_ap trh updct bt ap bs leaf ct in
-          x1 = val_bt trh updct l (updct false ct')
-       /\ x1' = val_bt trh updct r (updct true ct')
+          x1 = val_bt trh updct l (updct ct' false)
+       /\ x1' = val_bt trh updct r (updct ct' true)
        /\ x2 = (if nth witness bs (size bs - size bs' - 1) 
                 then nth witness ap (size bs - size bs' - 1) 
-                else val_ap trh updct (drop (size bs - size bs') ap) (drop (size bs - size bs') bs) leaf (updct false ct'))
+                else val_ap trh updct (drop (size bs - size bs') ap) (drop (size bs - size bs') bs) leaf (updct ct' false))
        /\ x2' = (if nth witness bs (size bs - size bs' - 1) 
-                 then val_ap trh updct (drop (size bs - size bs') ap) (drop (size bs - size bs') bs) leaf (updct true ct')
+                 then val_ap trh updct (drop (size bs - size bs') ap) (drop (size bs - size bs') bs) leaf (updct ct' true)
                  else nth witness ap (size bs - size bs' - 1))
-       /\ ct' = foldl (transpose updct) ct (take (size bs - size bs' - 1) bs)
+       /\ ct' = foldl updct ct (take (size bs - size bs' - 1) bs)
        /\ l = oget (sub_bt bt (rcons (take (size bs - size bs' - 1) bs) false))
        /\ r = oget (sub_bt bt (rcons (take (size bs - size bs' - 1) bs) true))
        /\ bs' = drop (size bs - size bs') bs.
@@ -175,15 +175,15 @@ case=> [/# | l r ct /= [#]].
 move=> eqhei fb_l fb_r eqsz eqhesz.
 pose val_l := val_bt trh _ l _.
 pose val_r := val_bt trh _ r _.
-pose val_ap_l := val_ap _ _ _ _ _ (updct false ct).
-pose val_ap_r := val_ap _ _ _ _ _ (updct true ct).
+pose val_ap_l := val_ap _ _ _ _ _ (updct ct false).
+pose val_ap_r := val_ap _ _ _ _ _ (updct ct true).
 elim: b => /= eqtrh /= eqlfp; rewrite eqtrh.
 + case (val_l = x /\ val_r = val_ap_r) => /= eqvalxap />.
   - move=> x1 x1' x2 x2' ct' bt1 bt2 bs' ecoll.
-    move: (ecbtabp_props trh updct r ap bs leaf leaf' (updct true ct)).
+    move: (ecbtabp_props trh updct r ap bs leaf leaf' (updct ct true)).
     move=> /(_ fb_r _ _ neq_lf _ _); 1..4: smt().
     rewrite ecoll; move=> [#] eqhe lthe ltsz.
-    move: (ih bs r (updct true ct) fb_r _ _ _ _) => /=; 1..4: smt().
+    move: (ih bs r (updct ct true) fb_r _ _ _ _) => /=; 1..4: smt().
     rewrite ecoll => [#] -> -> -> -> -> -> -> eqbs' /=.
     rewrite eqbs' size_drop; 1: smt(@List). 
     rewrite (: size bs - (size bs - size bs') = size bs') 1:/#.
@@ -198,10 +198,10 @@ elim: b => /= eqtrh /= eqlfp; rewrite eqtrh.
   by rewrite ?take0 ?drop0 /= 2!subbt_empty 2!oget_some.
 case (val_l = val_ap_l /\ val_r = x) => /= eqvalxap />.
 - move=> x1 x1' x2 x2' ct' bt1 bt2 bs' ecoll.
-  move: (ecbtabp_props trh updct l ap bs leaf leaf' (updct false ct)).
+  move: (ecbtabp_props trh updct l ap bs leaf leaf' (updct ct false)).
   move=> /(_ fb_l _ _ neq_lf _ _); 1..4: smt().
   rewrite ecoll; move=> [#] eqhe lthe ltsz.
-  move: (ih bs l (updct false ct) fb_l _ _ _ _) => /=; 1..4: smt().
+  move: (ih bs l (updct ct false) fb_l _ _ _ _) => /=; 1..4: smt().
   rewrite ecoll => [#] -> -> -> -> -> -> -> eqbs' /=.
   rewrite eqbs' size_drop; 1: smt(@List). 
   rewrite (: size bs - (size bs - size bs') = size bs') 1:/#.

@@ -5,7 +5,7 @@ require import AllCore List Distr FinType IntDiv BitEncoding.
 
 
 (* -- Local -- *)
-require import MerkleTrees.
+require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
 require (*--*) DigitalSignatures.
 
@@ -557,6 +557,14 @@ clone import TRCOC.SMDTTCRC as TRCOC_TCR with
 
 
 (* -- Merkle trees -- *)
+(* Update function for height and breadth indices (down the tree) *)
+op updhbidx (hbidx : int * int) (b : bool) : int * int = 
+  (hbidx.`1 - 1, if b then 2 * hbidx.`2 + 1 else 2 * hbidx.`2).
+
+(* Function around trh with desired form for use in abstract merkle tree operators  *)
+op trhi (ps : pseed) (ad : adrs) (hbidx : int * int) (x x' : dgstblock) : dgstblock =
+  trh ps (set_thtbidx ad hbidx.`1 hbidx.`2) (val x ++ val x').
+  
 (*
 (* 
   Computes the (hash) value corresponding to the root of the binary tree w.r.t.
@@ -568,18 +576,8 @@ op val_bt_trh (bt : dgstblock bintree) (ps : pseed) (ad : adrs) (hidx : int) (bi
     trh ps (set_thtbidx ad hidx bidx) 
         (val (val_bt_trh l ps ad (hidx - 1) (2 * bidx)) ++ val (val_bt_trh r ps ad (hidx - 1) (2 * bidx + 1))).
 *)
-op trhi (ps : pseed) (ad : adrs) (hidx bidx : int) (x x' : dgstblock) : dgstblock =
-  trh ps (set_thtbidx ad hidx bidx) (val x ++ val x').
-
-op val_bt (trh : int -> int -> 'a -> 'a -> 'a)
-          (bt : 'a bintree)
-          (hidx bidx : int) : 'a =
-  with bt = Leaf x => x
-  with bt = Node l r =>
-    trh hidx bidx (val_bt trh l (hidx - 1) (2 * bidx)) (val_bt trh r (hidx - 1) (2 * bidx + 1)). 
-
 op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
-  val_bt (trhi ps ad) bt hidx bidx.
+  val_bt (trhi ps ad) updhbidx bt (hidx, bidx).
 
 (*     
 (* 
@@ -595,19 +593,8 @@ op cons_ap_trh_gen (bt : dgstblock bintree) (bs : bool list) (ps : pseed) (ad : 
     (val_bt_trh (if b then l else r) ps ad (hidx - 1) (if b then 2 * bidx else 2 * bidx + 1)) 
      :: cons_ap_trh_gen (if b then r else l) bs' ps ad (hidx - 1) (if b then 2 * bidx + 1 else 2 * bidx). 
 *)
-op cons_ap (trh : int -> int -> 'a -> 'a -> 'a) 
-           (bt : 'a bintree) 
-           (bs : bool list) 
-           (hidx bidx : int) : 'a list =
-  with bt = Leaf _, bs = [] => []
-  with bt = Leaf _, bs = _ :: _ => witness
-  with bt = Node _ _, bs = [] => witness
-  with bt = Node l r, bs = b :: bs' =>
-    (val_bt trh (if b then l else r) (hidx - 1) (if b then 2 * bidx else 2 * bidx + 1)) 
-     :: cons_ap trh (if b then r else l) bs' (hidx - 1) (if b then 2 * bidx + 1 else 2 * bidx). 
-
 op cons_ap_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bs : bool list) (hidx bidx : int) : dgstblock list =
-  cons_ap (trhi ps ad) bt bs hidx bidx.
+  cons_ap (trhi ps ad) updhbidx bt bs (hidx, bidx).
 
 
 (*
@@ -641,21 +628,8 @@ op val_ap_trh_gen (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (ps 
          then val x ++ val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx + 1))
          else val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx)) ++ val x).
 *)
-op val_ap (trh : int -> int -> 'a -> 'a -> 'a) 
-          (ap : 'a list) 
-          (bs : bool list)
-          (leaf : 'a) 
-          (hidx bidx : int) : 'a = 
-  with ap = [], bs = [] => leaf
-  with ap = [], bs = _ :: _ => witness 
-  with ap = _ :: _, bs = [] => witness
-  with ap = x :: ap', bs = b :: bs' =>
-    trh hidx bidx 
-        (if b then x else val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx))
-        (if b then val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1) else x).
-
 op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx bidx : int) : dgstblock =
-  val_ap (trhi ps ad) ap bs leaf hidx bidx.
+  val_ap (trhi ps ad) updhbidx ap bs leaf (hidx, bidx).
 
 (*
 (* 
@@ -672,47 +646,19 @@ op val_ap_trh (ap : apFORSTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : 
 op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFORSTW) (idx : int) (leaf : dgstblock) (bidx : int) : dgstblock =
   val_ap_trh_gen ps ad (val ap) (rev (int2bs a idx)) leaf a bidx. 
 
+(* 
+  Extracts collision from original binary tree (bt) and 
+  an authentication path/leaf (ap, bs, leaf), if any. 
+*)
+op extract_collision_bt_ap_trh (ps : pseed) 
+                               (ad : adrs) 
+                               (bt : dgstblock bintree) 
+                               (ap : dgstblock list) 
+                               (bs : bool list) 
+                               (leaf : dgstblock) 
+                               (hidx bidx : int) =
+  extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
 
-op extract_collision_bt_ap (trh : int -> int -> 'a -> 'a -> 'a) 
-                           (bt : 'a bintree)
-                           (ap : 'a list) 
-                           (bs : bool list)
-                           (leaf : 'a) 
-                           (hidx bidx : int) : 'a * 'a * 'a * 'a * int * int =
-  with bt = Leaf _, ap = [], bs = [] => witness
-  with bt = Leaf _, ap = [], bs = b :: bs' => witness
-  with bt = Leaf _, ap = x :: ap', bs = [] => witness
-  with bt = Leaf _, ap = x :: ap', bs = b :: bs' => witness
-  with bt = Node _ _, ap = [], bs = [] => witness
-  with bt = Node _ _, ap = [], bs = b :: bs' => witness
-  with bt = Node _ _, ap = x :: ap', bs = [] => witness
-  with bt = Node l r, ap = x :: ap', bs = b :: bs' =>
-    if b
-    then
-      if    (val_bt trh l (hidx - 1) (2 * bidx), val_bt trh r (hidx - 1) (2 * bidx + 1)) 
-            <> 
-            (x, val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1))
-         /\ val_bt trh bt hidx bidx = val_ap trh ap bs leaf hidx bidx
-      then (val_bt trh l (hidx - 1) (2 * bidx), 
-            val_bt trh r (hidx - 1) (2 * bidx + 1), 
-            x, 
-            val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx + 1), 
-            hidx, 
-            bidx)
-      else extract_collision_bt_ap trh r ap' bs' leaf (hidx - 1) (2 * bidx + 1)
-    else
-      if    (val_bt trh l (hidx - 1) (2 * bidx), val_bt trh r (hidx - 1) (2 * bidx + 1)) 
-            <> 
-            (val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx), x)
-         /\ val_bt trh bt hidx bidx = val_ap trh ap bs leaf hidx bidx
-      then (val_bt trh l (hidx - 1) (2 * bidx), 
-            val_bt trh r (hidx - 1) (2 * bidx + 1), 
-            val_ap trh ap' bs' leaf (hidx - 1) (2 * bidx), 
-            x, 
-            hidx, 
-            bidx)
-      else extract_collision_bt_ap trh l ap' bs' leaf (hidx - 1) (2 * bidx).
-  
 
 (* - Specification - *)
 (* 
@@ -943,7 +889,7 @@ clone import DigitalSignatures as DSS_MFORSTWES with
 
 import Stateless.
 
-print Adv_ITSR.
+
 module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   proc find() : mkey * msg = {
     return witness;
@@ -963,6 +909,7 @@ module R_EUFCMA_TRCOSMDTTCR = {
 
 }.
 
+(* Do PRF step first (perhaps even consider not doing PRF at all and immediately sampling secret key). In SPHINCS+, we will first do global PRF step anyways, removing all PRF secret key generations (including the one here in FORS-TW instances) *)
 
 section EUFCMA_M_FORS_TW_ES.
 

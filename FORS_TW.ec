@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr FinType IntDiv BitEncoding.
+require import AllCore List Distr DList FinType IntDiv BitEncoding.
 (*---*) import BS2Int BitChunking.
 
 
@@ -305,6 +305,12 @@ op [lossless] dsseed : sseed distr.
 
 (* Proper distribution over digests of length 1 (block of 8 * n bits) *)
 op [lossless] ddgstblock : dgstblock distr.
+
+(* 
+  Proper distribution that samples a length k * t list of dgstblock elements by
+  independently sampling each element from ddgstblock
+*)
+op ddgstblockl : dgstblock list distr = dlist ddgstblock (k * t).
 
 
 
@@ -660,7 +666,9 @@ op extract_collision_bt_ap_trh (ps : pseed)
   extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
 
 
-(* - Specification - *)
+
+(* - Specifications - *)
+(* -- With PRF -- *)
 (* 
   Fixed-Length FORS-TW in Encompassing Structure.
   Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme.
@@ -877,6 +885,229 @@ module M_FORS_TW_ES = {
 }.
 
 
+(* -- Without PRF -- *)
+(* 
+  Fixed-Length FORS-TW in Encompassing Structure.
+  Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme.
+  Represents single FORS-TW instance that signs fixed-length messages. 
+*)
+module FL_FORS_TW_ES_NPRF = {
+  proc gen_leaves_single_tree(idxt : int, ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
+    var skFORS_ele : dgstblock;
+    var leaf : dgstblock;
+    var leaves : dgstblock list;
+    
+    leaves <- [];
+    while (size leaves < t) {
+      skFORS_ele <$ ddgstblock;
+      leaf <- f ps (set_thtbidx ad 0 (idxt * t + size leaves)) (val skFORS_ele);
+      leaves <- rcons leaves leaf;
+    }
+    
+    return leaves;
+  }
+  
+  proc gen_skFORS () = {
+  
+  }
+  
+  
+  proc gen_pkFORS(ss : sseed, ps : pseed, ad : adrs) : pkFORS = {
+    var pkFORS : dgstblock;
+    var leaves : dgstblock list;
+    var r : dgstblock;
+    var rs : dgstblock list;
+    var kpidx : int;
+    
+    rs <- [];
+    while (size rs < k) {
+      leaves <@ gen_leaves_single_tree(size rs, ss, ps, ad); 
+      r <- val_bt_trh ps ad (list2tree leaves) a (size rs);
+      rs <- rcons rs r;
+    }
+     
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    
+    return pkFORS;
+  }
+  
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFORSTW * skFORSTW =  {
+    var pkFORS : pkFORS;
+    var pk : pkFORSTW;
+    var sk : skFORSTW;
+    
+    pkFORS <@ gen_pkFORS(ss, ps, ad);
+    
+    pk <- (pkFORS, ps, ad);
+    sk <- (ss, ps, ad);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : skFORSTW, m : msgFORSTW) : sigFORSTW = {
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var bsidx : bool list;
+    var idx : int;
+    var skFORS_ele : dgstblock;
+    var leaves : dgstblock list;
+    var ap : apFORSTW;
+    var sig : (dgstblock * apFORSTW) list;
+    
+    (ss, ps, ad) <- sk;
+    
+    sig <- [];
+    while (size sig < k) {
+      bsidx <- take a (drop (a * (size sig)) (val m));  
+      idx <- bs2int (rev bsidx);
+      skFORS_ele <- skg ss (ps, set_thtbidx ad 0 (size sig * t + idx));
+      leaves <@ gen_leaves_single_tree(size sig, ss, ps, ad);
+      ap <- cons_ap_trh ps ad (list2tree leaves) idx (size sig);
+      sig <- rcons sig (skFORS_ele, ap);
+    }
+    
+    return insubd sig;
+  }
+  
+  proc pkFORS_from_sigFORSTW(sig : sigFORSTW, m : msgFORSTW, ps : pseed, ad : adrs) : pkFORS = {
+    var skFORS_ele : dgstblock;
+    var ap : apFORSTW;
+    var leaf : dgstblock;
+    var bsidx : bool list;
+    var idx : int;
+    var rs : dgstblock list;
+    var root : dgstblock;
+    var pkFORS : pkFORS;
+    
+    rs <- [];
+    while (size rs < k) {
+      bsidx <- take a (drop (a * (size rs)) (val m));  
+      idx <- bs2int (rev bsidx);
+      (skFORS_ele, ap) <- nth witness (val sig) (size rs);
+      leaf <- f ps (set_thtbidx ad 0 (size rs * t + idx)) (val skFORS_ele);
+      root <- val_ap_trh ps ad ap idx leaf (size rs);
+      rs <- rcons rs root;
+    }
+    
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    
+    return pkFORS;
+  }
+  
+  proc verify(pk : pkFORSTW, m : msgFORSTW, sig : sigFORSTW) : bool = {
+    var ps : pseed;
+    var ad : adrs;
+    var pkFORS, pkFORS' : pkFORS;
+    
+    (pkFORS, ps, ad) <- pk;
+    
+    pkFORS' <@ pkFORS_from_sigFORSTW(sig, m, ps, ad);
+    
+    return pkFORS' = pkFORS;
+  } 
+}.
+
+(* 
+  Multi-instance FORS-TW in Encompassing Structure.
+*)
+module M_FORS_TW_ES_NPRF = {
+  proc gen_pkFORSs (ss : sseed, ps : pseed, ad : adrs) : pkFORS list list = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list;
+    var pkFORSs : pkFORS list list;
+     
+    (* 
+      Total of d instances, but these are divided in 
+      s sets (SPHINCS+: XMSS instances on bottom layer) 
+      each containing l instances (SPHINCS+: leaves of XMSS instance on bottom layer)
+    *)
+    pkFORSs <- [];
+    pkFORSl <- [];
+    while (size pkFORSs < s) {
+      while (size pkFORSl < l) {
+        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) l);
+        pkFORSl <- rcons pkFORSl pkFORS; 
+      }
+      
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+    
+    return pkFORSs;
+  }
+   
+  proc keygen() : (pkFORS list list * pseed * adrs) * skFORSTW =  {
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var pkFORSs : pkFORS list list;
+    var pk : (pkFORS list list * pseed * adrs);
+    var sk : skFORSTW;
+    
+    ss <$ dsseed;
+    ps <$ dpseed;
+    ad <- witness;
+    
+    pkFORSs <@ gen_pkFORSs(ss, ps, set_typeidx ad trhtype);
+    
+    pk <- (pkFORSs, ps, ad);
+    sk <- (ss, ps, ad);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : skFORSTW, m : msg) : mkey * sigFORSTW = {
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var mc : msgFORSTW;
+    var idx : iid;
+    var tidx, kpidx : int;
+    var sig : sigFORSTW;
+    
+    (ss, ps, ad) <- sk;
+    
+    mk <$ dmkey;
+    
+    (mc, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    
+    return (mk, sig);
+  }
+  
+  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORSTW) : bool = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list list;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var sigFORSTW : sigFORSTW;
+    var mc : msgFORSTW;
+    var idx : iid;
+    var tidx, kpidx : int;
+    var is_valid : bool; 
+        
+    (pkFORSl, ps, ad) <- pk;
+    (mk, sigFORSTW) <- sig;
+    
+    (mc, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
+    
+    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
+    
+    return is_valid;
+  } 
+}.
+
+
+
 
 (* - Proof - *)
 clone import DigitalSignatures as DSS_MFORSTWES with
@@ -896,6 +1127,19 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   } 
 }.
 
+(* 
+  One of the cases for forgery of FORS-TW is that one of the private key elements
+  in the signature was not included in the responses to the adversary's queries, but it does
+  map to the original corresnding leaf. Then, there are two possibilities:
+  1. The private key element is the same as the original one. 
+  2. The private key element is different than the original one.
+  In the first case, we cannot directly reduce to PRE because this does not allow for
+  answering signature queries from the FORS-TW adversary (since we would not know the
+  private key elements corresponding to the leaves as these would be the pre-image
+  challenges). So, we need to reduce to TopenPRE, which in turn reduces
+  to DSPR + something (see DSPR paper).
+  In the second case, we can reduce to SMDTTCR.
+*)
 module R_EUFCMA_FCSMDTTCR = {
 
 }.

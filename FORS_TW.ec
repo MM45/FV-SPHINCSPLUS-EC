@@ -312,6 +312,10 @@ op [lossless] ddgstblock : dgstblock distr.
 *)
 op ddgstblockl : dgstblock list distr = dlist ddgstblock (k * t).
 
+op dskFORS : skFORS distr = dmap (dlist ddgstblock (k * t)) SkFORS.insubd.
+
+lemma dskFORS_ll : is_lossless dskFORS.
+proof. by rewrite dmap_ll dlist_ll ddgstblock_ll. qed.
 
 
 (* - Types (2/2) - *)
@@ -459,16 +463,19 @@ clone import MCO.ITSR as MCO_ITSR with
 (* 
   Tweakable hash function collection that contains all tweakable hash functions
   used in FORS-TW, SPHINCS+ 
-*)
+
 op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
+*)
 
 (* 
   Tweakable hash function used to produce leaves from secret key values.
   (Same function as used in chains for WOTS-TW)
-*)
-op f : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n).
 
-clone import TweakableHashFunctions as F with
+op f : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n).
+*)
+op f : pseed -> adrs -> dgst -> dgstblock.
+
+clone TweakableHashFunctions as F with
   type pp_t <- pseed,
   type tw_t <- adrs,
   type in_t <- dgst,
@@ -481,6 +488,13 @@ clone import TweakableHashFunctions as F with
   proof *.
   realize dpp_ll by exact: dpseed_ll.
 
+clone import F.SMDTTCR as F_TCR with
+  op t_smdttcr <- d * k * t
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+
+(*
 clone import F.Collection as FC with
   type diff <- int,
   
@@ -496,9 +510,12 @@ clone import FC.SMDTTCRC as FC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+*)
 
-(* Tweakable hash function used to construct Merkle trees from leaves *)
+(* Tweakable hash function used to construct Merkle trees from leaves
 op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
+*)
+op trh : pseed -> adrs -> dgst -> dgstblock.
 
 clone import TweakableHashFunctions as TRH with
   type pp_t <- pseed,
@@ -513,6 +530,13 @@ clone import TweakableHashFunctions as TRH with
   proof *.
   realize dpp_ll by exact: dpseed_ll.
 
+clone import TRH.SMDTTCR as TRH_TCR with
+  op t_smdttcr <- d * k * (t - 1)
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+
+(*
 clone import TRH.Collection as TRHC with
   type diff <- int,
   
@@ -528,11 +552,14 @@ clone import TRHC.SMDTTCRC as TRHC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+*)
 
-(* Tweakable hash function used compress Merkle tree roots to public key *)
+(* Tweakable hash function used compress Merkle tree roots to public key
 op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
+*)
+op trco : pseed -> adrs -> dgst -> dgstblock.
 
-clone import TweakableHashFunctions as TRCO with
+clone TweakableHashFunctions as TRCO with
   type pp_t <- pseed,
   type tw_t <- adrs,
   type in_t <- dgst,
@@ -545,6 +572,13 @@ clone import TweakableHashFunctions as TRCO with
   proof *.
   realize dpp_ll by exact: dpseed_ll.
 
+clone import TRCO.SMDTTCR as TRCO_TCR with
+  op t_smdttcr <- d * k
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge1_d ge1_k).
+  
+(*  
 clone import TRCO.Collection as TRCOC with
   type diff <- int,
   
@@ -560,7 +594,7 @@ clone import TRCOC.SMDTTCRC as TRCOC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k).
-
+*)
 
 (* -- Merkle trees -- *)
 (* Update function for height and breadth indices (down the tree) *)
@@ -801,10 +835,10 @@ module M_FORS_TW_ES = {
       each containing l instances (SPHINCS+: leaves of XMSS instance on bottom layer)
     *)
     pkFORSs <- [];
-    pkFORSl <- [];
     while (size pkFORSs < s) {
+      pkFORSl <- [];
       while (size pkFORSl < l) {
-        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) l);
+        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) (size pkFORSl));
         pkFORSl <- rcons pkFORSl pkFORS; 
       }
       
@@ -892,14 +926,14 @@ module M_FORS_TW_ES = {
   Represents single FORS-TW instance that signs fixed-length messages. 
 *)
 module FL_FORS_TW_ES_NPRF = {
-  proc gen_leaves_single_tree(idxt : int, ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
+  proc gen_leaves_single_tree(idxt : int, skFORS : skFORS, ps : pseed, ad : adrs) : dgstblock list = {
     var skFORS_ele : dgstblock;
     var leaf : dgstblock;
     var leaves : dgstblock list;
     
     leaves <- [];
     while (size leaves < t) {
-      skFORS_ele <$ ddgstblock;
+      skFORS_ele <- nth witness (val skFORS) (idxt * t + size leaves);
       leaf <- f ps (set_thtbidx ad 0 (idxt * t + size leaves)) (val skFORS_ele);
       leaves <- rcons leaves leaf;
     }
@@ -907,21 +941,15 @@ module FL_FORS_TW_ES_NPRF = {
     return leaves;
   }
   
-  proc gen_skFORS () = {
-  
-  }
-  
-  
-  proc gen_pkFORS(ss : sseed, ps : pseed, ad : adrs) : pkFORS = {
+  proc gen_pkFORS(skFORS : skFORS, ps : pseed, ad : adrs) : pkFORS = {
     var pkFORS : dgstblock;
     var leaves : dgstblock list;
     var r : dgstblock;
     var rs : dgstblock list;
-    var kpidx : int;
     
     rs <- [];
     while (size rs < k) {
-      leaves <@ gen_leaves_single_tree(size rs, ss, ps, ad); 
+      leaves <@ gen_leaves_single_tree(size rs, skFORS, ps, ad); 
       r <- val_bt_trh ps ad (list2tree leaves) a (size rs);
       rs <- rcons rs r;
     }
@@ -931,21 +959,24 @@ module FL_FORS_TW_ES_NPRF = {
     return pkFORS;
   }
   
-  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFORSTW * skFORSTW =  {
+  proc keygen(ps : pseed, ad : adrs) : pkFORSTW * (skFORS * pseed * adrs) =  {
     var pkFORS : pkFORS;
+    var skFORS : skFORS;
     var pk : pkFORSTW;
-    var sk : skFORSTW;
+    var sk : skFORS * pseed * adrs;
     
-    pkFORS <@ gen_pkFORS(ss, ps, ad);
+    skFORS <$ dskFORS;
+    
+    pkFORS <@ gen_pkFORS(skFORS, ps, ad);
     
     pk <- (pkFORS, ps, ad);
-    sk <- (ss, ps, ad);
+    sk <- (skFORS, ps, ad);
     
     return (pk, sk);
   }
   
-  proc sign(sk : skFORSTW, m : msgFORSTW) : sigFORSTW = {
-    var ss : sseed;
+  proc sign(sk : skFORS * pseed * adrs, m : msgFORSTW) : sigFORSTW = {
+    var skFORS : skFORS;
     var ps : pseed;
     var ad : adrs;
     var bsidx : bool list;
@@ -955,14 +986,14 @@ module FL_FORS_TW_ES_NPRF = {
     var ap : apFORSTW;
     var sig : (dgstblock * apFORSTW) list;
     
-    (ss, ps, ad) <- sk;
+    (skFORS, ps, ad) <- sk;
     
     sig <- [];
     while (size sig < k) {
       bsidx <- take a (drop (a * (size sig)) (val m));  
       idx <- bs2int (rev bsidx);
-      skFORS_ele <- skg ss (ps, set_thtbidx ad 0 (size sig * t + idx));
-      leaves <@ gen_leaves_single_tree(size sig, ss, ps, ad);
+      skFORS_ele <- nth witness (val skFORS) (size sig * t + idx);
+      leaves <@ gen_leaves_single_tree(size sig, skFORS, ps, ad);
       ap <- cons_ap_trh ps ad (list2tree leaves) idx (size sig);
       sig <- rcons sig (skFORS_ele, ap);
     }
@@ -1012,52 +1043,61 @@ module FL_FORS_TW_ES_NPRF = {
   Multi-instance FORS-TW in Encompassing Structure.
 *)
 module M_FORS_TW_ES_NPRF = {
-  proc gen_pkFORSs (ss : sseed, ps : pseed, ad : adrs) : pkFORS list list = {
+  proc gen_kps(ps : pseed, ad : adrs) : skFORS list list * pkFORS list list = {
+    var skFORS : skFORS;
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
+    var skFORSl : skFORS list;
     var pkFORSs : pkFORS list list;
-     
+    var skFORSs : skFORS list list;
+    
     (* 
       Total of d instances, but these are divided in 
       s sets (SPHINCS+: XMSS instances on bottom layer) 
       each containing l instances (SPHINCS+: leaves of XMSS instance on bottom layer)
     *)
+    skFORSs <- [];
     pkFORSs <- [];
-    pkFORSl <- [];
-    while (size pkFORSs < s) {
-      while (size pkFORSl < l) {
-        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) l);
+    while (size skFORSs < s) {
+      skFORSl <- [];
+      pkFORSl <- [];
+      while (size skFORSl < l) {
+        skFORS <$ dskFORS;
+        pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx ad (size skFORSs)) (size skFORSl));
+        skFORSl <- rcons skFORSl skFORS;
         pkFORSl <- rcons pkFORSl pkFORS; 
       }
       
+      skFORSs <- rcons skFORSs skFORSl;
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
     
-    return pkFORSs;
+    return (skFORSs, pkFORSs);
+  
   }
-   
-  proc keygen() : (pkFORS list list * pseed * adrs) * skFORSTW =  {
-    var ss : sseed;
+     
+  proc keygen() : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
     var ps : pseed;
     var ad : adrs;
+    var skFORSs : skFORS list list;
     var pkFORSs : pkFORS list list;
     var pk : (pkFORS list list * pseed * adrs);
-    var sk : skFORSTW;
+    var sk : (skFORS list list * pseed * adrs);
     
-    ss <$ dsseed;
     ps <$ dpseed;
     ad <- witness;
     
-    pkFORSs <@ gen_pkFORSs(ss, ps, set_typeidx ad trhtype);
+    (skFORSs, pkFORSs) <@ gen_kps(ps, set_typeidx ad trhtype);
     
     pk <- (pkFORSs, ps, ad);
-    sk <- (ss, ps, ad);
+    sk <- (skFORSs, ps, ad);
     
     return (pk, sk);
   }
   
-  proc sign(sk : skFORSTW, m : msg) : mkey * sigFORSTW = {
-    var ss : sseed;
+  proc sign(sk : skFORS list list * pseed * adrs, m : msg) : mkey * sigFORSTW = {
+    var skFORS : skFORS;
+    var skFORSs : skFORS list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
@@ -1066,7 +1106,7 @@ module M_FORS_TW_ES_NPRF = {
     var tidx, kpidx : int;
     var sig : sigFORSTW;
     
-    (ss, ps, ad) <- sk;
+    (skFORSs, ps, ad) <- sk;
     
     mk <$ dmkey;
     
@@ -1074,14 +1114,16 @@ module M_FORS_TW_ES_NPRF = {
     
     (tidx, kpidx) <- edivz (val idx) l;
     
-    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
+     
+    sig <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
     
     return (mk, sig);
   }
   
   proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORSTW) : bool = {
     var pkFORS : pkFORS;
-    var pkFORSl : pkFORS list list;
+    var pkFORSs : pkFORS list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
@@ -1091,16 +1133,16 @@ module M_FORS_TW_ES_NPRF = {
     var tidx, kpidx : int;
     var is_valid : bool; 
         
-    (pkFORSl, ps, ad) <- pk;
+    (pkFORSs, ps, ad) <- pk;
     (mk, sigFORSTW) <- sig;
     
     (mc, idx) <- mco mk m;
     
     (tidx, kpidx) <- edivz (val idx) l;
     
-    pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
+    pkFORS <- nth witness (nth witness pkFORSs tidx) kpidx;
     
-    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
+    is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
     
     return is_valid;
   } 
@@ -1110,9 +1152,9 @@ module M_FORS_TW_ES_NPRF = {
 
 
 (* - Proof - *)
-clone import DigitalSignatures as DSS_MFORSTWES with
+clone import DigitalSignatures as DSS_MFORSTWESNPRF with
   type pk_t <- pkFORS list list * pseed * adrs,
-  type sk_t <- skFORSTW,
+  type sk_t <- skFORS list list * pseed * adrs,
   type msg_t <- msg,
   type sig_t <- mkey * sigFORSTW
   
@@ -1120,11 +1162,55 @@ clone import DigitalSignatures as DSS_MFORSTWES with
 
 import Stateless.
 
-
 module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
+  module O_CMA_R_EUFCMA_ITSR : SOracle_CMA = {
+    var skFORSs : skFORS list list
+    var ps : pseed
+    var ad : adrs
+    
+    proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
+      (skFORSs, ps, ad) <- sk_init;
+    }
+    
+    proc sign(m : msg) : mkey * sigFORSTW = {
+      var mk : mkey;
+      var mc : msgFORSTW;
+      var idx : iid;
+      var tidx, kpidx : int;
+      var skFORS : skFORS;
+      var sigFORS : sigFORSTW;
+       
+      mk <@ O.query(m);
+      
+      (mc, idx) <- mco mk m;
+    
+      (tidx, kpidx) <- edivz (val idx) l;
+
+      skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
+
+      sigFORS <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    
+      return (mk, sigFORS);
+    }
+  }
+  
   proc find() : mkey * msg = {
-    return witness;
-  } 
+    var pk : pkFORS list list * pseed * adrs;
+    var sk : skFORS list list * pseed * adrs;
+    var mk' : mkey;
+    var m' : msg;
+    var sig' : mkey * sigFORSTW;
+    
+    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen();    
+    
+    O_CMA_R_EUFCMA_ITSR.init(sk);
+    
+    (m', sig') <@ A(O_CMA_R_EUFCMA_ITSR).forge(pk);
+    
+    mk' <- sig'.`1;
+    
+    return (mk', m');
+  }
 }.
 
 (* 
@@ -1137,11 +1223,109 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   answering signature queries from the FORS-TW adversary (since we would not know the
   private key elements corresponding to the leaves as these would be the pre-image
   challenges). So, we need to reduce to TopenPRE, which in turn reduces
-  to DSPR + something (see DSPR paper).
+  to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
 *)
-module R_EUFCMA_FCSMDTTCR = {
+module R_EUFCMA_FCSMDTDSPR = {
 
+}.
+
+module (R_EUFCMA_FSMDTTCR (A : Adv_EUFCMA) : F_TCR.Adv_SMDTTCR) (O : Oracle_SMDTTCR) = {
+  var ps : pseed
+  var ad : adrs
+  var skFORSs : skFORS list list
+  var leavess : dgstblock list list list
+  
+  module O_CMA_R_EUFCMA_FSMDTTCR : SOracle_CMA = {
+    proc sign(m : msg) : mkey * sigFORSTW = {
+      var mksigFORS : mkey * sigFORSTW;
+      
+      mksigFORS <@ M_FORS_TW_ES_NPRF.sign((skFORSs, ps, ad), m);
+    
+      return mksigFORS;
+    }
+  }
+
+  proc pick() : unit = {
+    var skFORS : skFORS;
+    var skFORSl : skFORS list;
+    var leaf : dgstblock;
+    var leaves : dgstblock list;
+    var leavesl : dgstblock list list;
+    
+    (* Pick address *)
+    ad <- witness;
+    
+    (* 
+      Sample FORS-TW secret keys, specify each secret key element as target 
+      and obtain corresponding leaves
+    *)
+    skFORSs <- [];
+    leavess <- [];
+    while (size skFORSs < s) {
+      skFORSl <- [];
+      leavesl <- [];
+      while (size skFORSl < l) {
+        skFORS <$ dskFORS;
+        
+        leaves <- [];
+        while (size leaves < k * t)  {
+          leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl)) 0 (size leaves), val (nth witness (val skFORS) (size leaves)));
+          leaves <- rcons leaves leaf;
+        }
+        skFORSl <- rcons skFORSl skFORS;
+      }
+      skFORSs <- rcons skFORSs skFORSl;
+    }
+  }
+  
+  proc find(psp : pseed) : int * dgst = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list;
+    var pkFORSs : pkFORS list list;
+    var leaves : dgstblock list;
+    var r : dgstblock;
+    var rs : dgstblock list;
+    var m' : msg;
+    var mksigFORS' : mkey * sigFORSTW;
+    
+    ps <- psp;
+    
+    (* Compute public keys corresponding to previously computed secret keys/leaves *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        rs <- [];
+        while (size rs < k) {
+          leaves <- take t (drop (t * size rs) (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)));
+          r <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size rs);
+          rs <- rcons rs r;
+        }
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val rs));
+        
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+
+    (* Call adversary *)
+    (m', mksigFORS') <@ A(O_CMA_R_EUFCMA_FSMDTTCR).forge((pkFORSs, ps, ad));
+    
+    (* 
+      Extract secret key element from forged signature 
+      that does not match corresponding original secret key element.
+      This corresponding element is associated (i.e., the original preimage of) the leaf
+      at the i-th index in the original tree, where i is the index for the (extracted) secret
+      key element determined by the forged message.
+    *)
+    
+    (* 
+      Return index in SMDTTCR list of collision (= index related of secret key element extracted from forgery) 
+      and extracted element  
+    *)
+    return witness;
+  }
 }.
 
 

@@ -1786,7 +1786,7 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
       em <- encode_msgWOTS m;
       skWOTS <- nth witness skWOTSl (size msigl);
       sigWOTS <- [];
-      while (size sigWOTS < len){
+      while (size sigWOTS < len) {
         skWOTS_ele <- nth witness skWOTS (size sigWOTS);
         em_ele <- BaseW.val (em.[size sigWOTS]);
         sigWOTS_ele <- cf ps (set_chidx (set_kpidx (set_typeidx ad chtype) (size msigl)) (size sigWOTS)) 0 em_ele (val skWOTS_ele);

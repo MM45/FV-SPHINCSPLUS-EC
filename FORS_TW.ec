@@ -142,11 +142,13 @@ type pkFORS = dgstblock.
 
 (* Secret keys *)
 clone import Subtype as SkFORS with
-  type T <- dgstblock list,
-    op P ls <- size ls = k * t
+  type T <- dgstblock list list,
+    op P lss <- size lss = k /\ all (fun ls => size ls = t) lss 
     
   proof *.
-  realize inhabited by exists (nseq (k * t) witness); smt(size_nseq ge1_k ge2_t).
+  realize inhabited.
+    by exists (nseq k (nseq t witness)); smt(allP mem_nseq size_nseq ge1_k ge2_t). 
+  qed.
 
 type skFORS = SkFORS.sT.
 
@@ -306,16 +308,23 @@ op [lossless] dsseed : sseed distr.
 (* Proper distribution over digests of length 1 (block of 8 * n bits) *)
 op [lossless] ddgstblock : dgstblock distr.
 
+(* Proper distribution over digests of length 1 (block of 8 * n bits), lifted to dgst type *)
+op ddgstblocklift : dgst distr = dmap ddgstblock DigestBlock.val.
+
+lemma ddgstblocklift_ll : is_lossless ddgstblocklift.
+proof. by rewrite dmap_ll ddgstblock_ll. qed.
+
+
 (* 
-  Proper distribution that samples a length k * t list of dgstblock elements by
+  Proper distribution that samples a length t list of dgstblock elements by
   independently sampling each element from ddgstblock
 *)
-op ddgstblockl : dgstblock list distr = dlist ddgstblock (k * t).
+op ddgstblockt : dgstblock list distr = dlist ddgstblock t.
 
-op dskFORS : skFORS distr = dmap (dlist ddgstblock (k * t)) SkFORS.insubd.
+op dskFORS : skFORS distr = dmap (dlist ddgstblockt k) SkFORS.insubd.
 
 lemma dskFORS_ll : is_lossless dskFORS.
-proof. by rewrite dmap_ll dlist_ll ddgstblock_ll. qed.
+proof. by rewrite dmap_ll 2!dlist_ll ddgstblock_ll. qed.
 
 
 (* - Types (2/2) - *)
@@ -463,17 +472,17 @@ clone import MCO.ITSR as MCO_ITSR with
 (* 
   Tweakable hash function collection that contains all tweakable hash functions
   used in FORS-TW, SPHINCS+ 
-
-op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
 *)
+op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
+
 
 (* 
   Tweakable hash function used to produce leaves from secret key values.
   (Same function as used in chains for WOTS-TW)
 
-op f : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n).
-*)
 op f : pseed -> adrs -> dgst -> dgstblock.
+*)
+op f : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n).
 
 clone TweakableHashFunctions as F with
   type pp_t <- pseed,
@@ -488,13 +497,14 @@ clone TweakableHashFunctions as F with
   proof *.
   realize dpp_ll by exact: dpseed_ll.
 
+(*
 clone import F.SMDTTCR as F_TCR with
   op t_smdttcr <- d * k * t
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+*)
 
-(*
 clone import F.Collection as FC with
   type diff <- int,
   
@@ -505,17 +515,25 @@ clone import F.Collection as FC with
   proof *.
   realize in_collection by exists (8 * n).
 
+clone import FC.SMDTOpenPREC as FC_OpenPRE with
+  op t_smdtopenpre <- d * k * t,
+  
+  op din <- ddgstblocklift
+    
+  proof *.
+  realize ge0_tsmdtopenpre by smt(ge1_d ge1_k ge2_t).
+  realize din_ll by exact: ddgstblocklift_ll.
+    
 clone import FC.SMDTTCRC as FC_TCR with
   op t_smdttcr <- d * k * t
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
-*)
 
 (* Tweakable hash function used to construct Merkle trees from leaves
-op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
-*)
 op trh : pseed -> adrs -> dgst -> dgstblock.
+*)
+op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
 
 clone import TweakableHashFunctions as TRH with
   type pp_t <- pseed,
@@ -530,13 +548,14 @@ clone import TweakableHashFunctions as TRH with
   proof *.
   realize dpp_ll by exact: dpseed_ll.
 
+(*
 clone import TRH.SMDTTCR as TRH_TCR with
   op t_smdttcr <- d * k * (t - 1)
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
+*)
 
-(*
 clone import TRH.Collection as TRHC with
   type diff <- int,
   
@@ -552,12 +571,11 @@ clone import TRHC.SMDTTCRC as TRHC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
-*)
 
 (* Tweakable hash function used compress Merkle tree roots to public key
-op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
-*)
 op trco : pseed -> adrs -> dgst -> dgstblock.
+*)
+op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
 
 clone TweakableHashFunctions as TRCO with
   type pp_t <- pseed,
@@ -571,14 +589,14 @@ clone TweakableHashFunctions as TRCO with
     
   proof *.
   realize dpp_ll by exact: dpseed_ll.
-
+(*
 clone import TRCO.SMDTTCR as TRCO_TCR with
   op t_smdttcr <- d * k
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k).
+*)
   
-(*  
 clone import TRCO.Collection as TRCOC with
   type diff <- int,
   
@@ -594,7 +612,6 @@ clone import TRCOC.SMDTTCRC as TRCOC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k).
-*)
 
 (* -- Merkle trees -- *)
 (* Update function for height and breadth indices (down the tree) *)
@@ -696,8 +713,8 @@ op extract_collision_bt_ap_trh (ps : pseed)
                                (ap : dgstblock list) 
                                (bs : bool list) 
                                (leaf : dgstblock) 
-                               (hidx bidx : int) =
-  extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
+                               (bidx : int) =
+  extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (0, bidx).
 
 
 
@@ -727,18 +744,18 @@ module FL_FORS_TW_ES = {
   proc gen_pkFORS(ss : sseed, ps : pseed, ad : adrs) : pkFORS = {
     var pkFORS : dgstblock;
     var leaves : dgstblock list;
-    var r : dgstblock;
-    var rs : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
     var kpidx : int;
     
-    rs <- [];
-    while (size rs < k) {
-      leaves <@ gen_leaves_single_tree(size rs, ss, ps, ad); 
-      r <- val_bt_trh ps ad (list2tree leaves) a (size rs);
-      rs <- rcons rs r;
+    roots <- [];
+    while (size roots < k) {
+      leaves <@ gen_leaves_single_tree(size roots, ss, ps, ad); 
+      root <- val_bt_trh ps ad (list2tree leaves) a (size roots);
+      roots <- rcons roots root;
     }
      
-    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val roots));
     
     return pkFORS;  
   }
@@ -788,21 +805,21 @@ module FL_FORS_TW_ES = {
     var leaf : dgstblock;
     var bsidx : bool list;
     var idx : int;
-    var rs : dgstblock list;
+    var roots : dgstblock list;
     var root : dgstblock;
     var pkFORS : pkFORS;
     
-    rs <- [];
-    while (size rs < k) {
-      bsidx <- take a (drop (a * (size rs)) (val m));  
+    roots <- [];
+    while (size roots < k) {
+      bsidx <- take a (drop (a * (size roots)) (val m));  
       idx <- bs2int (rev bsidx);
-      (skFORS_ele, ap) <- nth witness (val sig) (size rs);
-      leaf <- f ps (set_thtbidx ad 0 (size rs * t + idx)) (val skFORS_ele);
-      root <- val_ap_trh ps ad ap idx leaf (size rs);
-      rs <- rcons rs root;
+      (skFORS_ele, ap) <- nth witness (val sig) (size roots);
+      leaf <- f ps (set_thtbidx ad 0 (size roots * t + idx)) (val skFORS_ele);
+      root <- val_ap_trh ps ad ap idx leaf (size roots);
+      roots <- rcons roots root;
     }
     
-    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val roots));
     
     return pkFORS;
   }
@@ -921,7 +938,7 @@ module M_FORS_TW_ES = {
 
 (* -- Without PRF -- *)
 (* 
-  Fixed-Length FORS-TW in Encompassing Structure.
+  Fixed-Length FORS-TW in Encompassing Structure (No PRF).
   Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme.
   Represents single FORS-TW instance that signs fixed-length messages. 
 *)
@@ -933,7 +950,7 @@ module FL_FORS_TW_ES_NPRF = {
     
     leaves <- [];
     while (size leaves < t) {
-      skFORS_ele <- nth witness (val skFORS) (idxt * t + size leaves);
+      skFORS_ele <- nth witness (nth witness (val skFORS) idxt) (size leaves);
       leaf <- f ps (set_thtbidx ad 0 (idxt * t + size leaves)) (val skFORS_ele);
       leaves <- rcons leaves leaf;
     }
@@ -944,17 +961,17 @@ module FL_FORS_TW_ES_NPRF = {
   proc gen_pkFORS(skFORS : skFORS, ps : pseed, ad : adrs) : pkFORS = {
     var pkFORS : dgstblock;
     var leaves : dgstblock list;
-    var r : dgstblock;
-    var rs : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
     
-    rs <- [];
-    while (size rs < k) {
-      leaves <@ gen_leaves_single_tree(size rs, skFORS, ps, ad); 
-      r <- val_bt_trh ps ad (list2tree leaves) a (size rs);
-      rs <- rcons rs r;
+    roots <- [];
+    while (size roots < k) {
+      leaves <@ gen_leaves_single_tree(size roots, skFORS, ps, ad); 
+      root <- val_bt_trh ps ad (list2tree leaves) a (size roots);
+      roots <- rcons roots root;
     }
      
-    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val roots));
     
     return pkFORS;
   }
@@ -992,7 +1009,7 @@ module FL_FORS_TW_ES_NPRF = {
     while (size sig < k) {
       bsidx <- take a (drop (a * (size sig)) (val m));  
       idx <- bs2int (rev bsidx);
-      skFORS_ele <- nth witness (val skFORS) (size sig * t + idx);
+      skFORS_ele <- nth witness (nth witness (val skFORS) (size sig)) idx;
       leaves <@ gen_leaves_single_tree(size sig, skFORS, ps, ad);
       ap <- cons_ap_trh ps ad (list2tree leaves) idx (size sig);
       sig <- rcons sig (skFORS_ele, ap);
@@ -1007,21 +1024,21 @@ module FL_FORS_TW_ES_NPRF = {
     var leaf : dgstblock;
     var bsidx : bool list;
     var idx : int;
-    var rs : dgstblock list;
+    var roots : dgstblock list;
     var root : dgstblock;
     var pkFORS : pkFORS;
     
-    rs <- [];
-    while (size rs < k) {
-      bsidx <- take a (drop (a * (size rs)) (val m));  
+    roots <- [];
+    while (size roots < k) {
+      bsidx <- take a (drop (a * (size roots)) (val m));  
       idx <- bs2int (rev bsidx);
-      (skFORS_ele, ap) <- nth witness (val sig) (size rs);
-      leaf <- f ps (set_thtbidx ad 0 (size rs * t + idx)) (val skFORS_ele);
-      root <- val_ap_trh ps ad ap idx leaf (size rs);
-      rs <- rcons rs root;
+      (skFORS_ele, ap) <- nth witness (val sig) (size roots);
+      leaf <- f ps (set_thtbidx ad 0 (size roots * t + idx)) (val skFORS_ele);
+      root <- val_ap_trh ps ad ap idx leaf (size roots);
+      roots <- rcons roots root;
     }
     
-    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val rs));
+    pkFORS <- trco ps (set_kpidx (set_typeidx ad trcotype) (get_kpidx ad)) (flatten (map DigestBlock.val roots));
     
     return pkFORS;
   }
@@ -1040,16 +1057,23 @@ module FL_FORS_TW_ES_NPRF = {
 }.
 
 (* 
-  Multi-instance FORS-TW in Encompassing Structure.
+  Multi-instance FORS-TW in Encompassing Structure (No PRF).
 *)
 module M_FORS_TW_ES_NPRF = {
-  proc gen_kps(ps : pseed, ad : adrs) : skFORS list list * pkFORS list list = {
+  proc keygen() : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
+    var ps : pseed;
+    var ad : adrs;
     var skFORS : skFORS;
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
     var skFORSl : skFORS list;
-    var pkFORSs : pkFORS list list;
     var skFORSs : skFORS list list;
+    var pkFORSs : pkFORS list list;
+    var pk : (pkFORS list list * pseed * adrs);
+    var sk : (skFORS list list * pseed * adrs);
+    
+    ps <$ dpseed;
+    ad <- witness;
     
     (* 
       Total of d instances, but these are divided in 
@@ -1071,24 +1095,7 @@ module M_FORS_TW_ES_NPRF = {
       skFORSs <- rcons skFORSs skFORSl;
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
-    
-    return (skFORSs, pkFORSs);
-  
-  }
-     
-  proc keygen() : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
-    var ps : pseed;
-    var ad : adrs;
-    var skFORSs : skFORS list list;
-    var pkFORSs : pkFORS list list;
-    var pk : (pkFORS list list * pseed * adrs);
-    var sk : (skFORS list list * pseed * adrs);
-    
-    ps <$ dpseed;
-    ad <- witness;
-    
-    (skFORSs, pkFORSs) <@ gen_kps(ps, set_typeidx ad trhtype);
-    
+        
     pk <- (pkFORSs, ps, ad);
     sk <- (skFORSs, ps, ad);
     
@@ -1152,6 +1159,7 @@ module M_FORS_TW_ES_NPRF = {
 
 
 (* - Proof - *)
+(* -- Import of relevant definitions and properties --  *)
 clone import DigitalSignatures as DSS_MFORSTWESNPRF with
   type pk_t <- pkFORS list list * pseed * adrs,
   type sk_t <- skFORS list list * pseed * adrs,
@@ -1162,6 +1170,11 @@ clone import DigitalSignatures as DSS_MFORSTWESNPRF with
 
 import Stateless.
 
+(* -- Oracles -- *)
+module O_CMA_MFORSTWESNPRF = O_CMA_Default(M_FORS_TW_ES_NPRF).
+
+
+(* -- Reduction adversaries -- *)
 module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   module O_CMA_R_EUFCMA_ITSR : SOracle_CMA = {
     var skFORSs : skFORS list list
@@ -1226,32 +1239,64 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
 *)
-module R_EUFCMA_FCSMDTDSPR = {
-
+module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
+  (* 
+    Module with sign that, upon query from A, 
+      opens the necessary secret key values to produce the signature
+      and then simply produces them according to the specs
+  *)
+  proc pick() : unit = {
+  }
+  
+  proc find(ps : pseed) : int * dgst = {
+    return witness;
+  }
 }.
 
-module (R_EUFCMA_FSMDTTCR (A : Adv_EUFCMA) : F_TCR.Adv_SMDTTCR) (O : Oracle_SMDTTCR) = {
-  var ps : pseed
+(*
+(* Auxiliary functionality that reoccurs throughout SM-DT-TCR-C reduction adversaries  *)
+module R_TCRC_AUX (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
+  var qsl : dgstblock list
+  var qsn : dgstblock list
+  var qsr : dgstblock list
+  
+  proc gen_skFORSs(ad : adrs) : skFORS list list = {
+    return witness;
+  }
+  
+  proc gen_leaves(chal : bool, skFORSs : skFORS list list, ad : adrs) : dgstblock list list list list = {
+    
+    return witness;
+  }
+  
+  proc gen_nodes(chal : bool, leaves : dgstblock list list list list, ad : adrs) : dgstblock list list list list list = {
+    
+  }
+  
+  proc gen_roots(nodes : dgstblock list list list list list, ad : adrs) : dgstblock list list list
+  
+}.
+*)
+(* 
+ Consideration:
+   Remove layer of lists by not considering structure of SPHINCS+ in the instance of FORS-TW.
+   That is, just consider M_FORS_TW as 2^something consecutive instances of FORS-TW, giving rise to skFORS list and pkFORS list,
+   instead of separating them based on to which XMSS instance they would belong in SPHINCS+ (which gives rise to the additoinal layer of lists).
+   This makes computing/keeping track of the tree and keypair index more annoying, but removes an annoying while loop and layer of lists.
+*)
+
+module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
-  var leavess : dgstblock list list list
-  
-  module O_CMA_R_EUFCMA_FSMDTTCR : SOracle_CMA = {
-    proc sign(m : msg) : mkey * sigFORSTW = {
-      var mksigFORS : mkey * sigFORSTW;
-      
-      mksigFORS <@ M_FORS_TW_ES_NPRF.sign((skFORSs, ps, ad), m);
+  var leavess : dgstblock list list list list
     
-      return mksigFORS;
-    }
-  }
-
   proc pick() : unit = {
     var skFORS : skFORS;
     var skFORSl : skFORS list;
     var leaf : dgstblock;
-    var leaves : dgstblock list;
-    var leavesl : dgstblock list list;
+    var leavest : dgstblock list;
+    var leavesk : dgstblock list list;
+    var leavesl : dgstblock list list list;
     
     (* Pick address *)
     ad <- witness;
@@ -1262,47 +1307,71 @@ module (R_EUFCMA_FSMDTTCR (A : Adv_EUFCMA) : F_TCR.Adv_SMDTTCR) (O : Oracle_SMDT
     *)
     skFORSs <- [];
     leavess <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
     while (size skFORSs < s) {
       skFORSl <- [];
       leavesl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
         skFORS <$ dskFORS;
         
-        leaves <- [];
-        while (size leaves < k * t)  {
-          leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl)) 0 (size leaves), val (nth witness (val skFORS) (size leaves)));
-          leaves <- rcons leaves leaf;
+        leavesk <- [];
+        
+        (* For each tree in a FORS-TW instance... *)
+        while (size leavesk < k)  {
+          leavest <- [];
+          (* Compute the leaves by querying challenge oracle on secret key elements *)
+          while (size leavest < t) {
+            leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl)) 0 (size leavesk * t + size leavest), 
+                            val (nth witness (nth witness (val skFORS) (size leavesk)) (size leavest)));
+            leavest <- rcons leavest leaf;
+          }
+          leavesk <- rcons leavesk leavest;
         }
         skFORSl <- rcons skFORSl skFORS;
+        leavesl <- rcons leavesl leavesk;
       }
       skFORSs <- rcons skFORSs skFORSl;
+      leavess <- rcons leavess leavesl;
     }
   }
   
-  proc find(psp : pseed) : int * dgst = {
+  proc find(ps : pseed) : int * dgst = {
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
     var pkFORSs : pkFORS list list;
+    var skFORS : skFORS;
     var leaves : dgstblock list;
-    var r : dgstblock;
-    var rs : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
     var m' : msg;
+    var mk' : mkey;
+    var sigFORS' : sigFORSTW;
     var mksigFORS' : mkey * sigFORSTW;
+    var tidx, kpidx : int;
+    var cm : msgFORSTW;
+    var idx : iid;
+    var cmc : bool list list;
+    var skFORSels : dgstblock list;
+    var dfidx, cidx : int;
+    var x' : dgstblock;
+    var ap' : apFORSTW;
     
-    ps <- psp;
+    (* Initialize CMA oracle *)
+    O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
     
     (* Compute public keys corresponding to previously computed secret keys/leaves *)
     pkFORSs <- [];
     while (size pkFORSs < s) {
       pkFORSl <- [];
       while (size pkFORSl < l) {
-        rs <- [];
-        while (size rs < k) {
-          leaves <- take t (drop (t * size rs) (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)));
-          r <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size rs);
-          rs <- rcons rs r;
+        roots <- [];
+        while (size roots < k) {
+          leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size roots);
+          roots <- rcons roots root;
         }
-        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val rs));
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
         
         pkFORSl <- rcons pkFORSl pkFORS;
       }
@@ -1310,7 +1379,7 @@ module (R_EUFCMA_FSMDTTCR (A : Adv_EUFCMA) : F_TCR.Adv_SMDTTCR) (O : Oracle_SMDT
     }
 
     (* Call adversary *)
-    (m', mksigFORS') <@ A(O_CMA_R_EUFCMA_FSMDTTCR).forge((pkFORSs, ps, ad));
+    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
     
     (* 
       Extract secret key element from forged signature 
@@ -1319,26 +1388,451 @@ module (R_EUFCMA_FSMDTTCR (A : Adv_EUFCMA) : F_TCR.Adv_SMDTTCR) (O : Oracle_SMDT
       at the i-th index in the original tree, where i is the index for the (extracted) secret
       key element determined by the forged message.
     *)
+    (mk', sigFORS') <- mksigFORS'; 
     
+    (* Compress message, obtaining fixed-length message and instance index *)
+    (cm, idx) <- mco mk' m';
+    
+    (* From instance index, compute tree and key pair index *)
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    (* Get secret key of instance in tree tidx and, in this tree, key pair kpidx *)
+    skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
+     
+    (* Chunk fixed-length message (which is boolean list of length k * a) into k lists of length a *)
+    cmc <- chunk a (val cm);
+    
+    (* Get secret key element, one for each tree in instance, indicated by the chunks of the fixed-length message *)
+    skFORSels <- mkseq (fun (i : int) => nth witness (nth witness (val skFORS) i) (bs2int (rev (nth witness cmc i)))) k;
+    
+    (* 
+      Get index pointing to element of forged signature 
+      containing a secret key element that does not match the corresponding original one 
+    *)
+    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip (unzip1 (val sigFORS')) (skFORSels));
+    
+    (* Get element from forged signature containing the non-matching secret key element  *)
+    (x', ap') <- nth witness (val sigFORS') dfidx;
+
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (nth witness cmc dfidx));
+
     (* 
       Return index in SMDTTCR list of collision (= index related of secret key element extracted from forgery) 
       and extracted element  
     *)
-    return witness;
+    return (cidx, val x');
   }
 }.
 
+    
+(*    
+    (* Get chunk (and corresponding integer) from fixed-length message used to tree pointed to by dfidx *)
+    bs' <- rev (nth witness cmc dfidx);
+    idx' <- bs2int bs';
+    
+    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dfidx * t + idx')) (val sske');
+    
+    leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) dfidx;
+    
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + idx';
+     
+    cr <- extract_collision_bt_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx)) 
+                                         (list2tree leaves) (val ap') bs' leaf' (0, dfidx);
+    
+    c <- val cr.`3 ++ val cr.`4;
+*)
+module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
+  var ad : adrs
+  var skFORSs : skFORS list list
+  var leavess : dgstblock list list list list
+  var nodess : dgstblock list list list list list
+  var rootss : dgstblock list list list
+  
+  proc pick() : unit = {
+    var skFORS : skFORS;
+    var skFORSl : skFORS list;
+    var leaf, lnode, rnode, node : dgstblock;
+    var leavest, nodespl, nodescl, rootsk : dgstblock list;
+    var leavesk, nodest, rootsl : dgstblock list list;
+    var leavesl, nodesk : dgstblock list list list;
+    var nodesl : dgstblock list list list list;
+    
+    (* Pick address *)
+    ad <- witness;
+    
+    (* Sample FORS-TW secret keys and compute corresponding leaves *)
+    skFORSs <- [];
+    leavess <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size skFORSs < s) {
+      skFORSl <- [];
+      leavesl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size skFORSl < l) {
+        skFORS <$ dskFORS;
+        
+        leavesk <- [];
+        
+        (* For each tree in a FORS-TW instance... *)
+        while (size leavesk < k)  {
+          leavest <- [];
+          (* Compute the leaves by querying challenge oracle on secret key elements *)
+          while (size leavest < t) {
+            leaf <@ OC.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl)) 
+                                         0 (size leavesk * t + size leavest), 
+                             val (nth witness (nth witness (val skFORS) (size leavesk)) (size leavest)));
+            leavest <- rcons leavest leaf;
+          }
+          leavesk <- rcons leavesk leavest;
+        }
+        skFORSl <- rcons skFORSl skFORS;
+        leavesl <- rcons leavesl leavesk;
+      }
+      skFORSs <- rcons skFORSs skFORSl;
+      leavess <- rcons leavess leavesl;
+    }
 
-module R_EUFCMA_TRHSMDTTCR = {
+    (* 
+      Compute nodes of trees corresponding to leaves, 
+      specifying all concatenations of sibling nodes as targets 
+    *)
+    nodess <- [];
+    rootss <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size nodess < s) {
+      nodesl <- [];
+      rootsl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size nodesl < l) {
+        nodesk <- [];
+        rootsk <- [];
+        
+        (* For each tree in a FORS-TW instance... *)
+        while (size nodesk < k) { 
+          nodest <- [];
+          leavest <- nth witness (nth witness (nth witness leavess (size nodess)) (size nodesl)) (size nodesk);
+          (* For each layer in a tree (of a FORS-TW instance)... *)
+          while (size nodest < a) {
+            (* Get nodes from the previous layer *)
+            nodespl <- last leavest nodest;
+            
+            (* 
+              Compute the nodes in the current layer by mapping the (concatenations of sibling) nodes
+              from the previous layer, specifying each of these (concatenations of) nodes as targets
+            *)
+            nodescl <- [];
+            while (size nodescl < 2 ^ (a - size nodest - 1)) {
+              lnode <- nth witness nodespl (2 * size nodescl);
+              rnode <- nth witness nodespl (2 * size nodescl + 1);
+              
+              node <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size nodess)) (size nodesl)) 
+                                          (size nodest + 1) (size nodesk * nr_nodes (size nodest + 1) + size nodescl), 
+                              val lnode ++ val rnode);
+              
+              nodescl <- rcons nodescl node; 
+            }
+            nodest <- rcons nodest nodescl;
+          }
+          nodesk <- rcons nodesk nodest;
+          rootsk <- rcons rootsk (nth witness (nth witness nodest (a - 1)) 0); (* Final computed node is the root *)
+        }
+        nodesl <- rcons nodesl nodesk;
+        rootsl <- rcons rootsl rootsk;
+      }
+      nodess <- rcons nodess nodesl;
+      rootss <- rcons rootss rootsl;
+    }
+  }
+  
+  proc find(ps : pseed) : int * dgst = {
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list;
+    var pkFORSs : pkFORS list list;
+    var skFORS : skFORS;
+    var leaves, sleaves, sleaves' : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
+    var m' : msg;
+    var mk' : mkey;
+    var sigFORS' : sigFORSTW;
+    var mksigFORS' : mkey * sigFORSTW;
+    var tidx, kpidx : int;
+    var cm : msgFORSTW;
+    var idx : iid;
+    var cmc : bool list list;
+    var skFORSels : dgstblock list;
+    var dfidx, cidx : int;
+    var x' : dgstblock;
+    var ap' : apFORSTW;
+    var leavesk : dgstblock list list;
+    var leaf' : dgstblock;
+    var bs' : bool list;
+    var idx' : int;
+    var hidx, bidx : int;
+    var c : dgst;
+    var cr;
+    
+    (* Initialize CMA oracle *)
+    O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
+    
+    (* Compute public keys corresponding to previously computed roots *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        roots <- nth witness (nth witness rootss (size pkFORSs)) (size pkFORSl);
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
 
+    (* Call adversary *)
+    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
+    
+    (* 
+      Extract secret key element from forged signature 
+      that does not match corresponding original secret key element.
+      This corresponding element is associated (i.e., the original preimage of) the leaf
+      at the i-th index in the original tree, where i is the index for the (extracted) secret
+      key element determined by the forged message.
+    *)
+    (mk', sigFORS') <- mksigFORS'; 
+    
+    (* Compress message, obtaining fixed-length message and instance index *)
+    (cm, idx) <- mco mk' m';
+    
+    (* From instance index, compute tree and key pair index *)
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    (* Get (list of) leaves of instance in set pointed to by tidx and, in this set, instance pointed to by kpidx *)
+    leavesk <- nth witness (nth witness leavess tidx) kpidx;
+     
+    (* Chunk fixed-length message (which is boolean list of length k * a) into k lists of length a *)
+    cmc <- chunk a (val cm);
+    
+    (* Compute leaves corresponding to (w.r.t. f) the secret key elements in the forged signature *)
+    sleaves' <- mkseq (fun (i : int) => f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx)
+                                              0 (i * t + (bs2int (rev (nth witness cmc i))))) 
+                                          (val (nth witness (unzip1 (val sigFORS')) i))) k;
+     
+    (* Get leaves, one for each tree in instance, indicated by the chunks of the fixed-length message *)
+    sleaves <- mkseq (fun (i : int) => nth witness (nth witness leavesk i) (bs2int (rev (nth witness cmc i)))) k;
+    
+    (* 
+      Get index pointing to element of forged signature 
+      containing a secret key element that maps to a leaf that does not match the 
+      corresponding original one 
+    *)
+    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip sleaves' sleaves);
+    
+    (* Get non-matching leaf *)
+    leaf' <- nth witness sleaves' dfidx;
+    
+    (* Get element from forged signature containing secret key element that maps to non-matching leaf  *)
+    (x', ap') <- nth witness (val sigFORS') dfidx;
+    
+    (* Get chunk (and corresponding integer) from fixed-length message pointed to by dfidx *)
+    bs' <- rev (nth witness cmc dfidx);
+    idx' <- bs2int bs';
+    
+    (* Get original leaves of tree pointed to by dfidx *)
+    leaves <- nth witness leavesk dfidx;
+    
+    (* Extract colliding values from the original tree and the non-matching leaf/authentication path *)
+    cr <- extract_collision_bt_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 
+                                      (list2tree leaves) (val ap') bs' leaf' dfidx;
+    
+    (* Collision from leaf/authentication path *)
+    c <- val cr.`3 ++ val cr.`4;
+    
+    (* Height and breadth indices of address under which the extracted values collide *)
+    (hidx, bidx) <- cr.`5;
+    
+    (* Index of collision from original tree (val cr.`1 ++ val cr.`2) in the SMDTTCR oracle query list *)
+    cidx <- tidx * l * k * (2 ^ a - 1) + kpidx * k * (2 ^ a - 1) + dfidx * (2 ^ a - 1) 
+            + sumz (mkseq (fun (i : int) => nr_nodes (i + 1)) (hidx - 1)) + (bidx %% nr_nodes hidx);
+
+    return (cidx, c);
+  }
 }.
 
-module R_EUFCMA_TRCOSMDTTCR = {
+module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TRCOC_TCR.Oracle_SMDTTCR, OC : TRCOC.Oracle_THFC) = {
+  var ad : adrs
+  var skFORSs : skFORS list list
+  var leavess : dgstblock list list list list
+  var rootss : dgstblock list list list
+  var pkFORSs : pkFORS list list
+    
+  proc pick() : unit = {
+    var skFORS : skFORS;
+    var skFORSl : skFORS list;
+    var leaf, lnode, rnode, node, root : dgstblock;
+    var leavest, nodespl, nodescl, rootsk : dgstblock list;
+    var leavesk, nodest, rootsl : dgstblock list list;
+    var leavesl, nodesk : dgstblock list list list;
+    var nodesl : dgstblock list list list list;
+    var pkFORS : pkFORS;
+    var pkFORSl : pkFORS list;
+    
+    (* Pick address *)
+    ad <- witness;
+    
+    (* Sample FORS-TW secret keys and compute corresponding leaves *)
+    skFORSs <- [];
+    leavess <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size skFORSs < s) {
+      skFORSl <- [];
+      leavesl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size skFORSl < l) {
+        skFORS <$ dskFORS;
+        
+        leavesk <- [];
+        
+        (* For each tree in a FORS-TW instance... *)
+        while (size leavesk < k)  {
+          leavest <- [];
+          (* Compute the leaves by querying challenge oracle on secret key elements *)
+          while (size leavest < t) {
+            leaf <@ OC.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl)) 
+                                         0 (size leavesk * t + size leavest), 
+                             val (nth witness (nth witness (val skFORS) (size leavesk)) (size leavest)));
+            leavest <- rcons leavest leaf;
+          }
+          leavesk <- rcons leavesk leavest;
+        }
+        skFORSl <- rcons skFORSl skFORS;
+        leavesl <- rcons leavesl leavesk;
+      }
+      skFORSs <- rcons skFORSs skFORSl;
+      leavess <- rcons leavess leavesl;
+    }
 
+    (* Compute nodes of trees corresponding to leaves *)
+    rootss <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size rootss < s) {
+      rootsl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size rootsl < l) {
+        rootsk <- [];
+        (* For each tree in a FORS-TW instance... *)
+        while (size rootsk < k) { 
+          nodest <- [];
+          leavest <- nth witness (nth witness (nth witness leavess (size rootss)) (size rootsl)) (size rootsk);
+          (* For each layer in a tree (of a FORS-TW instance)... *)
+          while (size nodest < a) {
+            (* Get nodes from the previous layer *)
+            nodespl <- last leavest nodest;
+            
+            (* 
+              Compute the nodes in the current layer by mapping the (concatenations of sibling) nodes
+              from the previous layer, specifying each of these (concatenations of) nodes as targets
+            *)
+            nodescl <- [];
+            while (size nodescl < 2 ^ (a - size nodest - 1)) {
+              lnode <- nth witness nodespl (2 * size nodescl);
+              rnode <- nth witness nodespl (2 * size nodescl + 1);
+              
+              node <@ OC.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size rootss)) (size rootsl)) 
+                                           (size nodest + 1) (size rootsk * nr_nodes (size nodest + 1) + size nodescl), 
+                               val lnode ++ val rnode);
+              
+              nodescl <- rcons nodescl node; 
+            }
+            nodest <- rcons nodest nodescl;
+          }
+          rootsk <- rcons rootsk (nth witness (nth witness nodest (a - 1)) 0); (* Final computed node is the root *)
+        }
+        rootsl <- rcons rootsl rootsk;
+      }
+      rootss <- rcons rootss rootsl;
+    }
+    
+    (* 
+      Compute public keys corresponding of FORS-TW instances, specifying 
+      (concatenation of) roots of each instance as targets.
+    *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        rootsk <- nth witness (nth witness rootss (size pkFORSs)) (size pkFORSl);
+        pkFORS <@ O.query(set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl), 
+                          flatten (map DigestBlock.val rootsk));
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+
+  }
+  
+  proc find(ps : pseed) : int * dgst = {
+    var skFORS : skFORS;
+    var leaves, sleaves, sleaves' : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
+    var m' : msg;
+    var mk' : mkey;
+    var sigFORS' : sigFORSTW;
+    var mksigFORS' : mkey * sigFORSTW;
+    var tidx, kpidx : int;
+    var cm : msgFORSTW;
+    var idx : iid;
+    var cmc : bool list list;
+    var skFORSels : dgstblock list;
+    var dfidx, cidx : int;
+    var x' : dgstblock;
+    var ap' : apFORSTW;
+    var roots' : dgstblock list;
+    var leaf' : dgstblock;
+    var bs' : bool list;
+    var idx' : int;
+    var hidx, bidx : int;
+    var c : dgst;
+    
+    (* Initialize CMA oracle *)
+    O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
+    
+    (* Call adversary *)
+    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
+    
+    (* 
+      Extract secret key element from forged signature 
+      that does not match corresponding original secret key element.
+      This corresponding element is associated (i.e., the original preimage of) the leaf
+      at the i-th index in the original tree, where i is the index for the (extracted) secret
+      key element determined by the forged message.
+    *)
+    (mk', sigFORS') <- mksigFORS'; 
+    
+    (* Compress message, obtaining fixed-length message and instance index *)
+    (cm, idx) <- mco mk' m';
+    
+    (* From instance index, compute tree and key pair index *)
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    (* Get (list of) roots of instance in set pointed to by tidx and, in this set, instance pointed to by kpidx *)
+    roots' <- nth witness (nth witness rootss tidx) kpidx;
+    
+    c <- flatten (map DigestBlock.val roots');
+    cidx <- val idx;
+    
+    return (cidx, c);
+  }
 }.
 
 (* Do PRF step first (perhaps even consider not doing PRF at all and immediately sampling secret key). In SPHINCS+, we will first do global PRF step anyways, removing all PRF secret key generations (including the one here in FORS-TW instances) *)
 
 section EUFCMA_M_FORS_TW_ES.
 
+
+(* 
+  Immediately replace while loops (primarily inner ones) in reduction adversaries
+  by the appropriate functional operators utilizing the public seed ps that is used in the oracles.
+  To this end, create auxiliary game that is equivalent to original game, but stores ps in a module variable
+  (instead of a local variable) and have reduction adversaries directly use this. 
+*)
 end section EUFCMA_M_FORS_TW_ES.

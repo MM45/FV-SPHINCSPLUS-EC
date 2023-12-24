@@ -1239,16 +1239,160 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
 *)
+
+(*  
+  Approach TODOs:
+  - Adjust CMA oracles of (DSPR-related and perhaps also TRH TCR-related) reduction adversaries 
+    to keep track of secret key value indices that were already include in signature queries
+    to adversaries.
+  - From here, keeping the right invariants in the proof, 
+    checking for ITSR break, as well as extracting
+    the secret key element that was not included in the query responses (in case of no ITSR break)
+    should be easier.
+*)
+(* From message and mkey of forgery, extract 
+    Extract index that was not yet pointed to by any message (after compression)
+    produced during signature queries
+*)
+op extract_new_idx (mkml : (mkey * msg) list) (mk : mkey) (m : msg) = 
+  map (fun (mkm : _ * _) => mco mkm.`1 mkm.`2) mkml. 
+
 module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
+  var ps : pseed
+  var ad : adrs
+  var leavess : dgstblock list list list list
+  
+  module O_CMA_R_EUFCMA_FSMDTOpenPREC : SOracle_CMA = {
+    proc sign(m : msg) : mkey * sigFORSTW = {
+      var mk : mkey;
+      var cm : msgFORSTW;
+      var idx : iid;
+      var tidx, kpidx, leafidx : int;
+      var bslidx : bool list;
+      var sigFORS : (dgstblock * apFORSTW) list;
+      var leaves : dgstblock list;
+      var skFORS_ele : dgst;
+      var ap : apFORSTW;
+      
+      mk <$ dmkey;
+
+      (cm, idx) <- mco mk m;
+
+      (tidx, kpidx) <- edivz (val idx) l;
+
+      sigFORS <- [];
+      while (size sigFORS < k) {
+        bslidx <- take a (drop (a * (size sigFORS)) (val cm));  
+        leafidx <- bs2int (rev bslidx);
+        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORS * t + leafidx);
+        leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORS);
+        ap <- cons_ap_trh ps ad (list2tree leaves) leafidx (size sigFORS);
+        sigFORS <- rcons sigFORS (DigestBlock.insubd skFORS_ele, ap);
+      }
+      
+      return (mk, insubd sigFORS);
+    }
+  }
+  
   (* 
     Module with sign that, upon query from A, 
       opens the necessary secret key values to produce the signature
       and then simply produces them according to the specs
   *)
   proc pick() : unit = {
+    var leaf : dgstblock;
+    var leavest : dgstblock list;
+    var leavesk : dgstblock list list;
+    var leavesl : dgstblock list list list;
+    
+    (* Pick address *)
+    ad <- witness;
+    
+    (* 
+      Sample FORS-TW secret keys, specify each secret key element as target 
+      and obtain corresponding leaves
+    *)
+    leavess <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size leavess < s) {
+      leavesl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size leavesl < l) {
+        leavesk <- [];
+        (* For each tree in a FORS-TW instance... *)
+        while (size leavesk < k)  {
+          leavest <- [];
+          (* Obtain the leaves by querying challenge oracle *)
+          while (size leavest < t) {
+            leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size leavess)) (size leavesl)) 0 (size leavesk * t + size leavest));
+            leavest <- rcons leavest leaf;
+          }
+          leavesk <- rcons leavesk leavest;
+        }
+        leavesl <- rcons leavesl leavesk;
+      }
+      leavess <- rcons leavess leavesl;
+    }
   }
   
   proc find(ps : pseed) : int * dgst = {
+    var pkFORSs : pkFORS list list;
+    var pkFORSl : pkFORS list;
+    var pkFORS : pkFORS;
+    var roots : dgstblock list;
+    var root : dgstblock;
+    var leaves : dgstblock list;
+    var m' : msg;
+    var mk' : mkey;
+    var sigFORS' : sigFORSTW;
+    var mksigFORS' : mkey * sigFORSTW;
+    var tidx, kpidx : int;
+    var cm : msgFORSTW;
+    var idx : iid;
+    var cmc : bool list list;
+    var skFORSels : dgstblock list;
+    
+    (* Compute public keys corresponding to previously computed secret keys/leaves *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        roots <- [];
+        while (size roots < k) {
+          leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size roots);
+          roots <- rcons roots root;
+        }
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
+        
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+
+    (m', mksigFORS') <- witness;
+    
+    (mk', sigFORS') <- mksigFORS';
+
+    (cm, idx) <- mco mk' m';
+    
+    cmc <- chunk a (val cm);
+    
+    (* Get secret key element, one for each tree in instance, indicated by the chunks of the fixed-length message *)
+    skFORSels <- mkseq (fun (i : int) => nth witness (nth witness (val skFORS) i) (bs2int (rev (nth witness cmc i)))) k;
+    
+    (* 
+      Get index pointing to element of forged signature 
+      containing a secret key element that does not match the corresponding original one 
+    *)
+    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip (unzip1 (val sigFORS')) (skFORSels));
+    
+    (* Get element from forged signature containing the non-matching secret key element  *)
+    (x', ap') <- nth witness (val sigFORS') dfidx;
+
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (nth witness cmc dfidx));
+
+    
     return witness;
   }
 }.

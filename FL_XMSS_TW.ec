@@ -689,7 +689,7 @@ clone TweakableHashFunctions as PKCO with
   realize dpp_ll by exact: dpseed_ll.
 
 clone PKCO.Collection as PKCOC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     
@@ -723,7 +723,7 @@ clone TweakableHashFunctions as TRH with
   realize dpp_ll by exact: dpseed_ll.
 
 clone import TRH.Collection as TRHC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     

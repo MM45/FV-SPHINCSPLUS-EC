@@ -506,7 +506,7 @@ clone import F.SMDTTCR as F_TCR with
 *)
 
 clone import F.Collection as FC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     
@@ -557,7 +557,7 @@ clone import TRH.SMDTTCR as TRH_TCR with
 *)
 
 clone import TRH.Collection as TRHC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     
@@ -598,7 +598,7 @@ clone import TRCO.SMDTTCR as TRCO_TCR with
 *)
   
 clone import TRCO.Collection as TRCOC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     

@@ -549,16 +549,16 @@ abstract theory Collection.
     An example of a differentiating characteristic is (message) length, in which case this
     type should be instantiated as int.
   *)
-  type diff.
+  type diff_t.
   
   (* Computes differentiating characteristic of an input value *)
-  op get_diff : in_t -> diff.
+  op get_diff : in_t -> diff_t.
   
   (* Tweakable hash function collection *)
-  op fc : diff -> pp_t -> tw_t -> in_t -> out_t.
+  op fc : diff_t -> pp_t -> tw_t -> in_t -> out_t.
 
   (* Tweakable hash function f is a member of the tweakable hash function collection fc *)
-  axiom in_collection : exists (df : diff), fc df = f.
+  axiom in_collection : exists (df : diff_t), fc df = f.
 
   (* Module type for oracle for properties of collection of tweakable hash functions *)
   module type Oracle_THFC = {
@@ -578,7 +578,7 @@ abstract theory Collection.
     }
 
     proc query(tw : tw_t, x : in_t) : out_t = {
-      var df : diff;
+      var df : diff_t;
       var y : out_t;
 
       df <- get_diff x;

@@ -28,6 +28,7 @@ clone import FinEager as LE with
   
   proof *.
 
+(*
 
 (**
   Adaptive reprogramming
@@ -958,7 +959,7 @@ end section.
 
 end Adaptive.
 
-
+*)
 
 (**
   Non-adaptive reprogramming
@@ -1032,7 +1033,7 @@ module IND_NARepro(O : RO, A : Adv_INDNARepro) = {
     OP.init();
     
     ds <@ A(OP).pick();
-    
+
     xs <- [];
     while (size xs < min (size ds) n) {
       x <$ nth witness ds (size xs);
@@ -1065,6 +1066,237 @@ declare module A <: Adv_INDNARepro {-IND_NARepro, -FunRO}.
 
 declare op rep_ctr : { int | 0 <= rep_ctr } as ge0_repctr.
 declare op query_ctr : { int | 0 <= query_ctr } as ge0_queryctr.
+
+local module Bad = { 
+  var bad : bool
+  var co : int
+  var i  : int
+}.
+
+local module O_Programmable1 (O : RO) : Oracleip_t = {
+  include var O_Programmable(O) [-oc]
+  import var Bad
+ 
+  proc oc(x : in_t): out_t = {
+    var c : out_t;
+
+    ch <- ch + 1; 
+
+    c <- witness;
+    if (co < query_ctr) { 
+      c <@ get(x);
+      co <- co + 1;
+    } else {
+      bad <- true;
+      c <@ get(x);
+      co <- co + 1;
+    }
+        
+    return c; 
+  }
+
+}.
+
+local module O_Programmable2 (O: RO) : Oracleip_t = {
+  include var O_Programmable(O) [-oc]
+  import var Bad
+ 
+  proc oc(x : in_t): out_t = {
+    var c : out_t;
+
+    ch <- ch + 1; 
+
+    c <- witness;
+    if (co < query_ctr) { 
+      c <@ get(x);
+      co <- co + 1;
+    } else {
+      bad <- true;
+    }
+        
+    return c; 
+  }
+
+}.
+
+local module O_Programmable2S (O: RO) : Oracleip_t = {
+  include var O_Programmable(O) [-oc]
+  import var Bad
+
+  proc oc(x : in_t): out_t = {
+    var c : out_t;
+    var tmp : out_t option;
+
+    c <- witness;
+    if (co < query_ctr) { 
+      c <@ O.get(x);
+      co <- co + 1;
+    } 
+
+    ch <- ch + 1; 
+    
+    return c; 
+  }
+
+}.
+
+local module IND_NARepro1(O : RO, A : Adv_INDNARepro) = {
+
+  import var Bad
+  
+  module OP = O_Programmable1(O)
+ 
+  proc main(b : bool, n : int) : bool = {
+    var b' : bool;
+    var x : in_t;
+    var y : out_t;
+    var ds : pT list;
+    var xs : in_t list;
+
+    bad <- false; co <- 0;
+    
+    O.init();
+    OP.init();
+    
+    ds <@ A(OP).pick();
+
+    xs <- [];
+    while (size xs < min (size ds) n) {
+      x <$ nth witness ds (size xs);
+      
+      if (b) {
+        y <$ dout;
+        OP.set(x, y);
+      }
+      
+      xs <- rcons xs x;
+    }
+    
+    b' <@ A(OP).distinguish(xs);
+    
+    return b';
+  } 
+}.
+
+local module IND_NARepro2(O : RO, A : Adv_INDNARepro) = {
+
+  import var Bad
+  
+  module OP = O_Programmable2(O)
+ 
+  proc main(b : bool, n : int) : bool = {
+    var b' : bool;
+    var x : in_t;
+    var y : out_t;
+    var ds : pT list;
+    var xs : in_t list;
+
+    bad <- false; co <- 0;
+    
+    O.init();
+    OP.init();
+    
+    ds <@ A(OP).pick();
+
+    xs <- [];
+    while (size xs < min (size ds) n) {
+      x <$ nth witness ds (size xs);
+      
+      if (b) {
+        y <$ dout;
+        OP.set(x, y);
+      }
+      
+      xs <- rcons xs x;
+    }
+    
+    b' <@ A(OP).distinguish(xs);
+    
+    return b';
+  } 
+}.
+
+
+local lemma Pr_count &m (b : bool) : 
+     hoare[A(O_Programmable(FunRO)).pick : 
+             O_Programmable.ch = 0 
+             ==> 
+             O_Programmable.ch <= query_ctr]
+  => Pr[IND_NARepro(FunRO, A).main(b,rep_ctr) @ &m : res] 
+     = 
+     Pr[IND_NARepro(FunRO,A).main(b,rep_ctr) @ &m : res /\ O_Programmable.ch <= query_ctr].
+proof.
+move=> hhoare.
+byequiv => //.
+conseq (: _ ==> ={res, O_Programmable.ch}) 
+       (: true ==> O_Programmable.ch <= query_ctr) 
+       _ => //; 2: by sim.
+proc; seq 3: #post; last by conseq />;auto.
+by call hhoare; inline *; auto => /=.
+qed.
+
+local lemma Pr_Game_Game1 &m b : 
+  Pr[IND_NARepro(FunRO,A).main(b) @ &m:res /\  O_Programmable.ch <= query_ctr] =
+  Pr[IND_NARepro1(FunRO,A).main(b) @ &m:res /\  O_Programmable.ch <= query_ctr].
+proof.
+byequiv => //.
+proc; sim 3 5.
+call (:    ={glob FunRO, glob O_Programmable} 
+       /\ ((O_Programmable.ch) = (Bad.co)){2}).
++ proc.
+  case (Bad.co{2} < query_ctr). 
+  - rcondt{2} 3; 1: by auto.
+    by inline *; wp; skip.
+  rcondf{2} 3; 1: by auto.
+  by inline *; wp; skip.
+
+by inline *;auto.
+qed.
+
+local lemma Pr_Game1_Game2 &m b: 
+  Pr[IND_NARepro1(FunRO,A).main(b) @ &m: res /\ O_Programmable.ch <= query_ctr] =
+  Pr[IND_NARepro2(FunRO,A).main(b) @ &m: res /\ O_Programmable.ch <= query_ctr].
+proof.
+have: 
+  `| Pr[IND_NARepro1(FunRO,A).main(b) @ &m: res /\ O_Programmable.ch <= query_ctr] -
+     Pr[IND_NARepro2(FunRO,A).main(b) @ &m: res /\ O_Programmable.ch <= query_ctr] | 
+  <=
+  RealOrder.maxr Pr[IND_NARepro1(FunRO,A).main(b) @ &m: (res /\ O_Programmable.ch <= query_ctr) /\ Bad.bad] 
+                 Pr[IND_NARepro2(FunRO,A).main(b) @ &m: (res /\ O_Programmable.ch <= query_ctr) /\ Bad.bad].
++ byupto.
+have ->: 
+  Pr[IND_NARepro1(FunRO, A).main(b) @ &m : (res /\ O_Programmable.ch <= query_ctr) /\ Bad.bad] 
+  = 
+  0%r.
++ byphoare => //.
+  hoare.
+  proc. 
+  seq 5 : (Bad.bad => ! (O_Programmable.ch <= query_ctr)); last first. 
+  + call(:true); 1: by proc;inline *;auto.
+    while (#pre). 
+    + by conseq />;auto.
+    by auto;smt().
+  call (:   Bad.co <= O_Programmable.ch 
+          /\ (Bad.bad => ! (O_Programmable.ch <= query_ctr))). 
+  + by proc; sp; wp; if; auto; call (: true); auto => /#.
+  by inline *; auto => /#.
+have -> /#: 
+  Pr[IND_NARepro2(FunRO, A).main(b) @ &m : (res /\ O_Programmable.ch <= query_ctr) /\ Bad.bad] 
+  = 
+  0%r.
+byphoare => //.
+hoare.
+proc.
+seq 5 : (Bad.bad => ! (O_Programmable.ch <= query_ctr)); last first. 
++ call(:true); 1: by proc;inline *;auto.
+  while (#pre). 
+  + by conseq />;auto.
+  by auto;smt().
+call (:    Bad.co <= O_Programmable.ch 
+       /\ (Bad.bad => ! (O_Programmable.ch <= query_ctr))). 
++ by proc; sp; wp; if; auto; 1: call (: true); auto => /#.
+by inline *; auto => /#.
+qed.
 
 lemma Bound_IND_NARepro &m : 
      hoare[A(O_Programmable(FunRO)).pick : 

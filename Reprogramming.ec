@@ -1052,6 +1052,10 @@ module IND_NARepro(O : RO, A : Adv_INDNARepro) = {
   } 
 }.
 
+op good_ds(ds : pT list) = 
+   all ((>=) p_max_bound) (map p_max ds) /\
+   all (is_lossless) ds.
+
 section.
 
 declare module A <: Adv_INDNARepro {-IND_NARepro, -FunRO, -RO, -FRO}.
@@ -1153,15 +1157,15 @@ local module IND_NARepro1(O : RO, A : Adv_INDNARepro) = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) n) {
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {      
-      if (b) {
-        y <$ dout;
-        OP.set(x, y);
-      }
-     }
-     xs <- rcons xs x;
+    if (good_ds ds) {
+       while (size xs < min (size ds) n) {
+         x <$ nth witness ds (size xs);
+         if (b) {
+           y <$ dout;
+           OP.set(x, y);
+         }
+        xs <- rcons xs x;
+       }
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1191,18 +1195,18 @@ local module IND_NARepro2(O : RO, A : Adv_INDNARepro) = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) n) {
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
+    if (good_ds ds) {
+      while (size xs < min (size ds) n) {
+        x <$ nth witness ds (size xs);
       
-      if (b) {
-        y <$ dout;
-        OP.set(x, y);
+        if (b) {
+          y <$ dout;
+          OP.set(x, y);
+        }
+       xs <- rcons xs x;
       }
-     }
-     xs <- rcons xs x;
     }
-    
+
     b' <@ A(OP).distinguish(xs);
     
     return b';
@@ -1214,7 +1218,7 @@ local lemma Pr_count &m (b : bool) :
      hoare[A(O_Programmable(FunRO)).pick : 
              O_Programmable.ch = 0 
              ==> 
-             O_Programmable.ch <= query_ctr  /\ all ((>=) p_max_bound) (map p_max res)]
+             O_Programmable.ch <= query_ctr  /\ good_ds res]
   => Pr[IND_NARepro(FunRO, A).main(b,rep_ctr) @ &m : res] 
      = 
      Pr[IND_NARepro(FunRO,A).main(b,rep_ctr) @ &m : res /\ O_Programmable.ch <= query_ctr].
@@ -1242,31 +1246,35 @@ local lemma hoare2equiv :
      hoare[A(O_Programmable(FunRO)).pick : 
              O_Programmable.ch = 0 
              ==> 
-             O_Programmable.ch <= query_ctr  /\ all ((>=) p_max_bound) (map p_max res)] =>
+             O_Programmable.ch <= query_ctr  /\ good_ds res] =>
      equiv[ A(O_Programmable(FunRO)).pick ~ A(O_Programmable1(FunRO)).pick : ={O_Programmable.ch, 
                   O_Programmable.prog_list, FunRO.f, glob A} /\ 
             O_Programmable.ch{1} = 0 ==> 
        ={O_Programmable.ch, O_Programmable.prog_list, FunRO.f, glob A,res} /\ 
-        all (fun (y0 : real) => y0 <= p_max_bound) (map p_max res{2})] 
+        good_ds res{2}] 
       by move => hhoare; conseq hequiv hhoare;smt().
 
 local lemma Pr_Game_Game1 &m _b : 
      hoare[A(O_Programmable(FunRO)).pick : 
              O_Programmable.ch = 0 
              ==> 
-             O_Programmable.ch <= query_ctr  /\ all ((>=) p_max_bound) (map p_max res)] =>
+             O_Programmable.ch <= query_ctr  /\ good_ds res] =>
   Pr[IND_NARepro(FunRO,A).main(_b,rep_ctr) @ &m:res /\  O_Programmable.ch <= query_ctr] =
   Pr[IND_NARepro1(FunRO,A).main(_b,rep_ctr) @ &m:res /\  O_Programmable.ch <= query_ctr].
 proof.
 move=> hhoare.
 byequiv => //.
 proc; sim 5 7.
-while(#post /\ ={b,ds,n} /\ n{2} = rep_ctr /\ size xs{2} <= min (size ds{2}) n{2} /\ all ((>=) p_max_bound) (map p_max ds{2})).
-+ rcondt{2} 2; 1: by auto => />; smt(all_nthP size_ge0 size_map nth_map).
+seq 4 6 : (b{2} = _b /\ n{2} = rep_ctr /\ xs{1} = [] /\ ={b,n,xs,O_Programmable.ch, O_Programmable.prog_list, FunRO.f, glob A,ds} /\ good_ds ds{2}). 
++ wp;call (hoare2equiv hhoare).
+  by inline *;auto.
+
+rcondt{2} 1;1: by auto.
+while(#post /\ ={b,ds,n} /\ n{2} = rep_ctr /\ size xs{2} <= min (size ds{2}) n{2}). 
   seq 1 1 : (#pre /\ ={x}); 1: by auto.
   by if;[by auto| | ]; inline *;auto;smt(size_rcons).
 
-by wp;call (hoare2equiv hhoare);inline *;auto; smt(size_ge0 ge0_repctr).
+by auto => />; smt(size_ge0 ge0_repctr).
 qed.
 
 local lemma Pr_Game1_Game2 &m b: 
@@ -1289,6 +1297,8 @@ have ->:
   proc. 
   seq 5 : (Bad.bad => ! (O_Programmable.ch <= query_ctr)); last first. 
   + call(:true); 1: by proc;inline *;auto.
+    seq 1 : #pre;1: by auto. 
+   if;2: by auto => /> /#.
     while (#pre). 
     + by conseq />;auto.
     by auto;smt().
@@ -1304,7 +1314,9 @@ byphoare => //.
 hoare.
 proc.
 seq 5 : (Bad.bad => ! (O_Programmable.ch <= query_ctr)); last first. 
-+ call(:true); 1: by proc;inline *;auto.
+  + call(:true); 1: by proc;inline *;auto.
+    seq 1 : #pre;1: by auto. 
+   if;2: by auto => /> /#.
   while (#pre). 
   + by conseq />;auto.
   by auto;smt().
@@ -1334,16 +1346,15 @@ local module Hi = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) rep_ctr) {
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
-      
-      if (i <= size xs) {
-        y <$ dout;
-        OP.set(x, y);
+    if (good_ds ds) {
+      while (size xs < min (size ds) rep_ctr) {
+        x <$ nth witness ds (size xs);
+        if (i <= size xs) {
+           y <$ dout;
+           OP.set(x, y);
+         }
+        xs <- rcons xs x;
       }
-     }
-     xs <- rcons xs x;
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1362,21 +1373,22 @@ proc.
 call (:   ={glob O_Programmable, FunRO.f, Bad.co}).
 + by sim />.
 conseq />.
+seq 6 7 : (Bad.i{2} = 0 /\ (b{1}, n{1}) = (true, rep_ctr) /\ 
+    ={ds,xs,glob A,O_Programmable.ch, O_Programmable.prog_list,FunRO.f, Bad.co}).
++ wp;call(: ={O_Programmable.ch, O_Programmable.prog_list, FunRO.f, Bad.co});
+     1: by proc; inline *; auto.
+  by inline *;auto. 
+if;1,3: by auto.
 while (#post /\ n{1} = rep_ctr /\ ={ds} /\ Bad.i{2} = 0 /\ b{1}).
 + seq 1 1 : (#pre /\ ={x}); 1 : by auto.
   if;1,3: by auto.
-  if;1:by auto. 
   by inline *;auto.
 by auto.
-
-wp;conseq />.
-call (: ={O_Programmable.ch, O_Programmable.prog_list} /\ ={FunRO.f, Bad.co}). 
-+ by proc;inline*;auto.
-by inline *;auto.
 qed.
 
 local lemma Hi_false &m : 
-  Pr[IND_NARepro2(FunRO, A).main(false,rep_ctr) @ &m : res /\ O_Programmable.ch <= query_ctr]
+  Pr[IND_NARepro2(FunRO, A).main(false,rep_ctr) @ &m : res /\ 
+                                         O_Programmable.ch <= query_ctr]
   = 
   Pr[Hi.main(rep_ctr) @ &m : res].
 proof.
@@ -1385,16 +1397,17 @@ proc.
 call (:   ={glob O_Programmable, FunRO.f, Bad.co}).
 + by proc;inline*;auto.
 conseq />.
+seq 6 7 : (Bad.i{2} = rep_ctr /\ xs{1} = [] /\ (b{1}, n{1}) = (false, rep_ctr) /\ 
+    ={ds,xs,glob A,O_Programmable.ch, O_Programmable.prog_list,FunRO.f, Bad.co}).
++ wp;call(: ={O_Programmable.ch, O_Programmable.prog_list, FunRO.f, Bad.co});
+     1: by proc; inline *; auto.
+  by inline *;auto => />. 
+if;1,3: by auto.
+
 while (#post /\ n{1} = rep_ctr /\ ={ds} /\ size xs{2} <= rep_ctr /\ Bad.i{2} = rep_ctr /\ !b{1}).
 + seq 1 1 : (#pre /\ ={x}); 1 : by auto.
   if;1,3: by auto;smt(size_rcons). 
-  if;1:by auto;smt(). 
   by inline *;auto.
-by auto;smt(size_rcons).
-
-wp;conseq />.
-call (: ={O_Programmable.ch, O_Programmable.prog_list} /\ ={FunRO.f, Bad.co}). 
-+ by proc;inline*;auto.
 by inline *;auto; smt(ge0_repctr).
 qed.
 
@@ -1418,22 +1431,21 @@ local module Hi1(O : RO) = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) rep_ctr) {
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
-      
-      if (i + 1 <= size xs) {
-        y <$ dout;
-        OP.set(x, y);
-      }
-      else {
-        if (i = size xs) {
-           x_ <- x;
-           y <@ O.get(x);
+    if (good_ds ds) {
+      while (size xs < min (size ds) rep_ctr) {
+        x <$ nth witness ds (size xs);
+        if (i + 1 <= size xs) {
+          y <$ dout;
+          OP.set(x, y);
         }
-      }
+        else {
+          if (i = size xs) {
+            x_ <- x;
+            y <@ O.get(x);
+          }
+       }
+       xs <- rcons xs x;
      }
-     xs <- rcons xs x;
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1453,15 +1465,15 @@ inline *;wp;conseq />.
 call(: ={FunRO.f,O_Programmable.prog_list});1:by sim.
 swap {1} 4 -3.
 
-seq 7 8 : (={glob A,ds,Bad.co,FunRO.f,O_Programmable.prog_list,O_Programmable.ch} /\ Bad.i{1} = Bad.i{2} + 1).
-+ call(: ={FunRO.f, glob O_Programmable, Bad.co});1:by sim.
+seq 8 9 : (={xs,glob A,ds,Bad.co,FunRO.f,O_Programmable.prog_list,O_Programmable.ch} /\ Bad.i{1} = Bad.i{2} + 1 /\ xs{1} = []).
++ wp;call(: ={FunRO.f, glob O_Programmable, Bad.co});1:by sim.
   by auto.
 
 conseq   (: ={xs, FunRO.f, O_Programmable.prog_list, O_Programmable.ch}); 1: by smt().
 
+if;1,3: by auto => />;smt(size_rcons).
 while (#post /\ ={ds} /\ Bad.i{1} = Bad.i{2} + 1 /\ size xs{2} <= rep_ctr).
 + seq 1 1 : (#pre /\ x{1} = x0{2}); 1 : by auto.
-  if;1,3: by auto => />;smt(size_rcons).
   if;1:by auto;smt(). 
   by auto;smt(size_rcons).
 by auto;smt(size_rcons).
@@ -1501,27 +1513,26 @@ local module Hi2 = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) rep_ctr) {
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
-      
-      if (i + 1 <= size xs) {
-        y <$ dout;
-        OP.set(x, y);
-      }
-      else {
-        if (i = size xs) {
-           x_ <- Some x;
-           if (! x \in RO.m) {
-             y <@ RO.get(x);
-           } else {
-             bad <- true;
-             y <@ RO.get(x);
-           }
+    if (good_ds ds) {
+      while (size xs < min (size ds) rep_ctr) {
+        x <$ nth witness ds (size xs);      
+        if (i + 1 <= size xs) {
+          y <$ dout;
+          OP.set(x, y);
         }
+        else {
+          if (i = size xs) {
+             x_ <- Some x;
+             if (! x \in RO.m) {
+               y <@ RO.get(x);
+             } else {
+               bad <- true;
+               y <@ RO.get(x);
+             }
+          }
+       }
+        xs <- rcons xs x;
       }
-     }
-      xs <- rcons xs x;
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1550,29 +1561,27 @@ local module Hi3 = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) rep_ctr) {
-
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
-      
-      if (i + 1 <= size xs) {
-        y <$ dout;
-        OP.set(x, y);
-      }
-      else {
-        if (i = size xs) {
-           Hi2.x_ <- Some x;
-           if (! x \in RO.m) {
-             y <@ RO.get(x);
-           } else {
-             bad <- true;
-             RO.m <- rem RO.m x;
-             y <@ RO.get(x); 
-           }
+    if (good_ds ds) {
+      while (size xs < min (size ds) rep_ctr) {
+        x <$ nth witness ds (size xs);      
+        if (i + 1 <= size xs) {
+          y <$ dout;
+          OP.set(x, y);
         }
+        else {
+          if (i = size xs) {
+             Hi2.x_ <- Some x;
+             if (! x \in RO.m) {
+               y <@ RO.get(x);
+             } else {
+               bad <- true;
+               RO.m <- rem RO.m x;
+               y <@ RO.get(x); 
+             }
+          }
+        }
+        xs <- rcons xs x;
       }
-     }
-      xs <- rcons xs x;
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1589,15 +1598,15 @@ proc.
 inline *;wp;conseq />.
 call(: ={RO.m,O_Programmable.prog_list});1:by sim.
 
-seq 8 8 : (={glob A,ds,Bad.co,Bad.i,RO.m,O_Programmable.prog_list,O_Programmable.ch}).
-+ call(: ={RO.m, glob O_Programmable, Bad.co});1:by sim.
+seq 9 9 : (={xs,glob A,ds,Bad.co,Bad.i,RO.m,O_Programmable.prog_list,O_Programmable.ch} /\ xs{1} = []).
++ wp;call(: ={RO.m, glob O_Programmable, Bad.co});1:by sim.
   by auto.
 
 conseq   (: ={xs, RO.m, O_Programmable.prog_list, O_Programmable.ch}); 1: by smt().
 
+if;1,3: by auto => />;smt(size_rcons).
 while (#post /\ ={ds,Bad.i} /\ size xs{2} <= rep_ctr).
 + seq 1 1 : (#pre /\ x0{1} = x{2}); 1 : by auto.
-  if;1,3: by auto => />;smt(size_rcons).
   if;1:by auto;smt(). 
   by auto;smt(size_rcons).
 
@@ -1607,8 +1616,7 @@ if;1:by auto.
     by auto;smt(size_rcons).
   rcondf{1} 2; 1: by auto.
   by auto;smt(size_rcons).
-
-by auto;smt(size_rcons).
++ by auto;smt(size_rcons).
 
 by auto; smt(ge0_repctr).
 qed.
@@ -1619,81 +1627,97 @@ local lemma Hi2_Hi3 &m i_ :
   maxr Pr[ Hi2.run(i_) @ &m : Bad.bad] Pr[ Hi3.run(i_) @ &m : Bad.bad].
 proof. byupto. qed.
 
-local lemma Hi2_bad &m i_ : 0 <= i_ => Pr[ Hi2.run(i_) @ &m : Bad.bad] <= 
+local lemma Hi2_bad &m i_ : 
+  0 <= i_ => 
+  (forall (O <: Oraclep_t{-A} ), islossless O.oc => islossless A(O).pick) =>
+  (forall (O <: Oraclep_t{-A}), islossless O.get => islossless A(O).distinguish) =>
+  Pr[ Hi2.run(i_) @ &m : Bad.bad] <= 
    query_ctr%r * p_max_bound.
 proof.
-move=> hi.
+move=> hi Apll Adll.
 case (p_max_bound = 0%r \/ query_ctr = 0).
 + move => H;elim H.
   + move =>pmax0;rewrite pmax0 /=.
     byphoare => //;hoare.
-    proc. 
-    call(:true);1: by auto.
-    while(!Bad.bad).
+    proc;call(:true);1: by auto.
+    seq 8 : (xs = [] /\ !Bad.bad); 1: by inline *;wp;call(: !Bad.bad);auto => />.
+    if;2: by auto.
+    while(!Bad.bad /\ good_ds ds).
     + seq 1 : (#pre /\ x \in nth witness ds (size xs)); 1: by auto. 
-      if;2: by auto.
       case (Bad.i + 1 <= size xs); 1: by rcondt 1;inline *; auto.
       rcondf 1;1: by auto.
       case (Bad.i = size xs); 2: by rcondf 1;inline *; auto.
       rcondt 1;1: by auto.
-      rcondt 2;1: by auto => /> &hr *;smt(pmax_gt0). 
-      by inline *;auto.
-    inline *;wp;call(:Bad.bad=false);auto.
-    by proc;inline *;conseq />;auto. 
+      rcondt 2. 
+      + inline *;auto => /> &hr ?H*. 
+        have := all_nthP (fun (y0 : real) => y0 <= p_max_bound) (map p_max ds{hr}) witness;rewrite H  /= => H0.
+        by smt(size_map pmax_gt0 nth_map size_ge0).
+      by inline *;auto. 
+    by inline *;auto. 
+
   move => qctr0;rewrite qctr0 /=.
   byphoare (: i0 = i_ ==> Bad.bad)=> //;hoare.
-  proc. 
-  call(:true);1: by auto.
-  seq 7 : (!Bad.bad /\ RO.m = empty /\ Bad.i = i_); last first.
-  + while (!Bad.bad /\ Bad.i = i_ /\ (size xs <= Bad.i => RO.m = empty)).
+  proc;call(:true);1: by auto.
+  seq 8 : (!Bad.bad /\ RO.m = empty /\ Bad.i = i_ /\ xs = []); last first.
+  + if;2: by auto.
+    while (!Bad.bad /\ Bad.i = i_ /\ (size xs <= Bad.i => RO.m = empty)).
     seq 1: (#pre /\ x \in nth witness ds (size xs)); 1:by auto.
-    if;2: by auto; smt(size_rcons).
     if;1: by inline *;auto; smt(size_rcons).
     if;2: by auto; smt(size_rcons).
     sp;if;1:by inline *;auto; smt(size_rcons).
-    by exfalso;smt(mem_empty).
-  by auto.
-
-call(:!Bad.bad /\ RO.m = empty /\ Bad.i = i_ /\ 0 <= Bad.co).
-+ proc;inline *;rcondf 2; 1: by auto => /#.
-  by auto.
-by inline *; auto.
+    + by exfalso;smt(mem_empty).
+    by auto.
+  wp;call(:!Bad.bad /\ RO.m = empty /\ Bad.i = i_ /\ 0 <= Bad.co).
+  + proc;inline *;rcondf 2; 1: by auto => /#.
+    by auto.
+  by inline *; auto.
 
 move => bound1.
 byphoare (: arg = i_ ==> Bad.bad) => //.
 proc. 
-splitwhile 9 : (size xs < Bad.i).
-unroll 10.
-seq 9 : (!Bad.bad /\ Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\
+seq 8 : (!Bad.bad /\ Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\
+           size xs <= Bad.i /\ Bad.i = i_ /\ xs = [])
+           (query_ctr%r * p_max_bound ).
++ by auto.
++ wp;call (: Bad.co = 0 /\ RO.m = empty ==> Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
+  conseq (: _ ==> _ : =1%r); 1: by smt(). 
+  proc (Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
+  + by move => />;rewrite fdom0 fcards0 /=;smt(ge0_queryctr).
+  + by smt().
+  + by apply Apll.
+  + proc;inline *;sp;if;2:by auto.
+    by auto => />;smt(dout_ll fdom_set fcardU fcard_eq1 fcard_ge0). 
+  by inline *;auto.
+
++ if;last first. 
+  hoare;1 : by  smt(ge0_queryctr ge0_pmaxbound).
+  call(: !Bad.bad);1: by conseq />; auto.
+  by auto.
+
+splitwhile 1 : (size xs < Bad.i).
+unroll 2.
+seq 1 : (!Bad.bad /\ Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\ good_ds ds /\
            size xs <= Bad.i /\ Bad.i = i_ /\
            !(size xs < Bad.i /\ size xs < min (size ds) rep_ctr))
            (query_ctr%r * p_max_bound ) .
 + by auto. 
-+ conseq (:_ ==> _ : <=1%r);  1: by smt(ge0_repctr). 
-  while(!Bad.bad /\ size xs <= Bad.i /\
++ conseq (:_ ==> _ : <=1%r); 1: by  move => &hr _;  by smt(ge0_queryctr ge0_pmaxbound). 
+  while(!Bad.bad /\ size xs <= Bad.i /\ good_ds ds /\
   Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co) (min (size ds) rep_ctr - size xs); last first.
   + inline *;sp;wp. 
     conseq (: _ ==> Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co). 
    by auto.
-  call (: Bad.co = 0 /\ RO.m = empty ==> Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
-  conseq (: _ ==> _ : =1%r).
-  proc (Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
-  + by move => />;rewrite fdom0 fcards0 /=;smt(ge0_queryctr).
-  + by smt().
-  + admit. (* lossless *)
-  + proc;inline *;sp;if;2:by auto.
-    + by auto => />;smt(dout_ll fdom_set fcardU fcard_eq1 fcard_ge0). 
-    by auto.
-  + move => z.
-    seq 1 : #pre; 1: by auto.
-    + auto => /> *. admit. (* lossless *)
-    if;2: by auto;smt(size_rcons).
-    if;1: by inline*;auto;smt(size_rcons).
+ by auto.  
+
++ move => z.
+  seq 1 : #pre; 1: by auto.
+  + by auto => /> *;smt(all_nthP size_map nth_map size_ge0).
+  + if;1: by inline*;auto;smt(size_rcons).
     if;2: by auto;smt(size_rcons).
     sp;if;by inline *;auto;smt(size_rcons).
   + by hoare;auto. 
   by auto.
-    
+
 + if;last first.
   seq 1 : #post (query_ctr%r * p_max_bound) 1%r 1%r 0%r.
   + by auto.  
@@ -1707,45 +1731,32 @@ seq 9 : (!Bad.bad /\ Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\
     by proc;inline *;auto. 
   by smt().
 
-  case (!p_max (nth witness ds (size xs)) <= p_max_bound).
-  + rcondf 2;1: by auto.
-    conseq (: _ ==> _:0%r);1: by smt(ge0_pmaxbound ge0_queryctr). 
-    hoare. 
-    seq 1 : #pre; 1: by auto.
-    call(:!Bad.bad);1: by proc;inline*;auto.
-    while(!Bad.bad /\ ! size xs <= Bad.i).
-    + seq 1 : #pre; 1: by auto.
-      if; 2: by auto;smt(size_rcons).
-      if; 1: by inline*;auto;smt(size_rcons).
-      if; 2: by auto;smt(size_rcons).
-      sp;if; by inline *;auto;smt(size_rcons).
-    by auto;smt(size_rcons).
-  rcondt 2;1: by auto.
   rcondf 2;1: by auto;smt().
   rcondt 2;1: by auto;smt().
   seq 1 : (x \in RO.m) (query_ctr%r * p_max_bound) 1%r 1%r 0%r (#pre).
   + by auto.
   + rnd (fun xx => xx \in RO.m).
-    auto => /> &hr???????.
+    auto => /> &hr???H????.
     rewrite (mu_eq _ (dom RO.m{hr}) (mem (fdom RO.m{hr})));
      1: by move => x'; rewrite -mem_fdom.
     have := Mu_mem.mu_mem_le (fdom RO.m{hr}) ((nth witness ds{hr} (size xs{hr}))) p_max_bound _; last by smt(ge0_queryctr ge0_pmaxbound).
-    + by smt(pmax_upper_bound).
+    move => x _.  
+    have := all_nthP (fun (y0 : real) => y0 <= p_max_bound) (map p_max ds{hr}) witness;rewrite H  /= => H0.
+    by smt(nth_map pmax_upper_bound size_map  size_ge0).
+
   + rcondf 2; 1: by auto.
     conseq (: _ ==> _: =1%r).
     call(: Bad.bad).
-    + by admit. (* lossless *)
     + by proc;inline*;auto;smt(dout_ll). 
-    +  while(Bad.bad) (min (size ds) rep_ctr - size xs); last first.
+    +  while(Bad.bad /\ good_ds ds) (min (size ds) rep_ctr - size xs); last first.
       + by inline *; auto => />;smt(dout_ll). 
       + move => *.
         seq 1: #pre.
         + by auto.
-        + auto => /> *. admit. (* lossless *)
-          if;2: by auto => />;smt(size_rcons).
-          if;1: by inline*;auto => />;smt(dout_ll size_rcons).
-          if;2: by auto => />;smt(size_rcons).
-          sp;if;by inline *;auto => />;smt(dout_ll size_rcons).
+        + by auto => /> *;smt(all_nthP size_map nth_map size_ge0).
+        if;1: by inline*;auto => />;smt(dout_ll size_rcons).
+        if;2: by auto => />;smt(size_rcons).
+        sp;if;by inline *;auto => />;smt(dout_ll size_rcons).
     + hoare. by auto. 
     + by smt().
   + hoare.
@@ -1755,51 +1766,59 @@ seq 9 : (!Bad.bad /\ Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\
       if;2: by auto.
       by auto => />;smt(dout_ll size_rcons). 
     seq 1 : #pre; 1: by auto.
-    if;2: by auto;smt(size_rcons).
     if;1: by inline*;auto;smt(size_rcons).
     if;2: by auto;smt(size_rcons).
     sp;if;by inline*;auto;smt(size_rcons).
     by smt().
 
 + hoare.
-  while(!Bad.bad /\  size xs <= Bad.i  /\ Bad.i = i_ /\
-       Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co); last first.
-  + inline *;sp;wp. 
-  call (: Bad.co = 0 /\ RO.m = empty  /\ Bad.i = i_ ==> Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\ Bad.i = i_ ).
-  proc (Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co /\ Bad.i = i_ ).
-  + by move => />;rewrite fdom0 fcards0 /=;smt(ge0_queryctr).
-  + by smt().
-  + proc;inline *;sp;if;2:by auto.
-    by auto;smt(fdom_set fcardU fcard_eq1 fcard_ge0).
-  by auto => /> /#.
+  while(!Bad.bad /\  size xs <= Bad.i  /\ Bad.i = i_ /\ good_ds ds /\
+       Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co); last by auto => /> /#.
   seq 1 : #pre; 1: by auto.
-  if;last by auto;smt(size_rcons).
   if;1: by inline*;auto;smt(size_rcons).
   if;2: by inline*;auto;smt(size_rcons).
   sp;if;1: by inline*;auto => />.
   by inline *;auto => />.
-by smt().
+
++ by move => &hr _; smt(ge0_queryctr ge0_pmaxbound).
+
+
++ hoare.
+  wp;call (: Bad.co = 0 /\ RO.m = empty ==> Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
+  proc (Bad.co <= query_ctr /\ card (fdom RO.m) <= Bad.co).
+  + by move => />;rewrite fdom0 fcards0 /=;smt(ge0_queryctr).
+  + by smt().
+  + proc;inline *;sp;if;2:by auto.
+    + by auto => />;smt(dout_ll fdom_set fcardU fcard_eq1 fcard_ge0). 
+    by inline *;auto.
+
+by move => &hr _; smt(ge0_queryctr ge0_pmaxbound).
+
 qed.
 
 local lemma Hi3_bad &m i_ :
      0 <= i_ 
+  => (forall (O <: Oraclep_t{-A}), islossless O.get => islossless A(O).distinguish) 
   => Pr[ Hi3.run(i_) @ &m : Bad.bad] = 
      Pr[ Hi2.run(i_) @ &m : Bad.bad]. 
-move => H.
+move => H All.
 byequiv => />.
 proc. 
 seq 9 9 : (={Bad.bad}); last first.
 + conseq />.
-  call{1}(:true ==> true); 1: by admit. (* lossless *)
-  call{2}(:true ==> true); 1: by admit. (* lossless *)
+  call{1}(:true ==> true); 1: by apply (All Hi3.OP); islossless.  
+  call{2}(:true ==> true); 1: by apply (All Hi3.OP); islossless. 
   by auto.
 
-while (={Bad.bad,ds,Bad.i,ds,xs} /\ (!Bad.bad{1} => ={RO.m, glob A}));last first.
-+ conseq (: _ ==> ={xs, Bad.bad, Bad.i, O_Programmable.prog_list, RO.m, glob A,ds});1: by smt().
-  by sim.
+seq 8 8 : (={Bad.bad,ds,Bad.i,ds,xs, RO.m, glob A} /\ !Bad.bad{1});
+ 1: by sp 1 1; conseq />;sim.
+
+if;1,3: by auto.
+
+while (={Bad.bad,ds,Bad.i,ds,xs} /\ (!Bad.bad{1} => ={RO.m, glob A}));last by auto.
+
 conseq (: (={Bad.bad, ds, Bad.i, ds, xs} /\ (!Bad.bad{1} => ={RO.m, glob A}))); 1: by smt().
 seq 1 1 : (#pre /\ ={x}); 1: by auto.
-if; 1,3: by auto.
 if; 1: by auto.
 + by inline *; auto. 
 if; 1,3: by auto.
@@ -1829,17 +1848,17 @@ local module Hi4(O : RO) = {
     ds <@ A(OP).pick();
 
     xs <- [];
-    while (size xs < min (size ds) rep_ctr) {
+    if (good_ds ds) {
+      while (size xs < min (size ds) rep_ctr) {
 
-     x <$ nth witness ds (size xs);
-     if (p_max (nth witness ds (size xs)) <= p_max_bound) {
+        x <$ nth witness ds (size xs);
       
-      if (i <= size xs) {
-        y <$ dout;
-        OP.set(x, y);
+        if (i <= size xs) {
+          y <$ dout;
+          OP.set(x, y);
+        }
+        xs <- rcons xs x;
       }
-     }
-      xs <- rcons xs x;
     }
     
     b' <@ A(OP).distinguish(xs);
@@ -1859,79 +1878,55 @@ move=> hi.
 byequiv => //. 
 proc.
 inline *;wp. 
+seq 9 9 : (={glob A,Bad.bad,Bad.i,Bad.co,RO.m,O_Programmable.prog_list,O_Programmable.ch,ds,ds,xs} /\
+   Bad.i{1} = i_ /\ xs{1} = [] /\ Hi2.x_{1} = None /\ O_Programmable.prog_list{1} = []).
++ wp;call(: ={O_Programmable.ch,Bad.i,RO.m,O_Programmable.prog_list,Bad.co});1: by sim.
+  by auto. 
+
+if;[ by auto | |];last first.
+
++ call(: ={RO.m,O_Programmable.prog_list} /\ O_Programmable.prog_list{1} = []);
+    1: by proc; inline *;auto => />. 
+  by auto.
+
 call(: ={O_Programmable.ch} /\ 
    if (Hi2.x_ = None){1} 
-          then ={RO.m, O_Programmable.prog_list} 
-          else ((oget Hi2.x_{1} \in RO.m){1}  /\ fdom RO.m{1} = fdom RO.m{2} `|` fset1 (oget Hi2.x_{1}) 
-               /\ O_Programmable.prog_list{2} = (rcons O_Programmable.prog_list (oget Hi2.x_, oget RO.m.[oget Hi2.x_])){1} 
-               /\ eq_except (pred1 (oget Hi2.x_{1})) RO.m{1} RO.m{2})).
-+ proc;inline*;auto => /> &1 &2 *;  split.  
+   then ={RO.m, O_Programmable.prog_list} /\ O_Programmable.prog_list{1} = []
+   else ((oget Hi2.x_{1} \in RO.m){1}  
+      /\ fdom RO.m{1} = fdom RO.m{2} `|` fset1 (oget Hi2.x_{1}) 
+      /\ O_Programmable.prog_list{2} = 
+            (rcons O_Programmable.prog_list (oget Hi2.x_, oget RO.m.[oget Hi2.x_])){1} 
+      /\ eq_except (pred1 (oget Hi2.x_{1})) RO.m{1} RO.m{2})).
++ proc;inline*;auto => /> &1 &2  H r0 ?;  split.  
   + move => *;split. 
-    + move => *;do split.  
-      case (Hi2.x_{1} = None); 1: by smt(@SmtMap).
-      case (assoc O_Programmable.prog_list{1} x{2} = None).
-      + rewrite !get_setE /=;1: by smt(@List @SmtMap).
-        case (x{2} = oget Hi2.x_{1});1:by smt(@SmtMap).
-        move => *. 
-        case(assoc O_Programmable.prog_list{2} x{2} = None). rewrite get_setE /=;1:by smt(@SmtMap @List). 
-        case (x{2} = oget Hi2.x_{1}); 1: by  smt(@SmtMap).
-        move => *.
-        have -> : O_Programmable.prog_list{2} = rcons O_Programmable.prog_list{1} (oget Hi2.x_{1}, oget RO.m{1}.[oget Hi2.x_{1}])  by smt().
-        congr. rewrite -cats1. rewrite assoc_cat /= ifT;1: by smt(@List). 
-        by smt(@List).
-      by smt(@SmtMap).
-    by smt(@SmtMap).
-  move => *; do split.
-      case (Hi2.x_{1} = None); 1: by smt(@SmtMap).
-      case (assoc O_Programmable.prog_list{1} x{2} = None).
-      + rewrite !get_setE /=;1: by smt(@List @SmtMap).
-        rewrite get_setE /= => *.
-        rewrite ifF;1:smt(@List).
-        have -> : x{2} = oget Hi2.x_{1}; 1: by smt(@SmtMap @List).
-        have -> : O_Programmable.prog_list{2} = rcons O_Programmable.prog_list{1} (oget Hi2.x_{1}, oget RO.m{1}.[oget Hi2.x_{1}])  by smt().
-        congr. rewrite -cats1. rewrite assoc_cat/= ifT;1: by smt(@List @SmtMap). 
-        by smt(@List).
-      by smt(@SmtMap).
-    by smt(@SmtMap).
-
-  move => *; do split.
-  move => *; do split.
-      case (Hi2.x_{1} = None); 1: by smt(@SmtMap).
-      case (assoc O_Programmable.prog_list{1} x{2} = None).
-      + rewrite !get_setE /=;1: by smt(@List @SmtMap).
-        rewrite /= => *.
-        rewrite ifF;1:smt(@List).
-        have -> : x{2} = oget Hi2.x_{1}; 1: by smt(@SmtMap @List).
-        have -> : O_Programmable.prog_list{2} = rcons O_Programmable.prog_list{1} (oget Hi2.x_{1}, oget RO.m{1}.[oget Hi2.x_{1}])  by smt().
-        congr. rewrite -cats1. rewrite assoc_cat/= ifT;1: by smt(@List @SmtMap). 
-        by smt(@List).
-      by smt(@SmtMap).
-    by smt(@SmtMap).
-
-        move => *.
-      case (Hi2.x_{1} = None); 1: by smt(@SmtMap).
-      case (assoc O_Programmable.prog_list{1} x{2} = None).
-      case (assoc O_Programmable.prog_list{2} x{2} = None).  by smt(@SmtMap @List).  by smt(@SmtMap @List).
-     case (assoc O_Programmable.prog_list{2} x{2} = None).  by smt(@SmtMap @List).  
-     move => *. 
-        have -> : O_Programmable.prog_list{2} = rcons O_Programmable.prog_list{1} (oget Hi2.x_{1}, oget RO.m{1}.[oget Hi2.x_{1}])  by smt().
-        congr. rewrite -cats1. rewrite assoc_cat/= ifT;1: by smt(@List @SmtMap). 
-        by smt(@List).
-   
+    + move => *;do split;2,3: by smt(mem_set fdom_set fsetUAC get_setE).
+      case (Hi2.x_{1} = None); 1: by smt(get_setE).
+      move => hnn;move : H; rewrite ifF 1:/# => [#??->?].
+      rewrite -cats1 assoc_cat !get_setE /=. 
+      by have := assocTP O_Programmable.prog_list{1} x{2};smt().
+    + move => *;do split;2: by smt().
+      + case (Hi2.x_{1} = None); 1: by smt(get_setE).
+        move => hnn;move : H; rewrite ifF 1:/# => [#??->?].
+        rewrite -cats1 assoc_cat !get_setE /=. 
+        by have := assocTP O_Programmable.prog_list{1} x{2};smt().
+      by smt( fdom_set fsetUid fsetUA eq_except_setr).
+    move => *;split;1: by smt().
+    move => ?. 
+    case (Hi2.x_{1} = None); 1: by smt(get_setE).
+    move => hnn;move : H; rewrite ifF 1:/# => [#??->?].
+    rewrite -cats1 assoc_cat /=. 
+    by have := assocTP O_Programmable.prog_list{1} x{2};smt().
 
 while(={O_Programmable.ch,glob A,xs,Bad.i,ds} /\ 
    if (Hi2.x_ = None){1} 
-          then ={RO.m, O_Programmable.prog_list}  
+          then  O_Programmable.prog_list{1} = [] /\ ={RO.m, O_Programmable.prog_list} /\ size xs{1}  <= Bad.i{1}
           else ((oget Hi2.x_{1} \in RO.m){1} /\ fdom RO.m{1} = fdom RO.m{2} `|` fset1 (oget Hi2.x_{1}) /\ Bad.i{1} < size xs{1} 
                /\ O_Programmable.prog_list{2} = (rcons O_Programmable.prog_list (oget Hi2.x_, oget RO.m.[oget Hi2.x_])){1} 
-               /\ eq_except (pred1 (oget Hi2.x_{1})) RO.m{1} RO.m{2}));last first.
-+ wp;call(: ={O_Programmable.ch,Bad.i,RO.m,O_Programmable.prog_list,Bad.co});1: by sim.
-  by auto => /> /#. 
+               /\ eq_except (pred1 (oget Hi2.x_{1})) RO.m{1} RO.m{2})).
 
 seq 1 1 : (#pre /\ x{1} = x0{2}); 1: by auto.
-if;1,3: by auto => />;smt(size_rcons).
 if {1}.
-+ rcondt{2} 1;by auto;smt(size_rcons).
++ rcondt{2} 1; by auto => />;smt(size_rcons). 
   if {1}; last first. 
   + rcondf{2} 1;1: by auto;smt(size_rcons).
     by auto => />;smt(size_rcons).
@@ -1939,26 +1934,24 @@ if {1}.
     case(x{1} \notin RO.m{1}). 
     + rcondt{1} 2;1: by auto;smt(size_rcons).
       rcondt{1} 4;1: by auto;smt(size_rcons).
-      auto => /> &1 &2 *;do split.
-      + smt(@SmtMap @List). 
-      + case(Hi2.x_{1} = None). smt(@SmtMap @List @FSet). 
-        case(x0{2} = oget Hi2.x_{1}). smt(@SmtMap @List @FSet). rewrite fdom_set . 
-         move => *. 
-         have : x0{2} \notin fdom RO.m{2}. smt(@SmtMap). smt(@SmtMap).  smt(size_rcons).  
-         admit. 
-        smt(@List @SmtMap).
-    + rcondf{1} 2;1: by auto;smt(size_rcons).
-      rcondt{1} 6;1: by auto;smt(@SmtMap size_rcons).
-      auto => /> &1 &2 *;do split.
-      + smt(@SmtMap @List). 
-      + case(Hi2.x_{1} = None). smt(@SmtMap @List @FSet). 
-        case(x0{2} = oget Hi2.x_{1}). smt(@SmtMap @List @FSet). rewrite fdom_set . 
-         move => *. 
-         have : x0{2} \notin fdom RO.m{2}. smt(@SmtMap). smt(@SmtMap).  smt(size_rcons). 
-         admit. 
-        smt(@List @SmtMap).
+      auto => /> &1 &2 [#]??H??????;do split.
+      + by smt(mem_set).
+      + by rewrite fdom_set /#.
+      + by smt(size_rcons).
+      + by rewrite H get_setE /= /#.
+      by smt(eq_except_setr).
 
+    + rcondf{1} 2;1: by auto;smt(size_rcons).
+      rcondt{1} 6; 1: by  auto; smt(mem_fdom mem_fdom_rem size_rcons).
+      auto => /> &1 &2 [#]?H?H0?????;do split.
+      + by smt(mem_set). 
+      + rewrite fdom_set fdom_rem;smt(@FSet).
+      + by smt(size_rcons).
+      + by rewrite -H0 H /= get_setE /=.
+      by smt(@SmtMap).
+by auto => /> /#.
 qed.
+
 
 local lemma Hi4_RO_FunRO &m i_: 
   Pr[MainD(Hi4,RO).distinguish(i_) @ &m : res] 
@@ -1977,34 +1970,38 @@ local lemma Hi4_Hi &m i_ :
   Pr[Hi.main(i_) @ &m : res].
 proof. 
 byequiv => //; proc; inline *. 
-by wp;sim;auto => />.
+wp;sim;auto => />.
 qed.
 
 local lemma rom_reprogramming1 &m i_ : 
-     0 <= i_ 
-  => `| Pr[Hi.main(i_ + 1) @ &m : res] - Pr[Hi.main(i_) @ &m : res] | 
+     0 <= i_ =>
+    (forall (O <: Oraclep_t{-A} ), islossless O.oc => islossless A(O).pick) =>
+    (forall (O <: Oraclep_t{-A}), islossless O.get => islossless A(O).distinguish) =>
+    `| Pr[Hi.main(i_ + 1) @ &m : res] - Pr[Hi.main(i_) @ &m : res] | 
      <= 
      query_ctr%r * p_max_bound.
 proof.
-move=> hi; rewrite (Hip1_Hi1 &m i_) (Hi1_FunRO_RO  &m i_) (Hi1_LRO_Hi2 &m i_).
+move => ib Apll Adll.
+rewrite (Hip1_Hi1 &m i_) (Hi1_FunRO_RO  &m i_) (Hi1_LRO_Hi2 &m i_).
 rewrite -(Hi4_Hi &m i_) -(Hi4_RO_FunRO &m i_) -(Hi3_Hi4 &m i_) 1://.
-by move: (Hi2_Hi3 &m i_) (Hi2_bad &m i_) (Hi3_bad &m i_) => /#.
+by move: (Hi2_Hi3 &m i_) (Hi2_bad &m i_ ib Apll Adll) (Hi3_bad &m i_ ib Adll) => /#.
 qed.
 
 (* ----------------------------------------------------- *)
 
 
 lemma Bound_IND_NARepro &m : 
+    (forall (O <: Oraclep_t{-A} ), islossless O.oc => islossless A(O).pick) =>
+    (forall (O <: Oraclep_t{-A}), islossless O.get => islossless A(O).distinguish) =>
      hoare[ A(O_Programmable(FunRO)).pick :
           O_Programmable.ch = 0 ==>
-          O_Programmable.ch <= query_ctr /\
-          all (fun (y : real) => y <= p_max_bound) (map p_max res)]
+          O_Programmable.ch <= query_ctr /\  good_ds res]
   => `| Pr[IND_NARepro(FunRO, A).main(false, rep_ctr) @ &m : res] - 
         Pr[IND_NARepro(FunRO, A).main(true, rep_ctr) @ &m : res] |
       <= 
       rep_ctr%r * query_ctr%r * p_max_bound.
 proof.
-move=> Hquery.
+move=> Apll Adll Hquery.
 rewrite 2!(Pr_count &m _ Hquery) 2!(Pr_Game_Game1 &m _ Hquery) 2!(Pr_Game1_Game2 &m).
 rewrite Hi_true Hi_false.
 rewrite (telescoping_sum_down (fun i => Pr[Hi.main(i) @ &m : res]) 0 rep_ctr ge0_repctr) /=.

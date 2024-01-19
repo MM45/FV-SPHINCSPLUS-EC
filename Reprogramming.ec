@@ -28,7 +28,7 @@ clone import FinEager as LE with
   
   proof *.
 
-(*
+
 
 (**
   Adaptive reprogramming
@@ -959,7 +959,7 @@ end section.
 
 end Adaptive.
 
-*)
+
 
 (**
   Non-adaptive reprogramming
@@ -1943,12 +1943,12 @@ if {1}.
 
     + rcondf{1} 2;1: by auto;smt(size_rcons).
       rcondt{1} 6; 1: by  auto; smt(mem_fdom mem_fdom_rem size_rcons).
-      auto => /> &1 &2 [#]?H?H0?????;do split.
+      auto => /> &1 &2 [#]?H->>H0???ro?;do split.
       + by smt(mem_set). 
       + by smt(fdom_set fdom_rem fsetP in_fsetU in_fsetD1 in_fset1).
       + by smt(size_rcons).
       + by rewrite -H0 H /= get_setE /=.
-      by smt(@SmtMap).
+      by smt(eq_except_trans eq_except_setr eq_except_reml).
 by auto => /> /#.
 qed.
 

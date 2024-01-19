@@ -1945,7 +1945,7 @@ if {1}.
       rcondt{1} 6; 1: by  auto; smt(mem_fdom mem_fdom_rem size_rcons).
       auto => /> &1 &2 [#]?H?H0?????;do split.
       + by smt(mem_set). 
-      + rewrite fdom_set fdom_rem;smt(@FSet).
+      + by smt(fdom_set fdom_rem fsetP in_fsetU in_fsetD1 in_fset1).
       + by smt(size_rcons).
       + by rewrite -H0 H /= get_setE /=.
       by smt(@SmtMap).

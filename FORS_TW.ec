@@ -633,9 +633,12 @@ op val_bt_trh (bt : dgstblock bintree) (ps : pseed) (ad : adrs) (hidx : int) (bi
     trh ps (set_thtbidx ad hidx bidx) 
         (val (val_bt_trh l ps ad (hidx - 1) (2 * bidx)) ++ val (val_bt_trh r ps ad (hidx - 1) (2 * bidx + 1))).
 *)
-op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
+op val_bt_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
   val_bt (trhi ps ad) updhbidx bt (hidx, bidx).
 
+op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bidx : int) : dgstblock =
+  val_bt_trh_gen ps ad bt a bidx.
+  
 (*     
 (* 
   Constructs an authentication path (without embedding it in the corresponding subtype)
@@ -714,7 +717,7 @@ op extract_collision_bt_ap_trh (ps : pseed)
                                (bs : bool list) 
                                (leaf : dgstblock) 
                                (bidx : int) =
-  extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (0, bidx).
+  extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (a, bidx).
 
 
 
@@ -751,7 +754,7 @@ module FL_FORS_TW_ES = {
     roots <- [];
     while (size roots < k) {
       leaves <@ gen_leaves_single_tree(size roots, ss, ps, ad); 
-      root <- val_bt_trh ps ad (list2tree leaves) a (size roots);
+      root <- val_bt_trh ps ad (list2tree leaves) (size roots);
       roots <- rcons roots root;
     }
      
@@ -967,7 +970,7 @@ module FL_FORS_TW_ES_NPRF = {
     roots <- [];
     while (size roots < k) {
       leaves <@ gen_leaves_single_tree(size roots, skFORS, ps, ad); 
-      root <- val_bt_trh ps ad (list2tree leaves) a (size roots);
+      root <- val_bt_trh ps ad (list2tree leaves) (size roots);
       roots <- rcons roots root;
     }
      
@@ -1360,7 +1363,7 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
         roots <- [];
         while (size roots < k) {
           leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
-          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
           roots <- rcons roots root;
         }
         pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));

@@ -1146,7 +1146,7 @@ lemma extract_coll_bt_ap_Ph0 (bt : dgstblock bintree) (ap : apFLXMSSTW) (idx : i
   => val_bt_trh ps ad bt h 0 = val_ap_trh_gen ps ad (val ap) (rev (int2bs h (val idx))) leaf h 0
   => vallf_subbt bt (rev (int2bs h (val idx))) = Some leaf'
   => (exists (x1 x1' x2 x2' : dgstblock) (i j : int) (l r : dgstblock bintree) (s : bool list),
-        extract_coll_bt_ap_trh ps ad bt (val ap) (rev (int2bs h (val idx))) leaf (height bt) 0 = (x1, x1', x2, x2', (i, j), l, r, s) /\
+        extract_coll_bt_ap_trh ps ad bt (val ap) (rev (int2bs h (val idx))) leaf h 0 = (x1, x1', x2, x2', (i, j), l, r, s) /\
         size (val x1 ++ val x1') = 8 * n * 2 /\
         size (val x2 ++ val x2') = 8 * n * 2 /\
         x1 = val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (h - i + 1) (2 * j))))) (i - 1) (2 * j) /\
@@ -1608,7 +1608,7 @@ module EUF_RMA_FLXMSSTWES_NOPRF(A : Adv_EUFRMA_FLXMSSTWES) = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh  ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1726,7 +1726,7 @@ module (R_PRF_FLXMSSTWESInlineNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PRF_SK_PRF.Adv
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1836,7 +1836,7 @@ module (R_MEUFGCMAWOTSTWES_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : A
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1921,7 +1921,7 @@ module (R_SMDTTCRCPKCO_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PKCOC
     var em_ele : int;
     var idx' : index;
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1965,7 +1965,7 @@ module (R_SMDTTCRCPKCO_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PKCOC
     return (val idx', flatten (map DigestBlock.val pkWOTS'));
   }
 }.
-
+print extract_coll_bt_ap_trh.
 module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
   var skWOTSl : dgstblock list list
@@ -2052,7 +2052,8 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     var sig, sig' : sigFLXMSSTW;
     var leaf' : dgstblock;
     var ap, ap' : apFLXMSSTW;
-    var x, x' : dgst;
+    var x1, x1', x2, x2' : dgstblock;
+    var hbidx : int * int;
     var hidx, bidx : int;
     var pk : pkFLXMSSTW;
     var msig : msgFLXMSSTW * sigFLXMSSTW;
@@ -2062,6 +2063,7 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     var sigWOTS_ele, sigWOTS_ele' : dgstblock;
     var em_ele : int;
     var idx' : index;
+    var t1, t2, t3;
     
     pk <- (root, ps, ad);
     
@@ -2103,9 +2105,9 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     
     leaf' <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (val idx')) (flatten (map DigestBlock.val pkWOTS'));
     
-    (x, x', hidx, bidx) <- oget (extract_coll_bt_ap (list2tree leafl) (val ap') (rev (int2bs h (val idx'))) leaf' ps (set_typeidx ad trhtype) h 0);
+    (x1, x1', x2, x2', hbidx, t1, t2, t3) <- extract_coll_bt_ap_trh ps (set_typeidx ad trhtype) (list2tree leafl) (val ap') (rev (int2bs h (val idx'))) leaf' h 0;
     
-    return (sumz (map size (take (hidx - 1) inpll)) + bidx, x');
+    return (sumz (map size (take (hbidx.`1 - 1) inpll)) + hbidx.`2, val x2 ++ val x2');
   }
 }.
 
@@ -2199,7 +2201,7 @@ local module EUF_RMA_FLXMSSTWES_Inline = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2311,7 +2313,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_SampleSample = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2423,7 +2425,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_LoopSnocSample = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2538,7 +2540,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Loop = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2729,7 +2731,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2862,7 +2864,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions_SSampling = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     ml <- [];
@@ -3218,7 +3220,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions_Mono = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -4330,7 +4332,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ valid_xadrs ad{1}
             /\ skWOTSl{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.skWOTSl{2}
             /\ leafl{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}
-            /\ root{1} = val_bt_trh (list2tree leafl{1}) ps{1} (set_typeidx ad{1} trhtype) h 0
+            /\ root{1} = val_bt_trh ps{1} (set_typeidx ad{1} trhtype) (list2tree leafl{1}) h 0
             /\ all (fun (adrs : adrs) => ! valid_xadrstrh adrs) TRHC.O_THFC_Default.tws{2}
             /\ all (support ddgstblockl) skWOTSl{1}
             /\ all ((=) len \o size) pkWOTSl{1}
@@ -4384,7 +4386,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n)).          
+                  val_bt_trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) (j + 1) n)).          
 + call (: true).
   while (   ={ps, msigl}
          /\ ad{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2}
@@ -4442,7 +4444,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n))
+                  val_bt_trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) (j + 1) n))
            (h - size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2}).
   - move=> _ z.
     inline *; wp => /=.
@@ -4641,11 +4643,11 @@ rewrite validxadrstrh_settypeidx //= => /(_ _ _ _ _ _); 1,4: smt().
 + by apply (list2tree_fullybalanced _ h); smt(ge1_h).
 + by apply (list2tree_height _ h); smt(ge1_h).
 + by rewrite list2tree_lvb 4:(onth_nth witness) 5:lfl_def; smt(ge1_h).
-pose extr_coll := extract_coll_bt_ap _ _ _ _ _ _ _ _. 
-move=> -[x x' i j] [#] coll_val.
-rewrite coll_val oget_some /= => eq8n2_szx eq8n2_szxp xval vali vali1 valij vali12j vali12j1 ge1_i leh_i jval neqx_xp eq_trhxxp.
+pose extr_coll := extract_coll_bt_ap_trh _ _ _ _ _ _ _ _.
+move=> -[x1 x1' x2 x2' i j l r s] [#] coll_val.
+rewrite coll_val /= => eq8n2_szx eq8n2_szxp xval xpval vali vali1 valij vali12j vali12j1 ge1_i leh_i jval neqx_xp eq_trhxxp.
 have nthxval:
-  x = (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
+  val x1 ++ val x1' = (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
 + have ->:
     (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2
     =
@@ -4660,13 +4662,16 @@ have nthxval:
       by rewrite ltz_add2l /#.
     rewrite -{2}(cat_take_drop i) flatten_cat size_cat.
     by rewrite lez_addl size_ge0.
-  rewrite xval equnz2ts_flinpl nth_flatten 1,2:/#.
+  rewrite xval xpval equnz2ts_flinpl nth_flatten 1,2:/#.
   case (i = 1) => [eq1_i | neq1_i].
   - rewrite eq1_i /= h0inpl_def 1,2:/#.
     by congr; rewrite subbt_list2tree_idx 1,2,3:/# oget_some.
   rewrite hainpl_def 1,2:/# /=.
   by congr; rewrite nl_valbt /#.
-split; first by rewrite -nthxval.
+split; first rewrite -nthxval. 
++ move/negb_and: neqx_xp => -[] neqxs. 
+  - by move/contra: (DigestBlock.val_inj x1 x2); smt(eqseq_cat DigestBlock.valP).
+  by move/contra: (DigestBlock.val_inj x1' x2'); smt(eqseq_cat DigestBlock.valP).
 have -> //=:
   (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`1
   =

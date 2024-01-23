@@ -856,7 +856,7 @@ clone import TweakableHashFunctions as F with
   realize dpp_ll by exact: dpseed_ll.
 
 clone import Collection as FC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
   

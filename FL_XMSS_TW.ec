@@ -6,7 +6,7 @@ require (*--*) Word Subtype.
 
 
 (* -- Local -- *)
-require import MerkleTrees.
+require import BinaryTrees MerkleTrees.
 require (*--*) WOTS_TW.
 require (*--*) TweakableHashFunctions DigitalSignatures HashAddresses.
 
@@ -689,7 +689,7 @@ clone TweakableHashFunctions as PKCO with
   realize dpp_ll by exact: dpseed_ll.
 
 clone PKCO.Collection as PKCOC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     
@@ -723,7 +723,7 @@ clone TweakableHashFunctions as TRH with
   realize dpp_ll by exact: dpseed_ll.
 
 clone import TRH.Collection as TRHC with
-  type diff <- int,
+  type diff_t <- int,
   
     op get_diff <- size,
     
@@ -738,6 +738,15 @@ clone TRHC.SMDTTCRC as TRHC_TCR with
   proof *.
   realize ge0_tsmdttcr by smt(ge2_l).  
 
+(* Update function for height and breadth indices (down the tree) *)
+op updhbidx (hbidx : int * int) (b : bool) : int * int = 
+  (hbidx.`1 - 1, if b then 2 * hbidx.`2 + 1 else 2 * hbidx.`2).
+
+(* Function around trh with desired form for use in abstract merkle tree operators  *)
+op trhi (ps : pseed) (ad : adrs) (hbidx : int * int) (x x' : dgstblock) : dgstblock =
+  trh ps (set_thtbidx ad hbidx.`1 hbidx.`2) (val x ++ val x').
+  
+(*
 (* 
   Computes the (hash) value corresponding to the root of the binary tree w.r.t.
   a certain public seed, address, height index, and breadth index. 
@@ -747,7 +756,10 @@ op val_bt_trh (bt : dgstblock bintree) (ps : pseed) (ad : adrs) (hidx : int) (bi
   with bt = Node l r => 
     trh ps (set_thtbidx ad hidx bidx) 
       (val (val_bt_trh l ps ad (hidx - 1) (2 * bidx)) ++ val (val_bt_trh r ps ad (hidx - 1) (2 * bidx + 1))).
-
+*)
+op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
+  val_bt (trhi ps ad) updhbidx bt (hidx, bidx).
+      
 (* 
   For an index in a list that has a power of 2 size, the subtree (of the tree
   obtained by applying list2tree to the list) at the end of the 
@@ -801,22 +813,20 @@ lemma valbttrh_subbt (bt : dgstblock bintree) (ps : pseed) (ad : adrs) (hidx bid
      valid_xadrstrh ad
   => fully_balanced bt
   => 1 <= hidx <= height bt
-  => val_bt_trh (oget (sub_bt bt (rev (int2bs (height bt - hidx) bidx)))) ps ad hidx bidx
+  => val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (height bt - hidx) bidx)))) hidx bidx
      =
      trh ps (set_thtbidx ad hidx bidx)
-       (val (val_bt_trh (oget (sub_bt bt (rev (int2bs (height bt - hidx + 1) (2 * bidx))))) ps ad (hidx - 1) (2 * bidx))
+       (val (val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (height bt - hidx + 1) (2 * bidx))))) (hidx - 1) (2 * bidx))
         ++
-        val (val_bt_trh (oget (sub_bt bt (rev (int2bs (height bt - hidx + 1) (2 * bidx + 1))))) ps ad (hidx - 1) (2 * bidx + 1))).
+        val (val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (height bt - hidx + 1) (2 * bidx + 1))))) (hidx - 1) (2 * bidx + 1))).
 proof.
 move=> adtrh.
 elim: bt hidx bidx  => [/= /# | l r /= ihl ihr hidx bidx [#] eqhl_hr fb_l fb_r rng_hidx].
 case (hidx = 1 + max (height l) (height r)) => [-> /= | neq_hidx].
 + rewrite int2bs0s {1}/rev /= (: 1 = 0 + 1) 1:// ?int2bsS 1,2://.
   rewrite 2?int2bs0s /rev /= expr0 2!divz1 modzMr /=. 
-  rewrite (: sub_bt l [] = Some l) 2:oget_some.
-  - by case: l rng_hidx fb_l eqhl_hr ihl.
-  rewrite mulzC modzMDl /= (: sub_bt r [] = Some r) 2:oget_some //.
-  by case: r rng_hidx fb_r eqhl_hr ihr.
+  rewrite subbt_empty oget_some mulzC modzMDl /= subbt_empty oget_some.
+  by rewrite /val_bt_trh /trhi /updhbidx /= /#.
 rewrite {1}addzC {1}[1 + _]addzC addzA 3?int2bsS 1,2,3:/# 3!rev_rcons {1 2}addzC.
 case (bidx %/ 2 ^ (max (height l) (height r) - hidx) %% 2 = 0) => [eq0_div | neq0_div] /=.
 + rewrite -addzA exprD_nneg 1:// 1:/# expr1.
@@ -829,6 +839,7 @@ move: (divz_eq0 1 2 _) => //; move/iffLR => -> //=.
 by rewrite mulKz // neq0_div //= /#.
 qed.
 
+(*
 (* 
   Constructs an authentication path (without embedding it in the corresponding subtype)
   from a binary (hash) tree and a path represented by a boolean list w.r.t. a certain 
@@ -841,7 +852,11 @@ op cons_ap_trh_gen (bt : dgstblock bintree) (bs : bool list) (ps : pseed) (ad : 
   with bt = Node l r, bs = b :: bs' =>
     (val_bt_trh (if b then l else r) ps ad (hidx - 1) (if b then 2 * bidx else 2 * bidx + 1)) 
     :: cons_ap_trh_gen (if b then r else l) bs' ps ad (hidx - 1) (if b then 2 * bidx + 1 else 2 * bidx). 
+*)
+op cons_ap_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bs : bool list)  (hidx : int) (bidx : int) : dgstblock list =
+  cons_ap (trhi ps ad) updhbidx bt bs (hidx, bidx).
 
+(*
 (*
   Computes the (hash) value corresponding to an authentication path, a leaf, and a 
   path represented by a boolean list w.r.t a certain public seed, address, height index, 
@@ -856,7 +871,11 @@ op val_ap_trh_gen (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (ps 
        (if b 
         then val x ++ val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx + 1))
         else val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx)) ++ val x).
+*)
+op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx : int) (bidx : int) : dgstblock =
+  val_ap (trhi ps ad) updhbidx ap bs leaf (hidx, bidx).
 
+(*       
 (*
   Extracts a collision, height index, and breadth index from a binary tree and 
   an authentication path w.r.t. a certain public seed, address, (initial) height index, and 
@@ -882,7 +901,11 @@ op extract_coll_bt_ap (bt : dgstblock bintree) (ap : dgstblock list) (bs : bool 
          /\ val_bt_trh bt ps ad hidx bidx = val_ap_trh_gen ap bs leaf ps ad hidx bidx
       then Some (val (val_bt_trh l ps ad (hidx - 1) (2 * bidx)) ++ val (val_bt_trh r ps ad (hidx - 1) (2 * bidx + 1)), val (val_ap_trh_gen ap' bs' leaf ps ad (hidx - 1) (2 * bidx)) ++ val x, hidx, bidx)
       else extract_coll_bt_ap l ap' bs' leaf ps ad (hidx - 1) (2 * bidx).
-     
+*)
+op extract_coll_bt_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx bidx : int) =
+   extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).    
+
+(*     
 (* 
   Specifies the conditions under which extract_coll_bt_ap actually extracts
   a collision and corresponding indices, and what some of the values are/in which range 
@@ -988,7 +1011,83 @@ rewrite /rev /= int2bsK 1,2:/# /=.
 split => [| /#].
 by rewrite {1}lez_maxl 1:/# {1}lez_maxr 1:/# (: max (height l) (height r) = size ap) 1:/# eqseq_cat 1:2!valP //; smt(DigestBlock.val_inj).
 qed.
+*)
+lemma foldl_updhbidx (i : int) (bsj bs : bool list) :
+  foldl updhbidx (i, bs2int (rev bsj)) bs
+  =
+  (i - size bs, bs2int (rev (bsj ++ bs))).
+proof.
+elim: bs i bsj => /= [bsj | b bs ih i bsj]; 1: by rewrite cats0. 
+rewrite {2}/updhbidx /=; pose ifte := if _ then _ else _.
+rewrite (: ifte = bs2int (rev (bsj ++ [b]))); 2: by smt(@List).
+by rewrite cats1 rev_rcons bs2int_cons /b2i /= /#.  
+qed.
 
+(* 
+  Specifies the conditions under which extract_coll_bt_ap actually extracts
+  a collision and corresponding indices, and what some of the values are/in which range 
+  some of the values lie
+*)
+lemma extract_coll_bt_ap_P (bt : dgstblock bintree) (ap : dgstblock list) (bs : bool list) (leaf leaf' : dgstblock) (ps : pseed) (ad : adrs) (bidx : int) :
+     valid_xadrstrh ad
+  => leaf <> leaf'
+  => fully_balanced bt
+  => size ap = size bs
+  => height bt = size ap
+  => valid_thidx (height bt)
+  => valid_tbidx (height bt) bidx
+  => val_bt_trh ps ad bt (height bt) bidx = val_ap_trh_gen ps ad ap bs leaf (size ap) bidx
+  => vallf_subbt bt bs = Some leaf'
+  => (exists (x1 x1' x2 x2' : dgstblock) (i j : int) (l r : dgstblock bintree) (s : bool list),
+        extract_coll_bt_ap_trh ps ad bt ap bs leaf (height bt) bidx = (x1, x1', x2, x2', (i, j), l, r, s) /\
+        x1 = val_bt_trh ps ad (oget (sub_bt bt (rcons (take (height bt - i) bs) false))) (i - 1) (2 * j) /\
+        x1' = val_bt_trh ps ad (oget (sub_bt bt (rcons (take (height bt - i) bs) true))) (i - 1) (2 * j + 1) /\
+        size (val x1 ++ val x1') = 8 * n * 2 /\
+        size (val x2 ++ val x2') = 8 * n * 2 /\
+        valid_thidx i /\
+        valid_thidx (i - 1) /\
+        valid_tbidx i j /\
+        valid_tbidx (i - 1) (2 * j) /\
+        valid_tbidx (i - 1) (2 * j + 1) /\
+        1 <= i <= height bt /\
+        j = bs2int (rev (take (height bt - i) bs) ++ (int2bs (h - height bt) bidx)) /\
+        (x1, x1') <> (x2, x2') /\ 
+        trh ps (set_thtbidx ad i j) (val x1 ++ val x1')
+        =
+        trh ps (set_thtbidx ad i j) (val x2 ++ val x2')).
+proof.
+move=> adtrh neql_lp fbbt eqsz eqhtsz valth valtb eqbtap eqlpp.
+move: (ecbtapP (trhi ps ad) updhbidx bt ap bs leaf leaf' (height bt, bidx)).
+move: (ecbtap_vals (trhi ps ad) updhbidx bt ap bs leaf leaf' (height bt, bidx)). 
+move: (ecbtabp_props (trhi ps ad) updhbidx bt ap bs leaf leaf' (height bt, bidx)).
+rewrite fbbt eqsz eqhtsz neql_lp eqlpp /= eqsz /= -eqsz -eqhtsz => /(_ _); 1: smt().
+rewrite /extract_coll_bt_ap_trh.
+case: (extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (height bt, bidx)).
+move=> x1 x1' x2 x2' [i j] l r s [#] eqhtlr lthtlbt ltszshtbt /= /(_ _); 1: smt().
+move=> [#] eqx1 eqx1p eqx2 eqx2p eqij eql eqr eqs /(_ _); 1: smt().
+move=> [#] dfi @/trhi eqm; exists x1 x1' x2 x2' i j l r s => /=.
+rewrite /val_bt_trh dfi eqm /= 2!size_cat 4!valP.
+have eqbidx: bidx = bs2int (rev (rev (int2bs (h - height bt) bidx))) by rewrite revK int2bsK 1,2:/#.
+move: eqij; rewrite {1}eqbidx foldl_updhbidx => /= -[eqi eqj].
+rewrite eqx1 eqx1p {2 5}/updhbidx /= eql eqr eqi size_take 1:/#.
+rewrite (: height bt - size s - 1 < size bs) /=; 1: smt(@List). 
+rewrite (: height bt - (height bt - size s - 1) = size s + 1) 1:/# /=.
+rewrite opprD addrA eqj rev_cat revK /= andbA; split => [/# |].
+rewrite andbA andbC !andbA -2!andbA; split; 2: by smt(@List).
+suff ltszhs:
+  size (rev (take (height bt - size s - 1) bs) ++ int2bs (h - height bt) bidx)
+  <=
+  h - size s - 1.
++ rewrite /valid_tbidx /nr_nodes bs2int_ge0 /=. 
+  rewrite -{1 2}(Ring.IntID.add0r (2 * bs2int _)). 
+  rewrite (Ring.IntID.addrC (2 * bs2int _) 1).
+  rewrite {2 3}(: 0 = b2i false) 1://= {5 7}(: 1 = b2i true) 1://=.
+  rewrite -2!bs2int_cons 2!bs2int_ge0 /=.
+  smt(size_cat size_rev size_take size_int2bs IntOrder.ler_weexpn2l IntOrder.ltr_le_trans bs2int_le2Xs).
+by rewrite size_cat size_rev size_take 1:/# size_int2bs; smt(@List).
+qed.
+
+(*
 (* 
   Special case of the collision extraction lemma for binary trees and authentication path
   of height/length h and paths represented by the big-endian binary representation of
@@ -1032,7 +1131,51 @@ rewrite take_rev_int2bs // 1:/# revK int2bsK 1:/# => [| *]; last by exists x x' 
 rewrite andaE; split; first by rewrite divz_ge0 1:expr_gt0 //; smt(Index.valP).
 by rewrite ltz_divLR 1:expr_gt0 // -exprD_nneg; smt(ge1_h Index.valP).
 qed.
+*)
 
+(* 
+  Special case of the collision extraction lemma for binary trees and authentication path
+  of height/length h and paths represented by the big-endian binary representation of
+  indices between 0 (including) and 2 ^ h (including).  
+*)
+lemma extract_coll_bt_ap_Ph0 (bt : dgstblock bintree) (ap : apFLXMSSTW) (idx : index) (leaf leaf' : dgstblock) (ps : pseed) (ad : adrs) :
+     valid_xadrstrh ad
+  => leaf <> leaf'
+  => fully_balanced bt
+  => height bt = h
+  => val_bt_trh ps ad bt h 0 = val_ap_trh_gen ps ad (val ap) (rev (int2bs h (val idx))) leaf h 0
+  => vallf_subbt bt (rev (int2bs h (val idx))) = Some leaf'
+  => (exists (x1 x1' x2 x2' : dgstblock) (i j : int) (l r : dgstblock bintree) (s : bool list),
+        extract_coll_bt_ap_trh ps ad bt (val ap) (rev (int2bs h (val idx))) leaf h 0 = (x1, x1', x2, x2', (i, j), l, r, s) /\
+        size (val x1 ++ val x1') = 8 * n * 2 /\
+        size (val x2 ++ val x2') = 8 * n * 2 /\
+        x1 = val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (h - i + 1) (2 * j))))) (i - 1) (2 * j) /\
+        x1' = val_bt_trh ps ad (oget (sub_bt bt (rev (int2bs (h - i + 1) (2 * j + 1))))) (i - 1) (2 * j + 1) /\
+        valid_thidx i /\
+        valid_thidx (i - 1) /\
+        valid_tbidx i j /\
+        valid_tbidx (i - 1) (2 * j) /\
+        valid_tbidx (i - 1) (2 * j + 1) /\
+        1 <= i <= h /\
+        j = val idx %/ 2 ^ i /\
+        (x1, x1') <> (x2, x2') /\ 
+        trh ps (set_thtbidx ad i j) (val x1 ++ val x1')
+        =
+        trh ps (set_thtbidx ad i j) (val x2 ++ val x2')).
+proof.
+move=> adtrh neqlfp_lf fb_bt eqh_hbt eqbtap extrlf.
+move: (extract_coll_bt_ap_P bt (val ap) (rev (int2bs h (val idx))) leaf leaf' ps ad 0).
+move=> /(_ adtrh neqlfp_lf fb_bt); rewrite ?valP ?eqh_hbt size_rev size_int2bs /=.
+move=> /(_ _ _ _); [smt(ge1_h) | smt(ge1_h ge0_height) | by rewrite /valid_tbidx /= /nr_nodes expr0 |].
+rewrite eqbtap extrlf /= => -[x1 x1' x2 x2' i j l r s] [#] ? + + ? ? ? ? ? ? ? ? ? + ? ?.
+rewrite rcons_take_rev_int2bs //= 1:/# rcons_take_rev_int2bs //= 1:/#.
+rewrite int2bs0s cats0 //= take_rev_int2bs // 1:/# (: h - (h - i) = i) 1:/# => xval.
+rewrite revK int2bsK 1:/# => [| *]; last by exists x1 x1' x2 x2' i j l r s => /#.
+rewrite andaE; split; first by rewrite divz_ge0 1:expr_gt0 //; smt(Index.valP).
+by rewrite ltz_divLR 1:expr_gt0 // -exprD_nneg; smt(ge1_h Index.valP).
+qed.
+
+(*
 (* 
   Constructs authentication path (embedding it in the corresponding subtype)
   for the special case of binary trees of height h and indices between 0 (including) and
@@ -1042,7 +1185,11 @@ qed.
 *)
 op cons_ap_trh (bt : dgstblock bintree) (idx : index) (ps : pseed) (ad : adrs) : apFLXMSSTW =
   DBHL.insubd (cons_ap_trh_gen bt (rev (int2bs h (val idx))) ps ad h 0).
+*)
+op cons_ap_trh (bt : dgstblock bintree) (idx : index) (ps : pseed) (ad : adrs) : apFLXMSSTW =
+  DBHL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h (val idx))) h 0).
 
+(*
 (* 
   Computes value corresponding to an authentication path, leaf, and a path represented 
   by the big-endian binary representation of an index between 0 (including) 
@@ -1051,7 +1198,11 @@ op cons_ap_trh (bt : dgstblock bintree) (idx : index) (ps : pseed) (ad : adrs) :
 *)
 op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (ad : adrs) : dgstblock = 
   val_ap_trh_gen (val ap) (rev (int2bs h (val idx))) leaf ps ad h 0.
+*)
+op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (ad : adrs) : dgstblock = 
+  val_ap_trh_gen ps ad (val ap) (rev (int2bs h (val idx))) leaf h 0.
 
+  
 (* --- Types (3/3) -- *)
 (* -- General -- *)
 (*
@@ -1077,6 +1228,7 @@ type xadrs = XAddress.sT.
 
 (* --- Specification and Proof --- *)
 (* -- Specification of Fixed-Length XMSS-TW in encompassing structure -- *)
+(*
 module FL_XMSS_TW_ES = {
   (* Compute list of leaves from a secret seed, public seed, and address *) 
   proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
@@ -1119,6 +1271,140 @@ module FL_XMSS_TW_ES = {
       given address (after setting the type to tree hashing)
     *)
     root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0; 
+    
+    pk <- (root, ps, ad);
+    sk <- (insubd 0, ss, ps, ad);
+    
+    return (pk, sk);
+  }
+  
+  (* Sign the given message with the given secret key *)
+  proc sign(sk : skFLXMSSTW, m : msgFLXMSSTW) : sigFLXMSSTW * skFLXMSSTW = {
+    var idx : index;
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var skWOTS : skWOTS;
+    var sigWOTS : sigWOTS;
+    var skWOTSl : skWOTS list;
+    var leafl : dgstblock list;
+    var ap : apFLXMSSTW;
+    var sig : sigFLXMSSTW;
+    
+    (* Extract index, secret seed, public seed, and address from the secret key *)
+    idx <- sk.`1;
+    ss <- sk.`2;
+    ps <- sk.`3;
+    ad <- sk.`4;
+    
+    (* Compute the WOTS-TW signature on the given message *)
+    sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx ad chtype) (val idx)), m);
+    
+    (* Compute the list of leaves *)
+    leafl <@ leaves_from_sspsad(ss, ps, ad);
+    
+    (* Construct the authentication path from the computed list of leaves *)
+    ap <- cons_ap_trh (list2tree leafl) idx ps (set_typeidx ad trhtype);
+    
+    sig <- (idx, sigWOTS, ap);
+    sk <- (insubd (val idx + 1), ss, ps, ad);
+    
+    return (sig, sk);
+  }
+  
+  (* Compute the root (hash) value from a message, signature, public seed, and address  *) 
+  proc root_from_sigFLXMSSTW(m : msgFLXMSSTW, sig : sigFLXMSSTW, ps : pseed, ad : adrs) : dgstblock = {
+    var idx : index;
+    var pkWOTS : pkWOTS;
+    var sigWOTS : sigWOTS;
+    var ap : apFLXMSSTW;
+    var leaf : dgstblock;
+    var root : dgstblock;
+    
+    (* Extract index, WOTS-TW signature, and authentication path from the signature *)
+    idx <- sig.`1;
+    sigWOTS <- sig.`2;
+    ap <- sig.`3;
+    
+    (* Compute WOTS-TW public key *)
+    pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(m, sigWOTS, ps, set_kpidx (set_typeidx ad chtype) (val idx));
+    
+    (* Compute leaf from the computed WOTS-TW public key *)
+    leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (val idx)) (flatten (map DigestBlock.val (val pkWOTS)));
+    
+    (* Compute root from computed leaf (and extracted authentication path) *)
+    root <- val_ap_trh ap idx leaf ps (set_typeidx ad trhtype);
+    
+    return root;
+  }
+  
+  (* 
+    Verify the given signature on the given message with the given public key
+  *)
+  proc verify(pk : pkFLXMSSTW, m : msgFLXMSSTW, sig : sigFLXMSSTW) : bool = {
+    var ps : pseed;
+    var ad : adrs;
+    var root : dgstblock;
+    var root' : dgstblock;
+    var pkWOTS : pkWOTS;
+    var sigWOTS : sigWOTS;
+    var pk' : pkFLXMSSTW;
+    var is_valid : bool;
+  
+    (* Extract root (hash) value, public seed, and address from the public key *)     
+    root <- pk.`1;
+    ps <- pk.`2;
+    ad <- pk.`3;
+    
+    (* Compute root (hash) value to check extracted root (hash) value against *)
+    root' <@ root_from_sigFLXMSSTW(m, sig, ps, ad);
+    
+    return root' = root;
+  }
+}.
+*)
+module FL_XMSS_TW_ES = {
+  (* Compute list of leaves from a secret seed, public seed, and address *) 
+  proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
+    var skWOTS : skWOTS;
+    var pkWOTS : pkWOTS;
+    var leaf : dgstblock;
+    var leafl : dgstblock list;
+    
+    leafl <- [];
+    while (size leafl < l) {
+      (* Generate a WOTS-TW secret key *)
+      skWOTS <@ WOTS_TW_ES.gen_skWOTS(ss, ps, set_kpidx (set_typeidx ad chtype) (size leafl));
+      
+      (* Compute the WOTS-TW public key from the generated WOTS-TW secret key *)
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_skWOTS(skWOTS, ps, set_kpidx (set_typeidx ad chtype) (size leafl));
+      
+      (* Compute leaf from the computed WOTS-TW public key *)
+      leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (size leafl)) (flatten (map DigestBlock.val (val pkWOTS)));
+
+      leafl <- rcons leafl leaf;
+    }
+    
+    return leafl;
+  }
+
+  (* Generate a key pair from a secret seed, public seed, and address *)
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSTW * skFLXMSSTW = {
+    var root : dgstblock;
+    var skWOTS : skWOTS;
+    var skWOTSl : skWOTS list;
+    var leafl : dgstblock list;
+    var pk : pkFLXMSSTW;
+    var sk : skFLXMSSTW;
+    
+    (* Compute list of leaves *)
+    leafl <@ leaves_from_sspsad(ss, ps, ad);
+    
+    (* 
+      Compute root (hash value) from the computed list of leaves, given public seed, and
+      given address (after setting the type to tree hashing)
+    *)
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0; 
     
     pk <- (root, ps, ad);
     sk <- (insubd 0, ss, ps, ad);
@@ -1322,7 +1608,7 @@ module EUF_RMA_FLXMSSTWES_NOPRF(A : Adv_EUFRMA_FLXMSSTWES) = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh  ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1440,7 +1726,7 @@ module (R_PRF_FLXMSSTWESInlineNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PRF_SK_PRF.Adv
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1550,7 +1836,7 @@ module (R_MEUFGCMAWOTSTWES_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : A
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1635,7 +1921,7 @@ module (R_SMDTTCRCPKCO_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PKCOC
     var em_ele : int;
     var idx' : index;
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -1679,7 +1965,7 @@ module (R_SMDTTCRCPKCO_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : PKCOC
     return (val idx', flatten (map DigestBlock.val pkWOTS'));
   }
 }.
-
+print extract_coll_bt_ap_trh.
 module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
   var skWOTSl : dgstblock list list
@@ -1766,7 +2052,8 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     var sig, sig' : sigFLXMSSTW;
     var leaf' : dgstblock;
     var ap, ap' : apFLXMSSTW;
-    var x, x' : dgst;
+    var x1, x1', x2, x2' : dgstblock;
+    var hbidx : int * int;
     var hidx, bidx : int;
     var pk : pkFLXMSSTW;
     var msig : msgFLXMSSTW * sigFLXMSSTW;
@@ -1776,6 +2063,7 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     var sigWOTS_ele, sigWOTS_ele' : dgstblock;
     var em_ele : int;
     var idx' : index;
+    var t1, t2, t3;
     
     pk <- (root, ps, ad);
     
@@ -1786,7 +2074,7 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
       em <- encode_msgWOTS m;
       skWOTS <- nth witness skWOTSl (size msigl);
       sigWOTS <- [];
-      while (size sigWOTS < len){
+      while (size sigWOTS < len) {
         skWOTS_ele <- nth witness skWOTS (size sigWOTS);
         em_ele <- BaseW.val (em.[size sigWOTS]);
         sigWOTS_ele <- cf ps (set_chidx (set_kpidx (set_typeidx ad chtype) (size msigl)) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
@@ -1817,9 +2105,9 @@ module (R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF (A : Adv_EUFRMA_FLXMSSTWES) : TRHC_T
     
     leaf' <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (val idx')) (flatten (map DigestBlock.val pkWOTS'));
     
-    (x, x', hidx, bidx) <- oget (extract_coll_bt_ap (list2tree leafl) (val ap') (rev (int2bs h (val idx'))) leaf' ps (set_typeidx ad trhtype) h 0);
+    (x1, x1', x2, x2', hbidx, t1, t2, t3) <- extract_coll_bt_ap_trh ps (set_typeidx ad trhtype) (list2tree leafl) (val ap') (rev (int2bs h (val idx'))) leaf' h 0;
     
-    return (sumz (map size (take (hidx - 1) inpll)) + bidx, x');
+    return (sumz (map size (take (hbidx.`1 - 1) inpll)) + hbidx.`2, val x2 ++ val x2');
   }
 }.
 
@@ -1913,7 +2201,7 @@ local module EUF_RMA_FLXMSSTWES_Inline = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2025,7 +2313,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_SampleSample = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2137,7 +2425,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_LoopSnocSample = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2252,7 +2540,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Loop = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2443,7 +2731,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -2576,7 +2864,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions_SSampling = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     ml <- [];
@@ -2932,7 +3220,7 @@ local module EUF_RMA_FLXMSSTWES_NOPRF_Conditions_Mono = {
       leafl <- rcons leafl leaf;
     }
     
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leafl) h 0;
     pk <- (root, ps, ad);
     
     msigl <- [];
@@ -4044,7 +4332,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ valid_xadrs ad{1}
             /\ skWOTSl{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.skWOTSl{2}
             /\ leafl{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}
-            /\ root{1} = val_bt_trh (list2tree leafl{1}) ps{1} (set_typeidx ad{1} trhtype) h 0
+            /\ root{1} = val_bt_trh ps{1} (set_typeidx ad{1} trhtype) (list2tree leafl{1}) h 0
             /\ all (fun (adrs : adrs) => ! valid_xadrstrh adrs) TRHC.O_THFC_Default.tws{2}
             /\ all (support ddgstblockl) skWOTSl{1}
             /\ all ((=) len \o size) pkWOTSl{1}
@@ -4098,7 +4386,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n)).          
+                  val_bt_trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) (j + 1) n)).          
 + call (: true).
   while (   ={ps, msigl}
          /\ ad{1} = R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2}
@@ -4156,7 +4444,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n))
+                  val_bt_trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (oget (sub_bt (list2tree R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) (j + 1) n))
            (h - size R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.nodell{2}).
   - move=> _ z.
     inline *; wp => /=.
@@ -4355,11 +4643,11 @@ rewrite validxadrstrh_settypeidx //= => /(_ _ _ _ _ _); 1,4: smt().
 + by apply (list2tree_fullybalanced _ h); smt(ge1_h).
 + by apply (list2tree_height _ h); smt(ge1_h).
 + by rewrite list2tree_lvb 4:(onth_nth witness) 5:lfl_def; smt(ge1_h).
-pose extr_coll := extract_coll_bt_ap _ _ _ _ _ _ _ _. 
-move=> -[x x' i j] [#] coll_val.
-rewrite coll_val oget_some /= => eq8n2_szx eq8n2_szxp xval vali vali1 valij vali12j vali12j1 ge1_i leh_i jval neqx_xp eq_trhxxp.
+pose extr_coll := extract_coll_bt_ap_trh _ _ _ _ _ _ _ _.
+move=> -[x1 x1' x2 x2' i j l r s] [#] coll_val.
+rewrite coll_val /= => eq8n2_szx eq8n2_szxp xval xpval vali vali1 valij vali12j vali12j1 ge1_i leh_i jval neqx_xp eq_trhxxp.
 have nthxval:
-  x = (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
+  val x1 ++ val x1' = (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
 + have ->:
     (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2
     =
@@ -4374,13 +4662,16 @@ have nthxval:
       by rewrite ltz_add2l /#.
     rewrite -{2}(cat_take_drop i) flatten_cat size_cat.
     by rewrite lez_addl size_ge0.
-  rewrite xval equnz2ts_flinpl nth_flatten 1,2:/#.
+  rewrite xval xpval equnz2ts_flinpl nth_flatten 1,2:/#.
   case (i = 1) => [eq1_i | neq1_i].
   - rewrite eq1_i /= h0inpl_def 1,2:/#.
     by congr; rewrite subbt_list2tree_idx 1,2,3:/# oget_some.
   rewrite hainpl_def 1,2:/# /=.
   by congr; rewrite nl_valbt /#.
-split; first by rewrite -nthxval.
+split; first rewrite -nthxval. 
++ move/negb_and: neqx_xp => -[] neqxs. 
+  - by move/contra: (DigestBlock.val_inj x1 x2); smt(eqseq_cat DigestBlock.valP).
+  by move/contra: (DigestBlock.val_inj x1' x2'); smt(eqseq_cat DigestBlock.valP).
 have -> //=:
   (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`1
   =

@@ -563,7 +563,6 @@ call (: ={i, k} /\ 0 < arg{1}.`1 ==> ={res}); last first.
 + by skip.
 bypr (res{1}) (res{2}) => //=.
 move=> &1 &2 /> -[] x y r eq_i eq_k gt0_i.
-search Si_early_fail_sample_sem.
 rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem. 
 rewrite eq_i eq_k; congr; smt(Si_eq_sem).
 qed.
@@ -655,7 +654,7 @@ seq 1 : r prsi j1dj _ 0%r
   call (: true).
   by wp; rnd; wp; rnd; skip => />.
 + rnd; skip => /= &1 -[-> [eqszpfl_i eqy_fkx]].
-  rewrite eqszpfl_i eqy_fkx /=. print predC.
+  rewrite eqszpfl_i eqy_fkx /=.
   have ->:
     (fun (x : input) => Si_inverse_sample_alt.x'{1} <> x) 
     = 

@@ -138,6 +138,11 @@ end SMDTPRE.
 
 
 (* - Single-function, Multi-target, Distinct-Tweak Open PREimage resistance (SM_DT_OpenPRE) - *)
+(* 
+  Note/Todo: 
+  This is in an adaptive style to match the other properties, but non-adaptive is probably
+  already sufficient and might be easier to use in proofs.
+*)
 abstract theory SMDTOpenPRE.
   (* Number of functions/targets for SM_DT_PRE *)
   const t_smdtopenpre : { int | 0 <= t_smdtopenpre } as ge0_tsmdtopenpre.
@@ -216,7 +221,7 @@ abstract theory SMDTOpenPRE.
       return i \in os;
     }
   }.
-
+  
   module SM_DT_OpenPRE(A : Adv_SMDTOpenPRE, O : Oracle_SMDTOpenPRE) = {
     module A = A(O)
 

@@ -893,7 +893,7 @@ module M_FORS_TW_ES = {
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var mc : msgFORSTW;
+    var cm : msgFORSTW;
     var idx : iid;
     var tidx, kpidx : int;
     var sig : sigFORSTW;
@@ -902,11 +902,11 @@ module M_FORS_TW_ES = {
     
     mk <$ dmkey;
     
-    (mc, idx) <- mco mk m;
+    (cm, idx) <- mco mk m;
     
     (tidx, kpidx) <- edivz (val idx) l;
     
-    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
     return (mk, sig);
   }
@@ -918,7 +918,7 @@ module M_FORS_TW_ES = {
     var ad : adrs;
     var mk : mkey;
     var sigFORSTW : sigFORSTW;
-    var mc : msgFORSTW;
+    var cm : msgFORSTW;
     var idx : iid;
     var tidx, kpidx : int;
     var is_valid : bool; 
@@ -926,13 +926,13 @@ module M_FORS_TW_ES = {
     (pkFORSl, ps, ad) <- pk;
     (mk, sigFORSTW) <- sig;
     
-    (mc, idx) <- mco mk m;
+    (cm, idx) <- mco mk m;
     
     (tidx, kpidx) <- edivz (val idx) l;
     
     pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
     
-    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
+    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
     
     return is_valid;
   } 
@@ -1111,7 +1111,7 @@ module M_FORS_TW_ES_NPRF = {
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var mc : msgFORSTW;
+    var cm : msgFORSTW;
     var idx : iid;
     var tidx, kpidx : int;
     var sig : sigFORSTW;
@@ -1120,13 +1120,13 @@ module M_FORS_TW_ES_NPRF = {
     
     mk <$ dmkey;
     
-    (mc, idx) <- mco mk m;
+    (cm, idx) <- mco mk m;
     
     (tidx, kpidx) <- edivz (val idx) l;
     
     skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
      
-    sig <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+    sig <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
     return (mk, sig);
   }
@@ -1138,7 +1138,7 @@ module M_FORS_TW_ES_NPRF = {
     var ad : adrs;
     var mk : mkey;
     var sigFORSTW : sigFORSTW;
-    var mc : msgFORSTW;
+    var cm : msgFORSTW;
     var idx : iid;
     var tidx, kpidx : int;
     var is_valid : bool; 
@@ -1146,13 +1146,13 @@ module M_FORS_TW_ES_NPRF = {
     (pkFORSs, ps, ad) <- pk;
     (mk, sigFORSTW) <- sig;
     
-    (mc, idx) <- mco mk m;
+    (cm, idx) <- mco mk m;
     
     (tidx, kpidx) <- edivz (val idx) l;
     
     pkFORS <- nth witness (nth witness pkFORSs tidx) kpidx;
     
-    is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc, sigFORSTW);
+    is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
     
     return is_valid;
   } 
@@ -1176,37 +1176,55 @@ import Stateless.
 (* -- Oracles -- *)
 module O_CMA_MFORSTWESNPRF = O_CMA_Default(M_FORS_TW_ES_NPRF).
 
+module O_CMA_MFORSTWESNPRF_AV = {
+  include var O_CMA_MFORSTWESNPRF [-init, sign] 
+  
+  var lidxs : (int * int * int) list
+  
+  proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
+    O_CMA_MFORSTWESNPRF.init(sk);
+    lidxs <- [];
+  }
+  
+  proc sign(m : msg) : mkey * sigFORSTW = {
+    var mk : mkey;
+    var sigFORSTW : sigFORSTW;
+    
+    (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
+    
+    lidxs <- lidxs ++ g (mco mk m);
+    
+    return (mk, sigFORSTW);  
+  }
+}. 
+
 
 (* -- Reduction adversaries -- *)
-module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
-  module O_CMA_R_EUFCMA_ITSR : SOracle_CMA = {
-    var skFORSs : skFORS list list
-    var ps : pseed
-    var ad : adrs
-    
-    proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
-      (skFORSs, ps, ad) <- sk_init;
-    }
-    
+module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {  
+  var ps : pseed
+  var ad : adrs
+  var skFORSs : skFORS list list
+
+  module O_CMA_R_EUFCMA_ITSR : SOracle_CMA = {    
     proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
-      var mc : msgFORSTW;
+      var cm : msgFORSTW;
       var idx : iid;
       var tidx, kpidx : int;
       var skFORS : skFORS;
-      var sigFORS : sigFORSTW;
+      var sigFORSTW : sigFORSTW;
        
       mk <@ O.query(m);
       
-      (mc, idx) <- mco mk m;
+      (cm, idx) <- mco mk m;
     
       (tidx, kpidx) <- edivz (val idx) l;
 
       skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
 
-      sigFORS <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), mc);
+      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
-      return (mk, sigFORS);
+      return (mk, sigFORSTW);
     }
   }
   
@@ -1219,7 +1237,7 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen();    
     
-    O_CMA_R_EUFCMA_ITSR.init(sk);
+    (skFORSs, ps, ad) <- sk;
     
     (m', sig') <@ A(O_CMA_R_EUFCMA_ITSR).forge(pk);
     
@@ -1253,24 +1271,20 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
     the secret key element that was not included in the query responses (in case of no ITSR break)
     should be easier.
 *)
-(* From message and mkey of forgery, extract 
-    Extract index that was not yet pointed to by any message (after compression)
-    produced during signature queries
-*)
-op extract_new_idx (mkml : (mkey * msg) list) (mk : mkey) (m : msg) = 
-  map (fun (mkm : _ * _) => mco mkm.`1 mkm.`2) mkml. 
-
+print index. print find. search nth find.
 module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
   var ps : pseed
   var ad : adrs
   var leavess : dgstblock list list list list
+  var lidxs : (int * int * int) list
   
   module O_CMA_R_EUFCMA_FSMDTOpenPREC : SOracle_CMA = {
+    (* Signing as with FORS-TW (No PRF), but obtain secret key elements from OpenPRE oracle *)
     proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
       var cm : msgFORSTW;
       var idx : iid;
-      var tidx, kpidx, leafidx : int;
+      var tidx, kpidx, lidx : int;
       var bslidx : bool list;
       var sigFORS : (dgstblock * apFORSTW) list;
       var leaves : dgstblock list;
@@ -1286,22 +1300,19 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
       sigFORS <- [];
       while (size sigFORS < k) {
         bslidx <- take a (drop (a * (size sigFORS)) (val cm));  
-        leafidx <- bs2int (rev bslidx);
-        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORS * t + leafidx);
+        lidx <- bs2int (rev bslidx);
+        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORS * t + lidx);
         leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORS);
-        ap <- cons_ap_trh ps ad (list2tree leaves) leafidx (size sigFORS);
+        ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORS);
         sigFORS <- rcons sigFORS (DigestBlock.insubd skFORS_ele, ap);
       }
+      
+      lidxs <- lidxs ++ g (cm, idx);
       
       return (mk, insubd sigFORS);
     }
   }
-  
-  (* 
-    Module with sign that, upon query from A, 
-      opens the necessary secret key values to produce the signature
-      and then simply produces them according to the specs
-  *)
+
   proc pick() : unit = {
     var leaf : dgstblock;
     var leavest : dgstblock list;
@@ -1338,7 +1349,7 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
     }
   }
   
-  proc find(ps : pseed) : int * dgst = {
+  proc find(ps_init : pseed) : int * dgst = {
     var pkFORSs : pkFORS list list;
     var pkFORSl : pkFORS list;
     var pkFORS : pkFORS;
@@ -1349,11 +1360,16 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
     var mk' : mkey;
     var sigFORS' : sigFORSTW;
     var mksigFORS' : mkey * sigFORSTW;
-    var tidx, kpidx : int;
-    var cm : msgFORSTW;
-    var idx : iid;
-    var cmc : bool list list;
-    var skFORSels : dgstblock list;
+    var lidxs' : (int * int * int) list;
+    var tidx, kpidx, dfidx, cidx : int;
+    var cm' : msgFORSTW;
+    var idx' : iid;
+    var x' : dgstblock;
+    var ap' : apFORSTW;
+    
+    (* Initialize module variables (for oracle use) *)
+    ps <- ps_init;
+    lidxs <- [];
     
     (* Compute public keys corresponding to previously computed secret keys/leaves *)
     pkFORSs <- [];
@@ -1373,30 +1389,43 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
 
-    (m', mksigFORS') <- witness;
+    (* Ask adversary to forge *)
+    (m', mksigFORS') <@ A(O_CMA_R_EUFCMA_FSMDTOpenPREC).forge((pkFORSs, ps, ad));
     
+    (* Compress message and extract instance index *)
     (mk', sigFORS') <- mksigFORS';
-
-    (cm, idx) <- mco mk' m';
-    
-    cmc <- chunk a (val cm);
-    
-    (* Get secret key element, one for each tree in instance, indicated by the chunks of the fixed-length message *)
-    skFORSels <- mkseq (fun (i : int) => nth witness (nth witness (val skFORS) i) (bs2int (rev (nth witness cmc i)))) k;
+    (cm', idx') <- mco mk' m';
     
     (* 
-      Get index pointing to element of forged signature 
-      containing a secret key element that does not match the corresponding original one 
+      Compute (instance index, inner tree index, leaf index) tuples from 
+      the compressed message and instance index 
     *)
-    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip (unzip1 (val sigFORS')) (skFORSels));
+    lidxs' <- g (cm', idx');
+    
+    (* 
+      Find the (instance index, inner tree index, leaf index) tuple computed from
+      the forgery message that did not yet occur in the tuples computed from 
+      the messages in the oracle queries. From this tuple, extract the inner tree
+      index (which is also the index of the element in the forged signature
+      that we want to extract)
+    *)
+    dfidx <- (nth witness lidxs' (find (fun i => ! i \in lidxs) lidxs')).`2;
     
     (* Get element from forged signature containing the non-matching secret key element  *)
     (x', ap') <- nth witness (val sigFORS') dfidx;
 
-    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (nth witness cmc dfidx));
-
+    (* Compute (outer) tree and keypair index from instance index *)
+    (tidx, kpidx) <- edivz (val idx') l;
     
-    return witness;
+    (* 
+      Compute index in the target list of the OpenPRE oracle for which x' is a collision.
+      Since we queried the targets in order, starting from the left, this index is exactly
+      the index of the secret key/leaf (for which x' is a collision) if you were to
+      flatten the complete structure.
+    *)
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (take a (drop (a * dfidx) (val cm'))));
+
+    return (cidx, val x');
   }
 }.
 
@@ -1431,7 +1460,6 @@ module R_TCRC_AUX (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
    instead of separating them based on to which XMSS instance they would belong in SPHINCS+ (which gives rise to the additoinal layer of lists).
    This makes computing/keeping track of the tree and keypair index more annoying, but removes an annoying while loop and layer of lists.
 *)
-
 module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
@@ -1487,7 +1515,6 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.O
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
     var pkFORSs : pkFORS list list;
-    var skFORS : skFORS;
     var leaves : dgstblock list;
     var root : dgstblock;
     var roots : dgstblock list;
@@ -1495,17 +1522,15 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.O
     var mk' : mkey;
     var sigFORS' : sigFORSTW;
     var mksigFORS' : mkey * sigFORSTW;
-    var tidx, kpidx : int;
-    var cm : msgFORSTW;
-    var idx : iid;
-    var cmc : bool list list;
-    var skFORSels : dgstblock list;
-    var dfidx, cidx : int;
+    var tidx, kpidx, dfidx, cidx : int;
+    var cm' : msgFORSTW;
+    var idx' : iid;
     var x' : dgstblock;
     var ap' : apFORSTW;
+    var lidxs' : (int * int * int) list;
     
     (* Initialize CMA oracle *)
-    O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
+    O_CMA_MFORSTWESNPRF_AV.init((skFORSs, ps, ad));
     
     (* Compute public keys corresponding to previously computed secret keys/leaves *)
     pkFORSs <- [];
@@ -1515,7 +1540,7 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.O
         roots <- [];
         while (size roots < k) {
           leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
-          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) a (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
           roots <- rcons roots root;
         }
         pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
@@ -1525,69 +1550,46 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.O
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
 
-    (* Call adversary *)
-    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
+    (* Ask adversary to forge *)
+    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF_AV).forge((pkFORSs, ps, ad));
+    
+    (* Compress message and extract instance index *)
+    (mk', sigFORS') <- mksigFORS';
+    (cm', idx') <- mco mk' m';
     
     (* 
-      Extract secret key element from forged signature 
-      that does not match corresponding original secret key element.
-      This corresponding element is associated (i.e., the original preimage of) the leaf
-      at the i-th index in the original tree, where i is the index for the (extracted) secret
-      key element determined by the forged message.
+      Compute (instance index, inner tree index, leaf index) tuples from 
+      the compressed message and instance index 
     *)
-    (mk', sigFORS') <- mksigFORS'; 
-    
-    (* Compress message, obtaining fixed-length message and instance index *)
-    (cm, idx) <- mco mk' m';
-    
-    (* From instance index, compute tree and key pair index *)
-    (tidx, kpidx) <- edivz (val idx) l;
-    
-    (* Get secret key of instance in tree tidx and, in this tree, key pair kpidx *)
-    skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
-     
-    (* Chunk fixed-length message (which is boolean list of length k * a) into k lists of length a *)
-    cmc <- chunk a (val cm);
-    
-    (* Get secret key element, one for each tree in instance, indicated by the chunks of the fixed-length message *)
-    skFORSels <- mkseq (fun (i : int) => nth witness (nth witness (val skFORS) i) (bs2int (rev (nth witness cmc i)))) k;
+    lidxs' <- g (cm', idx');
     
     (* 
-      Get index pointing to element of forged signature 
-      containing a secret key element that does not match the corresponding original one 
+      Find the (instance index, inner tree index, leaf index) tuple computed from
+      the forgery message that did not yet occur in the tuples computed from 
+      the messages in the oracle queries. From this tuple, extract the inner tree
+      index (which is also the index of the element in the forged signature
+      that we want to extract)
     *)
-    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip (unzip1 (val sigFORS')) (skFORSels));
+    dfidx <- (nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs')).`2;
     
-    (* Get element from forged signature containing the non-matching secret key element  *)
+    (* Get element from forged signature containing the non-matching secret key element (pointed to by dfidx) *)
     (x', ap') <- nth witness (val sigFORS') dfidx;
 
-    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (nth witness cmc dfidx));
-
+    (* Compute (outer) tree and keypair index from instance index *)
+    (tidx, kpidx) <- edivz (val idx') l;
+    
     (* 
-      Return index in SMDTTCR list of collision (= index related of secret key element extracted from forgery) 
-      and extracted element  
+      Compute index of the element in the target list of the OpenPRE oracle for which x' is a collision.
+      Note that, if you were to flatten the whole structure, i.e., sequence all (trees of) considered 
+      FORS-TW instances, we have effectively queried the leaves from left to right.
     *)
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (take a (drop (a * dfidx) (val cm'))));
+
     return (cidx, val x');
   }
 }.
 
-    
-(*    
-    (* Get chunk (and corresponding integer) from fixed-length message used to tree pointed to by dfidx *)
-    bs' <- rev (nth witness cmc dfidx);
-    idx' <- bs2int bs';
-    
-    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dfidx * t + idx')) (val sske');
-    
-    leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) dfidx;
-    
-    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + idx';
-     
-    cr <- extract_collision_bt_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx)) 
-                                         (list2tree leaves) (val ap') bs' leaf' (0, dfidx);
-    
-    c <- val cr.`3 ++ val cr.`4;
-*)
+
 module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
@@ -1703,24 +1705,21 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC
     var mk' : mkey;
     var sigFORS' : sigFORSTW;
     var mksigFORS' : mkey * sigFORSTW;
-    var tidx, kpidx : int;
-    var cm : msgFORSTW;
-    var idx : iid;
-    var cmc : bool list list;
-    var skFORSels : dgstblock list;
-    var dfidx, cidx : int;
+    var tidx, kpidx, hidx, bidx, dfidx, cidx : int;
+    var cm' : msgFORSTW;
+    var idx' : iid;
     var x' : dgstblock;
     var ap' : apFORSTW;
     var leavesk : dgstblock list list;
     var leaf' : dgstblock;
     var bs' : bool list;
-    var idx' : int;
-    var hidx, bidx : int;
+    var idx'' : int;
     var c : dgst;
+    var lidxs' : (int * int * int) list;
     var cr;
     
     (* Initialize CMA oracle *)
-    O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
+    O_CMA_MFORSTWESNPRF_AV.init((skFORSs, ps, ad));
     
     (* Compute public keys corresponding to previously computed roots *)
     pkFORSs <- [];
@@ -1734,61 +1733,48 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
 
-    (* Call adversary *)
+    (* Ask adversary to forge *)
     (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
     
-    (* 
-      Extract secret key element from forged signature 
-      that does not match corresponding original secret key element.
-      This corresponding element is associated (i.e., the original preimage of) the leaf
-      at the i-th index in the original tree, where i is the index for the (extracted) secret
-      key element determined by the forged message.
-    *)
-    (mk', sigFORS') <- mksigFORS'; 
-    
-    (* Compress message, obtaining fixed-length message and instance index *)
-    (cm, idx) <- mco mk' m';
-    
-    (* From instance index, compute tree and key pair index *)
-    (tidx, kpidx) <- edivz (val idx) l;
-    
-    (* Get (list of) leaves of instance in set pointed to by tidx and, in this set, instance pointed to by kpidx *)
-    leavesk <- nth witness (nth witness leavess tidx) kpidx;
-     
-    (* Chunk fixed-length message (which is boolean list of length k * a) into k lists of length a *)
-    cmc <- chunk a (val cm);
-    
-    (* Compute leaves corresponding to (w.r.t. f) the secret key elements in the forged signature *)
-    sleaves' <- mkseq (fun (i : int) => f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx)
-                                              0 (i * t + (bs2int (rev (nth witness cmc i))))) 
-                                          (val (nth witness (unzip1 (val sigFORS')) i))) k;
-     
-    (* Get leaves, one for each tree in instance, indicated by the chunks of the fixed-length message *)
-    sleaves <- mkseq (fun (i : int) => nth witness (nth witness leavesk i) (bs2int (rev (nth witness cmc i)))) k;
+    (* Compress message and extract instance index *)
+    (mk', sigFORS') <- mksigFORS';
+    (cm', idx') <- mco mk' m';
     
     (* 
-      Get index pointing to element of forged signature 
-      containing a secret key element that maps to a leaf that does not match the 
-      corresponding original one 
+      Compute (instance index, inner tree index, leaf index) tuples from 
+      the compressed message and instance index 
     *)
-    dfidx <- find (fun (x : _ * _) => x.`1 <> x.`2) (zip sleaves' sleaves);
+    lidxs' <- g (cm', idx');
     
-    (* Get non-matching leaf *)
-    leaf' <- nth witness sleaves' dfidx;
-    
-    (* Get element from forged signature containing secret key element that maps to non-matching leaf  *)
+    (* 
+      Find the (instance index, inner tree index, leaf index) tuple computed from
+      the forgery message that did not yet occur in the tuples computed from 
+      the messages in the oracle queries. From this tuple, extract the inner tree
+      index (which is also the index of the element in the forged signature
+      that we want to extract)
+    *)
+    dfidx <- (nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs')).`2;
+
+    (* Compute (outer) tree and keypair index from instance index *)
+    (tidx, kpidx) <- edivz (val idx') l;
+
+    (* Construct non-matching leaf from non-matching secret key value in forgery (pointed to by dfidx) *) 
+    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dfidx * t + (bs2int (rev (take a (drop (a * dfidx) (val cm')))))))
+               (val (nth witness (unzip1 (val sigFORS')) dfidx));
+
+    (* Get (original) leaves of tree pointed to by dfidx in instance pointed to by kpidx in set pointed to by tidx *)
+    leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) dfidx;
+        
+    (* 
+      Get element from forged signature containing non-matching secret key element 
+      that maps to non-matching leaf  
+    *)
     (x', ap') <- nth witness (val sigFORS') dfidx;
-    
-    (* Get chunk (and corresponding integer) from fixed-length message pointed to by dfidx *)
-    bs' <- rev (nth witness cmc dfidx);
-    idx' <- bs2int bs';
-    
-    (* Get original leaves of tree pointed to by dfidx *)
-    leaves <- nth witness leavesk dfidx;
     
     (* Extract colliding values from the original tree and the non-matching leaf/authentication path *)
     cr <- extract_collision_bt_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 
-                                      (list2tree leaves) (val ap') bs' leaf' dfidx;
+                                      (list2tree leaves) (val ap') (take a (drop (a * dfidx) (val cm'))) 
+                                      leaf' dfidx;
     
     (* Collision from leaf/authentication path *)
     c <- val cr.`3 ++ val cr.`4;
@@ -1796,7 +1782,13 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC
     (* Height and breadth indices of address under which the extracted values collide *)
     (hidx, bidx) <- cr.`5;
     
-    (* Index of collision from original tree (val cr.`1 ++ val cr.`2) in the SMDTTCR oracle query list *)
+    (* 
+      Compute index of the element in the target list of the SMDDTTCR oracle for which c is a collision.
+      Note that, if you were to flatten the whole structure, i.e., sequence all (trees of) considered 
+      FORS-TW instances, we have effectively queried the complete trees from left to right; for each 
+      tree, have effectively queried bottom-up layer-wise; and, for each layer, we
+      queried from left to right.
+    *)
     cidx <- tidx * l * k * (2 ^ a - 1) + kpidx * k * (2 ^ a - 1) + dfidx * (2 ^ a - 1) 
             + sumz (mkseq (fun (i : int) => nr_nodes (i + 1)) (hidx - 1)) + (bidx %% nr_nodes hidx);
 
@@ -1913,7 +1905,6 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TR
       }
       pkFORSs <- rcons pkFORSs pkFORSl;
     }
-
   }
   
   proc find(ps : pseed) : int * dgst = {
@@ -1925,54 +1916,48 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TR
     var mk' : mkey;
     var sigFORS' : sigFORSTW;
     var mksigFORS' : mkey * sigFORSTW;
-    var tidx, kpidx : int;
-    var cm : msgFORSTW;
-    var idx : iid;
-    var cmc : bool list list;
+    var tidx, kpidx, cidx : int;
+    var cm' : msgFORSTW;
+    var idx' : iid;
     var skFORSels : dgstblock list;
-    var dfidx, cidx : int;
-    var x' : dgstblock;
-    var ap' : apFORSTW;
     var roots' : dgstblock list;
-    var leaf' : dgstblock;
-    var bs' : bool list;
-    var idx' : int;
-    var hidx, bidx : int;
     var c : dgst;
     
     (* Initialize CMA oracle *)
     O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
-    
-    (* Call adversary *)
+        
+    (* Ask adversary to forge *)
     (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
     
-    (* 
-      Extract secret key element from forged signature 
-      that does not match corresponding original secret key element.
-      This corresponding element is associated (i.e., the original preimage of) the leaf
-      at the i-th index in the original tree, where i is the index for the (extracted) secret
-      key element determined by the forged message.
-    *)
-    (mk', sigFORS') <- mksigFORS'; 
+    (* Compress message and extract instance index *)
+    (mk', sigFORS') <- mksigFORS';
+    (cm', idx') <- mco mk' m';
     
-    (* Compress message, obtaining fixed-length message and instance index *)
-    (cm, idx) <- mco mk' m';
+    (* Compute (outer) tree and keypair index from instance index *)
+    (tidx, kpidx) <- edivz (val idx') l;
     
-    (* From instance index, compute tree and key pair index *)
-    (tidx, kpidx) <- edivz (val idx) l;
-    
-    (* Get (list of) roots of instance in set pointed to by tidx and, in this set, instance pointed to by kpidx *)
+    (* Get (list of) roots of instance pointed to by kpidx in set pointed to by tidx *)
     roots' <- nth witness (nth witness rootss tidx) kpidx;
     
+    (* Compute the collision as the concatenation of the roots *)
     c <- flatten (map DigestBlock.val roots');
-    cidx <- val idx;
+    
+    (* 
+      Compute index of element in the target list of the SMDDTTCR oracle for which c is a collision.
+      Note that, if you were to flatten the whole structure, i.e., sequence all (trees of) considered 
+      FORS-TW instances, we have effectively queried (the concatenation of) the roots of each FORS-TW
+      instance from left to right.
+    *)
+    cidx <- val idx';
     
     return (cidx, c);
   }
 }.
 
-(* Do PRF step first (perhaps even consider not doing PRF at all and immediately sampling secret key). In SPHINCS+, we will first do global PRF step anyways, removing all PRF secret key generations (including the one here in FORS-TW instances) *)
-
+(* 
+  Do PRF step first (perhaps even consider not doing PRF at all and immediately sampling secret key). 
+   In SPHINCS+, we will first do global PRF step anyways, removing all PRF secret key generations (including the one here in FORS-TW instances) 
+*)
 section EUFCMA_M_FORS_TW_ES.
 
 

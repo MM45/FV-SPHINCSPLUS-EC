@@ -8,6 +8,7 @@ require import AllCore List Distr DList FinType IntDiv BitEncoding.
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
 require (*--*) DigitalSignatures.
+require (*--*) OpenPRE_From_TCR_DSPR_THF.
 
 
 (* - Parameters - *)
@@ -92,13 +93,22 @@ type sseed.
 type pseed.
 
 (* Messages *)
-type msg = bool list.
+type msg.
+
 
 (* 
   Digests, i.e., outputs of (tweakable) hash functions. 
   In fact, also input of (tweakable) hash functions in this case.
+  TODO: Probably need to assume finiteness of dgst for OpenPRE/DSPR/TCR proof.
+  Perhaps make dgst a subtype of bool list where 
+  P x = (exists a, a <= b /\ size x = 8 * n * a) and introduce additional parameter
+  a. This would need to be propagated throughout the whole structure, so would also 
+  need to adapt WOTS-TW, FL-XMSS-TW, ... :(
 *)
 type dgst = bool list.
+
+clone import FinType as Msg with
+  type t <= msg.
 
 (* Digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DigestBlock with
@@ -1260,18 +1270,6 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
 *)
-
-(*  
-  Approach TODOs:
-  - Adjust CMA oracles of (DSPR-related and perhaps also TRH TCR-related) reduction adversaries 
-    to keep track of secret key value indices that were already include in signature queries
-    to adversaries.
-  - From here, keeping the right invariants in the proof, 
-    checking for ITSR break, as well as extracting
-    the secret key element that was not included in the query responses (in case of no ITSR break)
-    should be easier.
-*)
-print index. print find. search nth find.
 module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
   var ps : pseed
   var ad : adrs
@@ -1429,37 +1427,6 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
   }
 }.
 
-(*
-(* Auxiliary functionality that reoccurs throughout SM-DT-TCR-C reduction adversaries  *)
-module R_TCRC_AUX (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
-  var qsl : dgstblock list
-  var qsn : dgstblock list
-  var qsr : dgstblock list
-  
-  proc gen_skFORSs(ad : adrs) : skFORS list list = {
-    return witness;
-  }
-  
-  proc gen_leaves(chal : bool, skFORSs : skFORS list list, ad : adrs) : dgstblock list list list list = {
-    
-    return witness;
-  }
-  
-  proc gen_nodes(chal : bool, leaves : dgstblock list list list list, ad : adrs) : dgstblock list list list list list = {
-    
-  }
-  
-  proc gen_roots(nodes : dgstblock list list list list list, ad : adrs) : dgstblock list list list
-  
-}.
-*)
-(* 
- Consideration:
-   Remove layer of lists by not considering structure of SPHINCS+ in the instance of FORS-TW.
-   That is, just consider M_FORS_TW as 2^something consecutive instances of FORS-TW, giving rise to skFORS list and pkFORS list,
-   instead of separating them based on to which XMSS instance they would belong in SPHINCS+ (which gives rise to the additoinal layer of lists).
-   This makes computing/keeping track of the tree and keypair index more annoying, but removes an annoying while loop and layer of lists.
-*)
 module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
@@ -1954,12 +1921,9 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TR
   }
 }.
 
-(* 
-  Do PRF step first (perhaps even consider not doing PRF at all and immediately sampling secret key). 
-   In SPHINCS+, we will first do global PRF step anyways, removing all PRF secret key generations (including the one here in FORS-TW instances) 
-*)
-section EUFCMA_M_FORS_TW_ES.
+section Proof_EUFCMA_M_FORS_TW_ES.
 
+declare module A <: Adv_EUFCMA {-O_CMA_Default, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_EUFCMA_FSMDTOpenPREC, -R_EUFCMA_FSMDTTCRC, -R_EUFCMA_TRHSMDTTCRC, -R_EUFCMA_TRCOSMDTTCRC}.
 
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
@@ -1967,4 +1931,34 @@ section EUFCMA_M_FORS_TW_ES.
   To this end, create auxiliary game that is equivalent to original game, but stores ps in a module variable
   (instead of a local variable) and have reduction adversaries directly use this. 
 *)
-end section EUFCMA_M_FORS_TW_ES.
+
+
+
+local lemma EUFCMA_MFORSTWESNPRF_OpenPRE &m:
+  Pr[EUF_CMA(M_FORS_TW_ES_NPRF, A, O_CMA_Default).main() @ &m : res] 
+  <= 
+  Pr[ITSR(R_EUFCMA_ITSR(A), O_ITSR_Default).main() @ &m : res]
+  +
+  Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_EUFCMA_FSMDTOpenPREC(A), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  +
+  Pr[FC_TCR.SM_DT_TCR_C(R_EUFCMA_FSMDTTCRC(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+  + 
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_EUFCMA_TRHSMDTTCRC(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
+  +
+  Pr[TRCOC_TCR.SM_DT_TCR_C(R_EUFCMA_TRCOSMDTTCRC(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
+proof.
+admit.
+qed.
+
+(* 
+  TODO: 
+  Need finiteness and uniform distribution over input type.
+  In the case of f, this is dgst, but this is currently equal to bool list, an infinite type.
+  However, this is only the input type for f to model that is part of the colleciton thfc.
+  Effectively, f has input type ddgstblock (because it is used on dgst elements that are of length 8 * n and
+  hence satisfy the condition of ddgstblock), which is indeed finite...
+*)
+(*
+local clone import OpenPRE_From_TCR_DSPR_THF as OPRETCRDSPR with
+*)
+end section Proof_EUFCMA_M_FORS_TW_ES.

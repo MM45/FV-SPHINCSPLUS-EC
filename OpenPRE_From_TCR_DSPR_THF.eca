@@ -7,35 +7,34 @@ import RField.
 
 require TweakableHashFunctions.
 
-type df.
+type df_t.
 
-type pp.
-type tw.
-type input.
+type pp_t.
+type tw_t.
+type in_t.
 
-clone import FinType as Input with
-  type t <= input.
+clone import FinType as InFT with
+  type t <= in_t.
 
-type output.
+type out_t.
 
-op f : pp -> tw -> input -> output.
+op f : pp_t -> tw_t -> in_t -> out_t.
 
-op gd : input -> df.
+op gd : in_t -> df_t.
 
-op fc : df -> pp -> tw -> input -> output.
-axiom in_collection: exists (df : df), fc df = f.
+op fc : df_t -> pp_t -> tw_t -> in_t -> out_t.
+axiom in_collection: exists (df : df_t), fc df = f.
 
-
-op [lossless] dpp : pp distr.
-op [lossless full uniform] dinput : input distr.
+op [lossless] dpp : pp_t distr.
+op [lossless full uniform] dinput : in_t distr.
 
 const t : { int | 0 <= t } as ge0_t.
 
 clone import TweakableHashFunctions as F with
-  type pp_t <- pp,
-  type tw_t <- tw,
-  type in_t <- input,
-  type out_t <- output,
+  type pp_t <- pp_t,
+  type tw_t <- tw_t,
+  type in_t <- in_t,
+  type out_t <- out_t,
   
   op f <- f,
   
@@ -45,7 +44,7 @@ clone import TweakableHashFunctions as F with
   realize dpp_ll by exact: dpp_ll.
 
 clone import F.Collection as FC with
-  type diff_t <- df,
+  type diff_t <- df_t,
   
   op get_diff <- gd,
   op fc <- fc
@@ -80,9 +79,9 @@ module (R_TCRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTTCRC) (O : Oracle_SMDTT
   module O_R_TCRC_OpenPREC : Oracle_SMDTOpenPRE = {
     include O_SMDTOpenPRE_Default [-query]
         
-    proc query(tw : tw) : output = {
-      var x : input;
-      var y : output;
+    proc query(tw : tw_t) : out_t = {
+      var x : in_t;
+      var y : out_t;
       
       x <$ dinput;
       
@@ -96,9 +95,9 @@ module (R_TCRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTTCRC) (O : Oracle_SMDTT
     A(O_R_TCRC_OpenPREC, OC).pick();
   }
   
-  proc find(pp : pp) : int * input = {
+  proc find(pp : pp_t) : int * in_t = {
     var i : int;
-    var x' : input;
+    var x' : in_t;
     
     (i, x') <@ A(O_R_TCRC_OpenPREC, OC).find(pp);
     
@@ -110,15 +109,15 @@ module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMD
   module O_R_DSPRC_OpenPREC : Oracle_SMDTOpenPRE = {
     include var O_SMDTOpenPRE_Default [-init, query]
     
-    proc init(pp : pp) : unit = {
+    proc init(pp : pp_t) : unit = {
       ts <- [];
       xs <- [];
       os <- [];
     }
     
-    proc query(tw : tw) : output = {
-      var x : input;
-      var y : output;
+    proc query(tw : tw_t) : out_t = {
+      var x : in_t;
+      var y : out_t;
       
       x <$ dinput;
       
@@ -132,17 +131,17 @@ module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMD
   }
 
   module OC_R_DSPRC_OpenPREC : Oracle_THFC = {
-    var tws : tw list
+    var tws : tw_t list
     
     include O_THFC_Default [-init, query]
     
-    proc init(pp : pp) : unit = {
+    proc init(pp : pp_t) : unit = {
       tws <- [];
     }
     
-    proc query(tw : tw, x : input) : output = {
-      var df : df;
-      var y : output;
+    proc query(tw : tw_t, x : in_t) : out_t = {
+      var df : df_t;
+      var y : out_t;
 
       y <@ OC.query(tw, x);
       
@@ -159,12 +158,12 @@ module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMD
     A(O_R_DSPRC_OpenPREC, OC_R_DSPRC_OpenPREC).pick();
   }
   
-  proc guess(pp : pp) : int * bool = {
+  proc guess(pp : pp_t) : int * bool = {
     var i : int;
-    var x, x' : input;
+    var x, x' : in_t;
     var nrts : int;
     var opened, dist, b : bool;
-    var twsO, twsOC : tw list;
+    var twsO, twsOC : tw_t list;
     
     (i, x') <@ A(O_R_DSPRC_OpenPREC, OC_R_DSPRC_OpenPREC).find(pp);
     
@@ -200,21 +199,21 @@ local lemma uniq_size_ge2_mem (s : 'a list) :
 proof. elim: s => // /#. qed.
 
 
-local op is_pre_f (pp : pp) (tw : tw) (y : output) : input -> bool = 
-  fun (x : input) => f pp tw x = y.
+local op is_pre_f (pp : pp_t) (tw : tw_t) (y : out_t) : in_t -> bool = 
+  fun (x : in_t) => f pp tw x = y.
  
-local op pre_f_l (pp : pp) (tw : tw) (y : output) : input list =
+local op pre_f_l (pp : pp_t) (tw : tw_t) (y : out_t) : in_t list =
   to_seq (is_pre_f pp tw y).
   
-local lemma is_finite_ispref (pp : pp) (tw : tw) (y : output) : 
+local lemma is_finite_ispref (pp : pp_t) (tw : tw_t) (y : out_t) : 
   is_finite (is_pre_f pp tw y).
 proof. by rewrite (finite_leq predT) 2:-/finite_type 2:is_finite. qed.
 
-local lemma ltcard_szprefl (pp : pp) (tw : tw) (y : output) :
+local lemma ltcard_szprefl (pp : pp_t) (tw : tw_t) (y : out_t) :
   size (pre_f_l pp tw y) <= card.
 proof. by rewrite card_size_to_seq sub_size_to_seq 2:-/finite_type 2:is_finite. qed. 
 
-local lemma rngprefl_image (pp : pp) (tw : tw) (x : input) :
+local lemma rngprefl_image (pp : pp_t) (tw : tw_t) (x : in_t) :
   1 <= size (pre_f_l pp tw (f pp tw x)) <= card.
 proof.
 split => [| _]; 2: by apply ltcard_szprefl.
@@ -222,7 +221,7 @@ apply (mem_size_ge1 _ x).
 by rewrite mem_to_seq 1:is_finite_ispref.
 qed.
 
-local lemma eqv_spex_szprefl (pp : pp) (tw : tw) (x : input) :
+local lemma eqv_spex_szprefl (pp : pp_t) (tw : tw_t) (x : in_t) :
   spexists f pp tw x 
   <=> 
   2 <= size (pre_f_l pp tw (f pp tw x)).
@@ -230,7 +229,7 @@ proof.
 split=> [| @/pre_f_l ge2_szprefl]. 
 + elim => x' [neqx_xp eqfkx_fkxp].
   by apply (mem_size_ge2 _ x x'); 1,2: rewrite mem_to_seq 1:is_finite_ispref // /#.
-move: (uniq_to_seq (is_pre_f pp tw (f pp tw x)) (is_finite_ispref pp tw (f pp tw x))).
+move: (uniq_to_seq (is_pre_f pp tw (f pp tw x))).
 move/uniq_size_ge2_mem => /(_ ge2_szprefl) -[x' x''] [#] neqxp_xpp xpin xppin.
 case (x' = x) => [eqx_xp | neqx_xp].
 + exists x''; split; 1: by rewrite -eqx_xp. 
@@ -239,25 +238,25 @@ exists x'; rewrite eq_sym neqx_xp /=.
 by move: xpin; rewrite mem_to_seq 1:is_finite_ispref /#.
 qed.
 
-local lemma eqv_img_prefl (pp : pp) (tw : tw) (x x' : input) :
+local lemma eqv_img_prefl (pp : pp_t) (tw : tw_t) (x x' : in_t) :
   f pp tw x = f pp tw x' 
   <=> 
   pre_f_l pp tw (f pp tw x) = pre_f_l pp tw (f pp tw x').
 proof.
 split => [-> // | @/pre_f_l eq_prefl].
 move: (to_seq_finite (is_pre_f pp tw (f pp tw x)) _); 1: by apply is_finite_ispref.  
-rewrite uniq_to_seq 1:is_finite_ispref /= => /(_ x') /iffLR /(_ _).
+rewrite uniq_to_seq /= => /(_ x') /iffLR /(_ _).
 + by rewrite eq_prefl to_seq_finite 1:is_finite_ispref.
 by rewrite /is_pre_f => ->.
 qed.
 
-local lemma eqv_img_mem (pp : pp) (tw : tw) (x x' : input) :
+local lemma eqv_img_mem (pp : pp_t) (tw : tw_t) (x x' : in_t) :
   f pp tw x = f pp tw x' 
   <=> 
   x' \in pre_f_l pp tw (f pp tw x).
 proof. by rewrite to_seq_finite 1:is_finite_ispref /is_pre_f; split => ->. qed.
   
-local lemma eqv_prefl_mem (pp : pp) (tw : tw) (x x' : input) :
+local lemma eqv_prefl_mem (pp : pp_t) (tw : tw_t) (x x' : in_t) :
   x' \in pre_f_l pp tw (f pp tw x) 
   <=> 
   pre_f_l pp tw (f pp tw x) = pre_f_l pp tw (f pp tw x').
@@ -267,22 +266,22 @@ proof. by rewrite -eqv_img_mem eqv_img_prefl. qed.
 declare module A <: Adv_SMDTOpenPREC {-O_SMDTOpenPRE_Default, -O_SMDTDSPR_Default, -O_THFC_Default}.
 
 declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) : 
-  islossless O.query => islossless O.query => islossless A(O, OC).pick.
+  islossless O.query => islossless OC.query => islossless A(O, OC).pick.
 
 declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) : 
   islossless O.open => islossless A(O, OC).find.
 
 
 local module Si = {
-  var x, x' : input
+  var x, x' : in_t
   
   proc main(i : int) : bool = {
-    var pp : pp;
-    var tw : tw;
-    var y : output;
+    var pp : pp_t;
+    var tw : tw_t;
+    var y : out_t;
     var nrts : int;
     var opened, dist : bool;
-    var twsO, twsOC : tw list;
+    var twsO, twsOC : tw_t list;
     
     pp <$ dpp;
     
@@ -309,13 +308,13 @@ local module Si = {
 
 local module Fi = {
   proc main(i : int) : bool = {
-    var pp : pp;
-    var tw : tw;
-    var y : output;
+    var pp : pp_t;
+    var tw : tw_t;
+    var y : out_t;
     var nrts : int;
     var opened, dist : bool;    
-    var x, x' : input;
-    var twsO, twsOC : tw list;
+    var x, x' : in_t;
+    var twsO, twsOC : tw_t list;
     
     pp <$ dpp;
     

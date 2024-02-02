@@ -284,7 +284,7 @@ clone import WOTS_TW as WTW with
   op log2_w <- log2_w,
   op w <- w,
   op len <- len,
-  op d <- bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d,
+  op c <- bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d,
   op valid_chidx <- valid_chidx,
   op valid_hidx <- valid_hidx,
   op valid_idxvals <- valid_idxvals,
@@ -297,11 +297,11 @@ clone import WOTS_TW as WTW with
   
   theory HA <- HA
   
-  proof ge2_adrslen, ge1_n, val_log2w, ge1_d, valid_widxvals_idxvals.
+  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, valid_widxvals_idxvals.
   realize ge2_adrslen by smt(ge6_adrslen).
   realize ge1_n by exact: ge1_n.
   realize val_log2w by exact: val_log2w.
-  realize ge1_d.
+  realize ge1_c.
     rewrite (: d = d - 1 + 1) // big_int_recr /= 2:nrnodesht_h; 1,2,3: smt(ge1_d ge1_h).
     rewrite ler_paddl // 2:exprn_ege1 //; 2: smt(ge1_h ge1_d).
     rewrite sumr_ge0_seq => d' /mem_range [ge0_dp ltd_dp] _ /=. 
@@ -361,7 +361,7 @@ clone import Subtype as SAPDL with
     op P ls <= size ls = d
     
   proof *.
-  realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(Top.ge1_d).
+  realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
 
 type sigFLXMSSTWDL = SAPDL.sT.
 
@@ -371,21 +371,22 @@ type sigFLXMSSMTTW = index * sigFLXMSSTWDL.
 
 
 (* --- Distributions --- *)
-(* Proper, full, and uniform distribution over messages considered for FL-XMSS-MT-TW *)
-op [lossless full uniform] dmsgFLXMSSMTTW : msgFLXMSSMTTW distr.
+(* Proper distribution over messages considered for FL-XMSS-MT-TW *)
+op [lossless] dmsgFLXMSSMTTW : msgFLXMSSMTTW distr.
 
+op dskWOTSl : skWOTS
 
 
 (* --- Operators --- *)
 (* - Validity/type checks for (indices corresponding to) XMSS-TW addresses - *)
 op valid_xidxchvals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 4 adidxs) /\ valid_xidxvalslpch (take 4 adidxs).
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslpch (take 6 adidxs).
 
 op valid_xidxpkcovals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 4 adidxs) /\ valid_xidxvalslppkco (take 4 adidxs).
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslppkco (take 6 adidxs).
   
 op valid_xidxtrhvals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 4 adidxs) /\ valid_xidxvalslptrh (take 4 adidxs).
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslptrh (take 6 adidxs).
   
 op valid_xadrschidxs (adidxs : int list) : bool =
   size adidxs = adrs_len /\ valid_xidxchvals adidxs.
@@ -427,41 +428,15 @@ rewrite /valid_xadrsch /valid_xadrschidxs /valid_xidxchvals /valid_xidxvalslpch.
 rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals /valid_widxvalslp.
 by rewrite drop_drop // ?nth_drop // ?nth_take. 
 qed.
-  
-lemma valid_xadrschidxs_xadrsidxs :
-  valid_xadrschidxs <= valid_xadrsidxs.
-proof.
-rewrite /(<=) => adidxs @/valid_xadrschidxs @/valid_xadrsidxs [-> /=].
-rewrite /valid_xidxchvals /valid_xidxvals => -[-> /=].
-by rewrite /valid_xidxvalslp /valid_xidxvalslpch ?nth_take // => [#] -> -> -> ->.
-qed.
-
-lemma valid_xadrspkcoidxs_xadrsidxs :
-  valid_xadrspkcoidxs <= valid_xadrsidxs.
-proof.
-rewrite /(<=) => adidxs @/valid_xadrspkcoidxs @/valid_xadrsidxs [-> /=].
-rewrite /valid_xidxpkcovals /valid_xidxvals => -[-> /=].
-by rewrite /valid_xidxvalslp /valid_xidxvalslppkco ?nth_take // => [#] -> -> -> ->.
-qed.
-
-lemma valid_xadrstrhidxs_xadrsidxs :
-  valid_xadrstrhidxs <= valid_xadrsidxs.
-proof.
-rewrite /(<=) => adidxs @/valid_xadrstrhidxs @/valid_xadrsidxs [-> /=].
-rewrite /valid_xidxtrhvals /valid_xidxvals => -[-> /=].
-by rewrite /valid_xidxvalslp /valid_xidxvalslptrh ?nth_take // => [#] -> -> -> ->.
-qed.
-
-lemma valid_xadrschnpkco (ad : adrs) :
-  valid_xadrsch ad => ! valid_xadrspkco ad.
-proof.
-rewrite /valid_xadrsch /valid_xadrschidxs /valid_xadrspkco /valid_xadrspkcoidxs => -[-> /=].
-rewrite /valid_xidxchvals /valid_xidxpkcovals => -[-> /=].
-rewrite /valid_xidxvalslpch /valid_xidxvalslppkco ?nth_take //; smt(dist_adrstypes).
-qed.
 
 
 (* - Setters - *)
+op set_lidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 5 i.
+
+op set_tidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 4 i.
+
 op set_typeidx (ad : adrs) (i : int) : adrs =
   insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
 
@@ -470,3 +445,405 @@ op set_kpidx (ad : adrs) (i : int) : adrs =
   
 op set_thtbidx (ad : adrs) (i j : int) : adrs =
   insubd (put (put (val ad) 0 j) 1 i).
+
+
+
+(* -- Tweakable hash functions -- *)
+(* 
+  Tweakable hash function used for the compression of public (WOTS-TW) keys to leaves
+  of the binary hash tree of XMSS 
+*)
+op pkco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * len).
+  
+(* Import and instantiate tweakable hash function definitions for pkco *)
+clone TweakableHashFunctions as PKCO with
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgst,
+  type out_t <- dgstblock,
+
+  op f <- pkco,
+  
+  op dpp <- dpseed
+  
+  proof *. 
+  realize dpp_ll by exact: dpseed_ll.
+
+clone PKCO.Collection as PKCOC with
+  type diff_t <- int,
+  
+    op get_diff <- size,
+    
+    op fc <- thfc
+  
+  proof *.
+  realize in_collection by exists (8 * n * len).
+
+clone PKCOC.SMDTTCRC as PKCOC_TCR with
+  op t_smdttcr <- l
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge2_l).  
+
+(* 
+  Tweakable hash function used for the hashing operations of the binary hash tree of XMSS.
+*)
+op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
+
+clone TweakableHashFunctions as TRH with
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgst,
+  type out_t <- dgstblock,
+
+  op f <- trh,
+  
+  op dpp <- dpseed
+  
+  proof *. 
+  realize dpp_ll by exact: dpseed_ll.
+
+clone import TRH.Collection as TRHC with
+  type diff_t <- int,
+  
+    op get_diff <- size,
+    
+    op fc <- thfc
+  
+  proof *.
+  realize in_collection by exists (8 * n * 2).
+
+clone TRHC.SMDTTCRC as TRHC_TCR with
+  op t_smdttcr <- l - 1
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge2_l).  
+
+(* Update function for height and breadth indices (down the tree) *)
+op updhbidx (hbidx : int * int) (b : bool) : int * int = 
+  (hbidx.`1 - 1, if b then 2 * hbidx.`2 + 1 else 2 * hbidx.`2).
+
+(* Function around trh with desired form for use in abstract merkle tree operators  *)
+op trhi (ps : pseed) (ad : adrs) (hbidx : int * int) (x x' : dgstblock) : dgstblock =
+  trh ps (set_thtbidx ad hbidx.`1 hbidx.`2) (val x ++ val x').
+
+(* 
+  Computes the (hash) value corresponding to the root of a binary tree w.r.t.
+  a certain public seed, address, height index, and breadth index. 
+*)
+op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (hidx bidx : int) : dgstblock =
+  val_bt (trhi ps ad) updhbidx bt (hidx, bidx).
+
+(* 
+  Constructs an authentication path (without embedding it in the corresponding subtype)
+  from a binary tree and a path represented by a boolean list w.r.t. a certain 
+  public seed, address, height index, and breadth index
+*)
+op cons_ap_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bs : bool list) (hidx bidx : int) : dgstblock list =
+  cons_ap (trhi ps ad) updhbidx bt bs (hidx, bidx).  
+
+(*
+  Computes the (hash) value corresponding to an authentication path, a leaf, and a 
+  path represented by a boolean list w.r.t a certain public seed, address, height index, 
+  and breadth index
+*)  
+op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx : int) (bidx : int) : dgstblock =
+  val_ap (trhi ps ad) updhbidx ap bs leaf (hidx, bidx).
+
+(* 
+  Constructs authentication path (embedding it in the corresponding subtype)
+  for the special case of binary trees of height h' and indices between 0 (including) and
+  2 ^ h' (including) w.r.t. a certain public seed, address, height index h', and breadth index
+  0. Note that, in case the given binary tree is not of height h',
+  this operator does not explicitly fail; instead, witness is returned.
+*)
+op cons_ap_trh (bt : dgstblock bintree) (idx : index) (ps : pseed) (ad : adrs) : apFLXMSSTW =
+  DBHPL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h (val idx))) h' 0).
+
+(* 
+  Computes value corresponding to an authentication path, leaf, and a path represented 
+  by the big-endian binary representation of an index between 0 (including) 
+  and 2 ^ h (including) w.r.t. a certain public seed, address, height index h, 
+  and breadth index 0. 
+*)
+op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (ad : adrs) : dgstblock = 
+  val_ap_trh_gen ps ad (val ap) (rev (int2bs h (val idx))) leaf h 0.
+  
+(*
+  Extracts a collision, height index, and breadth index from a binary tree and 
+  an authentication path w.r.t. a certain public seed, address, (initial) height index, and 
+  (initial) breadth index
+*)   
+op extract_coll_bt_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx bidx : int) =
+   extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
+
+(* Fixed-Length FL-XMSS-MT-TW in Encompassing Structure *)
+module FL_XMSS_MT_TW_ES = {
+  (* Compute list of (inner tree) leaves from a secret seed, public seed, and address *) 
+  proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
+    var skWOTS : skWOTS;
+    var pkWOTS : pkWOTS;
+    var leaf : dgstblock;
+    var leaves : dgstblock list;
+    
+    leaves <- [];
+    while (size leaves < l) {
+      (* Generate a WOTS-TW secret key *)
+      skWOTS <@ WOTS_TW_ES.gen_skWOTS(ss, ps, set_kpidx (set_typeidx ad chtype) (size leaves));
+      
+      (* Compute the WOTS-TW public key from the generated WOTS-TW secret key *)
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_skWOTS(skWOTS, ps, set_kpidx (set_typeidx ad chtype) (size leaves));
+      
+      (* Compute leaf from the computed WOTS-TW public key *)
+      leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (size leaves)) (flatten (map DigestBlock.val (val pkWOTS)));
+
+      leaves <- rcons leaves leaf;
+    }
+    
+    return leaves;
+  }
+  
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSMTTW * skFLXMSSMTTW = {
+    var root : dgstblock;
+    var leaves : dgstblock list;
+    var pk : pkFLXMSSMTTW;
+    var sk : skFLXMSSMTTW;
+    
+    (* Compute list of leaves *)
+    leaves <@ leaves_from_sspsad(ss, ps, set_tidx (set_lidx ad (d - 1)) 0);
+    
+    (* 
+      Compute root (hash value) from the computed list of leaves, given public seed, and
+      given address (after setting the type to tree hashing)
+    *)
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leaves) h' 0;
+    
+    pk <- (root, ps, ad);
+    sk <- (insubd 0, ss, ps, ad);
+    
+    return (pk, sk); 
+  }
+  
+  proc sign(sk : skFLXMSSMTTW, m : msgFLXMSSMTTW) : sigFLXMSSMTTW * skFLXMSSMTTW = {
+    var idx : index;
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var tidx, kpidx : int;
+    var skWOTS : skWOTS;
+    var sigWOTS : sigWOTS;
+    var skWOTSl : skWOTS list;
+    var leaves : dgstblock list;
+    var ap : apFLXMSSTW;
+    var sapl : (sigWOTS * apFLXMSSTW) list;
+    var sig : sigFLXMSSMTTW;
+    
+    (* Extract index, secret seed, public seed, and address from the secret key *)
+    (idx, ss, ps, ad) <- sk;
+    
+    (* Initialize signature list, tree index, and key pair index *)
+    sapl <- [];
+    (tidx, kpidx) <- edivz (val idx) l';
+    while (size sapl < d) {
+      (* Compute the WOTS-TW signature on the given message *)
+      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) chtype) kpidx), m);
+
+      (* Compute the list of leaves *)
+      leaves <@ leaves_from_sspsad(ss, ps, (set_tidx (set_lidx ad (size sapl)) tidx));
+
+      (* Construct the authentication path from the computed list of leaves *)
+      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) trhtype);
+      
+      (* Add computed WOTS-TW signature and authentication path  *)
+      sapl <- rcons sapl (sigWOTS, ap);
+      
+      (* Compute next tree and key pair indices *)
+      (tidx, kpidx) <- edivz tidx l';
+    }
+    
+    sig <- (idx, insubd sapl);
+    sk <- (insubd (val idx + 1), ss, ps, ad);
+    
+    return (sig, sk);
+  }
+  
+  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
+    var root, root' : dgstblock;
+    var ps : pseed;
+    var ad : adrs;
+    var idx : index;
+    var sapdl : sigFLXMSSTWDL;
+    var tidx, kpidx : int;
+    var i : int;
+    var sigWOTS : sigWOTS;
+    var ap : apFLXMSSTW;
+    var pkWOTS : pkWOTS;
+    var leaf : dgstblock;
+     
+    (* Extract root (hash) value, public seed, and address from the public key *)
+    (root, ps, ad) <- pk;
+    
+    (* Extract index, WOTS-TW signature, and authentication path from the signature *)
+    (idx, sapdl) <- sig;
+    
+    (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
+    i <- 0;
+    root' <- m;
+    (tidx, kpidx) <- edivz (val idx) l';
+    while (i < d) {
+      (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
+      (sigWOTS, ap) <- nth witness (val sapdl) i;
+      
+      (* Compute WOTS-TW public key *)
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
+    
+      (* Compute leaf from the computed WOTS-TW public key *)
+      leaf <- pkco ps (set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
+    
+      (* Compute root from computed leaf (and extracted authentication path) *)
+      root' <- val_ap_trh ap idx leaf ps (set_typeidx ad trhtype);
+      
+      (* Compute next tree and key pair indices and increase loop counter *)
+      (tidx, kpidx) <- edivz tidx l';
+      i <- i + 1;
+    }
+    
+    return root' = root;
+  }
+}.
+
+
+(* Fixed-Length FL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
+module FL_XMSS_MT_TW_ES_NPRF = {
+  (* Compute list of (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
+  proc leaves_from_sklpsad(ps : pseed, ad : adrs) : dgstblock list = {
+    var skWOTS : skWOTS;
+    var pkWOTS : pkWOTS;
+    var leaf : dgstblock;
+    var leaves : dgstblock list;
+    
+    leaves <- [];
+    while (size leaves < l) {
+      (* Compute the WOTS-TW public key from the generated WOTS-TW secret key *)
+      pkWOTS <@ WOTS_TW_ES_NPRF.pkWOTS_from_skWOTS(skWOTS, ps, set_kpidx (set_typeidx ad chtype) (size leaves));
+      
+      (* Compute leaf from the computed WOTS-TW public key *)
+      leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (size leaves)) (flatten (map DigestBlock.val (val pkWOTS)));
+
+      leaves <- rcons leaves leaf;
+    }
+    
+    return leaves;
+  }
+  
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSMTTW * (index * skWOTS list * pseed * adrs) = {
+    var root : dgstblock;
+    var leaves : dgstblock list;
+    var pk : pkFLXMSSMTTW;
+    var sk : skFLXMSSMTTW;
+    
+    
+    (* Compute list of leaves *)
+    leaves <@ leaves_from_sklpsad(, ps, set_tidx (set_lidx ad (d - 1)) 0);
+    
+    (* 
+      Compute root (hash value) from the computed list of leaves, given public seed, and
+      given address (after setting the type to tree hashing)
+    *)
+    root <- val_bt_trh ps (set_typeidx ad trhtype) (list2tree leaves) h' 0;
+    
+    pk <- (root, ps, ad);
+    sk <- (insubd 0, ss, ps, ad);
+    
+    return (pk, sk); 
+  }
+  
+  proc sign(sk : skFLXMSSMTTW, m : msgFLXMSSMTTW) : sigFLXMSSMTTW * skFLXMSSMTTW = {
+    var idx : index;
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var tidx, kpidx : int;
+    var skWOTS : skWOTS;
+    var sigWOTS : sigWOTS;
+    var skWOTSl : skWOTS list;
+    var leaves : dgstblock list;
+    var ap : apFLXMSSTW;
+    var sapl : (sigWOTS * apFLXMSSTW) list;
+    var sig : sigFLXMSSMTTW;
+    
+    (* Extract index, secret seed, public seed, and address from the secret key *)
+    (idx, ss, ps, ad) <- sk;
+    
+    (* Initialize signature list, tree index, and key pair index *)
+    sapl <- [];
+    (tidx, kpidx) <- edivz (val idx) l';
+    while (size sapl < d) {
+      (* Compute the WOTS-TW signature on the given message *)
+      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) chtype) kpidx), m);
+
+      (* Compute the list of leaves *)
+      leaves <@ leaves_from_sspsad(ss, ps, (set_tidx (set_lidx ad (size sapl)) tidx));
+
+      (* Construct the authentication path from the computed list of leaves *)
+      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) trhtype);
+      
+      (* Add computed WOTS-TW signature and authentication path  *)
+      sapl <- rcons sapl (sigWOTS, ap);
+      
+      (* Compute next tree and key pair indices *)
+      (tidx, kpidx) <- edivz tidx l';
+    }
+    
+    sig <- (idx, insubd sapl);
+    sk <- (insubd (val idx + 1), ss, ps, ad);
+    
+    return (sig, sk);
+  }
+  
+  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
+    var root, root' : dgstblock;
+    var ps : pseed;
+    var ad : adrs;
+    var idx : index;
+    var sapdl : sigFLXMSSTWDL;
+    var tidx, kpidx : int;
+    var i : int;
+    var sigWOTS : sigWOTS;
+    var ap : apFLXMSSTW;
+    var pkWOTS : pkWOTS;
+    var leaf : dgstblock;
+     
+    (* Extract root (hash) value, public seed, and address from the public key *)
+    (root, ps, ad) <- pk;
+    
+    (* Extract index, WOTS-TW signature, and authentication path from the signature *)
+    (idx, sapdl) <- sig;
+    
+    (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
+    i <- 0;
+    root' <- m;
+    (tidx, kpidx) <- edivz (val idx) l';
+    while (i < d) {
+      (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
+      (sigWOTS, ap) <- nth witness (val sapdl) i;
+      
+      (* Compute WOTS-TW public key *)
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
+    
+      (* Compute leaf from the computed WOTS-TW public key *)
+      leaf <- pkco ps (set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
+    
+      (* Compute root from computed leaf (and extracted authentication path) *)
+      root' <- val_ap_trh ap idx leaf ps (set_typeidx ad trhtype);
+      
+      (* Compute next tree and key pair indices and increase loop counter *)
+      (tidx, kpidx) <- edivz tidx l';
+      i <- i + 1;
+    }
+    
+    return root' = root;
+  }
+}.
+
+

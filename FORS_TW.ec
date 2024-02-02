@@ -1073,9 +1073,11 @@ module FL_FORS_TW_ES_NPRF = {
   Multi-instance FORS-TW in Encompassing Structure (No PRF).
 *)
 module M_FORS_TW_ES_NPRF = {
-  proc keygen() : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
+  proc keygen(ps : pseed, ad : adrs) : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
+    (*
     var ps : pseed;
     var ad : adrs;
+    *)
     var skFORS : skFORS;
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
@@ -1085,8 +1087,10 @@ module M_FORS_TW_ES_NPRF = {
     var pk : (pkFORS list list * pseed * adrs);
     var sk : (skFORS list list * pseed * adrs);
     
+    (*
     ps <$ dpseed;
     ad <- witness;
+    *)
     
     (* 
       Total of d instances, but these are divided in 

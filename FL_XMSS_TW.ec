@@ -221,7 +221,7 @@ clone import WOTS_TW as WTW with
   op log2_w <- log2_w,
   op w <- w,
   op len <- len,
-  op d <- l,
+  op c <- l,
   op valid_chidx <- valid_chidx,
   op valid_hidx <- valid_hidx,
   op valid_idxvals <- valid_idxvals,
@@ -232,11 +232,11 @@ clone import WOTS_TW as WTW with
   
   theory HA <- HA
   
-  proof ge2_adrslen, ge1_n, val_log2w, ge1_d, valid_widxvals_idxvals.
+  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, valid_widxvals_idxvals.
   realize ge2_adrslen by smt(ge4_adrslen).
   realize ge1_n by exact: ge1_n.
   realize val_log2w by exact: val_log2w.
-  realize ge1_d by smt(ge2_l).
+  realize ge1_c by smt(ge2_l).
   realize valid_widxvals_idxvals.
     rewrite /(<=) => adidxs valwadidxs; apply valid_xidxvals_idxvals.
     move: valwadidxs => @/valid_widxvals @/valid_widxvalsgp @/valid_widxvalslp.
@@ -1391,8 +1391,6 @@ module FL_XMSS_TW_ES = {
   (* Generate a key pair from a secret seed, public seed, and address *)
   proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSTW * skFLXMSSTW = {
     var root : dgstblock;
-    var skWOTS : skWOTS;
-    var skWOTSl : skWOTS list;
     var leafl : dgstblock list;
     var pk : pkFLXMSSTW;
     var sk : skFLXMSSTW;

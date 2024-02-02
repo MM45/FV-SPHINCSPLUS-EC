@@ -289,7 +289,7 @@ const len : int = len1 + len2.
 
 (* -- Notions -- *)
 (*  Number of WOTS-TW instances to consider for M-EUF-GCMA notion *)
-const d : { int | 1 <= d } as ge1_d.
+const c : { int | 1 <= c } as ge1_c.
 
 
 (* -- Properties of parameters -- *)
@@ -514,6 +514,18 @@ op ddgstblockl : dgstblock list distr = dlist ddgstblock len.
 (* Properness of ddgstblockl *)
 lemma ddgstblockl_ll : is_lossless ddgstblockl.
 proof. by apply/dlist_ll /ddgstblock_ll. qed.
+
+
+(* 
+  Proper distribution that samples a length len list of dgstblock elements by
+  independently sampling each element from ddgstblock and embeds it in the
+  skWOTS subtype
+*)
+op dskWOTS : skWOTS distr = dmap ddgstblockl DBLL.insubd.
+
+(* Properness of skWOTSl *)
+lemma dskWOTS_ll : is_lossless dskWOTS.
+proof. by apply/dmap_ll /ddgstblockl_ll. qed.
 
 (* 
   Proper distribution over digests of length 1 (block of 8 * n bits) lifted
@@ -864,31 +876,31 @@ clone import Collection as FC with
     
   proof *.
   realize in_collection by exists (8 * n).
-  
+
 clone import FC.SMDTUDC as FC_UD with
-  op t_smdtud <- d * len,
+  op t_smdtud <- c * len,
 
   op din <- ddgstblocklift,
   op dout <- ddgstblock
   
   proof *.
-  realize ge0_tsmdtud by smt(IntOrder.mulr_ge0 ge1_d ge2_len val_w).
+  realize ge0_tsmdtud by smt(IntOrder.mulr_ge0 ge1_c ge2_len val_w).
   realize din_ll by exact: ddgstblocklift_ll.
   realize dout_ll by exact: ddgstblock_ll.
   
 clone import FC.SMDTTCRC as FC_TCR with
-  op t_smdttcr <- d * len * w
+  op t_smdttcr <- c * len * w
 
   proof *.
-  realize ge0_tsmdttcr by smt(IntOrder.mulr_ge0 ge1_d ge2_len val_w).
+  realize ge0_tsmdttcr by smt(IntOrder.mulr_ge0 ge1_c ge2_len val_w).
     
 clone import FC.SMDTPREC as FC_PRE with
-  op t_smdtpre <- d * len,
+  op t_smdtpre <- c * len,
   
   op din <- ddgstblocklift
   
   proof *.
-  realize ge0_tsmdtpre by smt(IntOrder.mulr_ge0 ge1_d ge2_len).
+  realize ge0_tsmdtpre by smt(IntOrder.mulr_ge0 ge1_c ge2_len).
   realize din_ll by exact: ddgstblocklift_ll.
   
   
@@ -2158,8 +2170,8 @@ type skWOTSTW = sseed * pseed * adrs.
 
 
 
-(* --- WOTS-TW scheme in encompassing structure --- *)
-(* -- Specification of WOTS-TW in encompassing structure -- *)
+(* --- WOTS-TW scheme in Encompassing Structure --- *)
+(* -- Specification of WOTS-TW in Encompassing Structure -- *)
 module WOTS_TW_ES = {
   (* Generate secret key *)
   proc gen_skWOTS(ss : sseed, ps : pseed, ad : adrs) : skWOTS = {
@@ -2233,6 +2245,128 @@ module WOTS_TW_ES = {
     
     (* Compute secret key *)
     skWOTS <@ gen_skWOTS(ss, ps, ad);
+    
+    sig <- [];
+    while (size sig < len) {
+      (* Get element from secret key and (integer value of) element from encoded message *)
+      sk_ele <- nth witness (val skWOTS) (size sig);
+      em_ele <- BaseW.val em.[size sig];
+      
+      (* 
+        Compute signature element from the considered secret key element
+        and add it to the signature
+      *)
+      sig_ele <- cf ps (set_chidx ad (size sig)) 0 em_ele (val sk_ele);
+      sig <- rcons sig sig_ele;
+    }
+    
+    return insubd sig;
+  }
+  
+  (* Compute a public key from a signature (and corresponding signed message) *)
+  proc pkWOTS_from_sigWOTS(m : msgWOTS, sig : sigWOTS, ps : pseed, ad : adrs) : pkWOTS = {
+    var pkWOTS : dgstblock list;
+    var em_ele : int;
+    var pkWOTS_ele : dgstblock;
+    var sig_ele : dgstblock;
+    var em : emsgWOTS;
+    
+    (* Encode given message *)
+    em <- encode_msgWOTS m;
+    
+    pkWOTS <- [];
+    while (size pkWOTS < len) {
+      (* Get element from signature and (integer value of) element from encoded message *)
+      sig_ele <- nth witness (val sig) (size pkWOTS);
+      em_ele <- BaseW.val em.[size pkWOTS];
+      
+      (* 
+        Compute public key element from the considered signature element
+        and add it to the public key
+      *)
+      pkWOTS_ele <- cf ps (set_chidx ad (size pkWOTS)) em_ele (w - 1 - em_ele) (val sig_ele);
+      pkWOTS <- rcons pkWOTS pkWOTS_ele;
+    }
+     
+    return insubd pkWOTS;
+  }
+  
+  (* Verify signature for a message using public key *)
+  proc verify(pk : pkWOTSTW, m : msgWOTS, sig : sigWOTS) : bool = {
+    var ps : pseed;
+    var ad : adrs;
+    var pkWOTS, pkWOTS' : pkWOTS;
+    
+    (* Extract public key, public seed, and address *)
+    pkWOTS <- pk.`1;
+    ps <- pk.`2;
+    ad <- pk.`3;
+    
+    (* Compute public key from signature *)
+    pkWOTS' <@ pkWOTS_from_sigWOTS(m, sig, ps, ad);
+    
+    return pkWOTS' = pkWOTS;
+  }
+}.
+
+
+
+(* -- Specification of WOTS-TW in Encompassing Structure (No PRF) -- *)
+module WOTS_TW_ES_NPRF = {
+  (* Compute public key from secret key *)  
+  proc pkWOTS_from_skWOTS(skWOTS : skWOTS, ps : pseed, ad : adrs) : pkWOTS = {
+    var pkWOTS : dgstblock list;
+    var pkWOTS_ele : dgstblock;
+    var skWOTS_ele : dgstblock;
+    
+    pkWOTS <- [];
+    while (size pkWOTS < len) {
+      (* Get element from sk *)
+      skWOTS_ele <- nth witness (val skWOTS) (size pkWOTS);
+
+      (* 
+        Compute pk element corresponding to above-retrieved sk element 
+        by applying full chain computation. Afterward, add pk element to pk.
+      *)
+      pkWOTS_ele <- cf ps (set_chidx ad (size pkWOTS)) 0 (w - 1) (val skWOTS_ele);
+      pkWOTS <- rcons pkWOTS pkWOTS_ele; 
+    }
+    
+    return insubd pkWOTS;
+  }
+  
+  (* Generate key pair *)
+  proc keygen(ps : pseed, ad : adrs) : pkWOTSTW * (skWOTS * pseed * adrs) = {
+    var pkWOTS : pkWOTS;
+    var skWOTS : skWOTS;
+    
+    (* Sample secret key *)
+    skWOTS <$ dskWOTS;
+    
+    (* Compute public key corresponding to generated secret key *) 
+    pkWOTS <@ pkWOTS_from_skWOTS(skWOTS, ps, ad);
+    
+    return ((pkWOTS, ps, ad), (skWOTS, ps, ad));
+  }
+  
+  (* Sign message with a secret key *)
+  proc sign(sk : skWOTS * pseed * adrs, m : msgWOTS) : sigWOTS = {
+    var ps : pseed;
+    var ad : adrs;
+    var skWOTS : skWOTS;
+    var em : emsgWOTS;
+    var sig : dgstblock list;
+    var em_ele : int;
+    var sk_ele : dgstblock;
+    var sig_ele : dgstblock;
+    
+    (* Extract secret seed, public seed, and address *)
+    skWOTS <- sk.`1;
+    ps <- sk.`2;
+    ad <- sk.`3;
+    
+    (* Encode given message *)
+    em <- encode_msgWOTS m;
     
     sig <- [];
     while (size sig < len) {
@@ -2394,7 +2528,7 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
       (6) "disj_wgpidxs adlO adlOC": the adversary did not query the oracles O and OC with 
                                       addresses of which the corresponding indices share four-element prefixes.
     *)
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;     
   }
 }.
@@ -2449,7 +2583,7 @@ module O_MEUFGCMA_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
   }
 }.
 
-(* Implementation of oracle given to adversary in the second game of the game sequence. *)
+(* Implementation of oracle given to adversary in the second game of the game sequence *)
 module O_MEUFGCMA_WOTSTWES_NOPRF : Oracle_MEUFGCMA_WOTSTWES = {
   include var O_MEUFGCMA_WOTSTWES [-query]
   
@@ -2491,6 +2625,30 @@ module O_MEUFGCMA_WOTSTWES_NOPRF : Oracle_MEUFGCMA_WOTSTWES = {
         
     return pksig;
   }
+}.
+
+(* Alternative implementation of oracle given to adversary in the second game of the game sequence. *)
+module O_MEUFGCMA_WOTSTWES_NPRF : Oracle_MEUFGCMA_WOTSTWES = {
+  include var O_MEUFGCMA_WOTSTWES [-query]
+  
+  proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
+    var pk : pkWOTSTW;
+    var sk : skWOTS * pseed * adrs;
+    var sig : sigWOTS;
+    var pksig : pkWOTS * sigWOTS;
+    var admpksig : adrs * msgWOTS * pkWOTS * sigWOTS;
+    
+    (pk, sk) <@ WOTS_TW_ES_NPRF.keygen(ps, val wad); 
+
+    sig <@ WOTS_TW_ES_NPRF.sign(sk, m);
+        
+    admpksig <- (val wad, m, pk.`1, sig);
+    qs <- rcons qs admpksig;
+      
+    pksig <- (pk.`1, sig);
+    
+    return pksig;
+  } 
 }.
 
 
@@ -2584,7 +2742,7 @@ module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Ora
         
     adlOC <@ O_THFC_Default.get_tweaks();  
         
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 }.
@@ -2764,7 +2922,7 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
         
     adlOC <@ O_R_DistRCH_Game23WOTSTW_THFC.get_tweaks();  
     
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 
@@ -3832,7 +3990,7 @@ local module Game4_WOTSTWES = {
     em' <- encode_msgWOTS m';
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
 
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
   }
 }.
@@ -3885,7 +4043,7 @@ local module Game3_WOTSTWES_Hchwcoll = {
     em' <- encode_msgWOTS m';
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
     
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;   
   }
 }.
@@ -3936,7 +4094,7 @@ local module Game4_WOTSTWES_Alt = {
     em' <- encode_msgWOTS m';
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
 
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
   }
 }.
@@ -4073,7 +4231,7 @@ local module (R_DistRCH_Game23WOTSTW : Adv_DistRCH) (O : Oracle_DistRCH, OC : Or
         
     adlOC <@ O_R_DistRCH_Game23WOTSTW_THFC.get_tweaks();  
     
-    return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
+    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 }.
@@ -4550,7 +4708,7 @@ local module SM_DT_UD_Ci = {
     twsO <@ O_SMDTUD_Default.get_tweaks();
     twsOC <@ O_THFC_Default.get_tweaks();
     
-    return 0 <= nrts <= d * len /\ dist /\ b' /\ disj_lists twsO twsOC;
+    return 0 <= nrts <= c * len /\ dist /\ b' /\ disj_lists twsO twsOC;
   }
 }.
 
@@ -4565,6 +4723,50 @@ local module SM_DT_UD_Cir = {
     return (i, b');
   }
 }.
+
+
+(* - Additional (auxiliary) lemmas - *)
+(* 
+  The success probablity in M_EUF_GCMA_WOTSTWES when using O_MEUFGCMA_WOTSTWES_NOPRF is equal
+  to the analogous probability when using O_MEUFGCMA_WOTSTWES_NPRF.
+*)
+local lemma EqPr_MEUFGCMA_WOTSTWES_NOPRF_NPRF &m:
+  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res] 
+  =
+  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res].
+proof.
+byequiv => //=.
+proc.
+seq 5 5 : (={ps, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, glob A}); 2: by sim.
+seq 4 4 : (={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, ss, ps}); 1: by sim.
+call (: ={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default}); first last.
++ by proc; wp.
++ by wp.
+proc; inline *.
+wp => /=.
+while (   ={em}
+       /\ sig0{2} = sig{1}
+       /\ val skWOTS0{2} = sk{1}
+       /\ ps0{2} = O_MEUFGCMA_WOTSTWES.ps{1}
+       /\ ad0{2} = ad{1}).
++ by wp; skip.
+wp => /=.
+while (   ={m}
+       /\ pkWOTS0{2} = pk{1}
+       /\ val skWOTS1{2} = sk{1}
+       /\ ps1{2} = O_MEUFGCMA_WOTSTWES.ps{1}
+       /\ ad1{2} = ad{1}).
++ by wp; skip.
+wp.
+rnd DBLL.insubd DBLL.val.
+wp; skip => />.
+split => [sk skin | _]; 1: by rewrite valKd.
+split => [| _] sk skin. print dmap1E_can.
++ rewrite (dmap1E_can _ DBLL.insubd DBLL.val) // 1:valKd. 
+  by move=> a ain; rewrite insubdK; smt(supp_dlist_size ge2_len). 
+rewrite dmap_supp //=; split => [ | {2}-> //].
+by rewrite insubdK; smt(supp_dlist_size ge2_len).
+qed.
 
 
 (* - Game-playing proof - *)
@@ -4621,7 +4823,7 @@ split => [| *]; [by smt(ge2_len) | split => [/# | *]; rewrite andbA; split; firs
 by congr; apply (eq_from_nth witness) => /#.
 qed.
 
-(* First step: Reduce PRF of prf_sk to distinguishing between Game0_WOTSTWES and- M_EUF_GCMA_WOTSTWES without PRF *)
+(* First step: Reduce PRF of prf_sk to distinguishing between Game0_WOTSTWES and M_EUF_GCMA_WOTSTWES without PRF *)
 local lemma Step_Game0_MEUFGCMA_WOTSTWES_NOPRF_PRF &m :
   `|Pr[Game0_WOTSTWES.main() @ &m : res] - Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]|
   =
@@ -4666,10 +4868,10 @@ conseq (: _
              ={dist_wgpidxs} 
           /\ (dist_wgpidxs{2}
              =>
-             (   (0 <= nrqs{1} <= d /\ 0 <= i{1} < nrqs{1}
+             (   (0 <= nrqs{1} <= c /\ 0 <= i{1} < nrqs{1}
               /\ is_valid{1} /\ is_fresh{1} /\ disj_wgpidxs adlO{1} adlOC{1})
               =
-                 (0 <= nrqs{2} <= d /\ 0 <= i{2} < nrqs{2}
+                 (0 <= nrqs{2} <= c /\ 0 <= i{2} < nrqs{2}
               /\ is_valid{2} /\ is_fresh{2} /\ disj_wgpidxs adlO{2} adlOC{2})))) => [/#|].
 inline{1} 13; inline{1} 12; inline{1} 11; inline{1} 10; inline{1} 7.
 inline{2} 13; inline{2} 12; inline{2} 11; inline{2} 10; inline{2} 7.
@@ -4739,7 +4941,7 @@ seq 5 5 : ((uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTW
                  =>
                  (exists (ad'' : adrs), (O_MEUFGCMA_WOTSTWES.ps{2}, ad'') \in m /\ get_wgpidxs ad' = get_wgpidxs ad''))
            /\ (forall (ad' : adrs),
-                 (O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in m 
+                 (O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in m
                  =>
                  (get_wgpidxs ad' \in (map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2})))
            /\ (forall (ad' : adrs), 
@@ -6623,6 +6825,7 @@ rewrite -/q -/fchw nth_relcqsadpre_qsadpreidx 2,4:/# //.
 by apply hchwpre_findprerng.
 qed.
 
+  
 (* Penultimate lemma comprising complete security proof without initial (PRF-reduction) step *)
 lemma MEUFGCMA_WOTSTWES_NOPRF &m :
      Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res] 
@@ -6667,6 +6870,20 @@ rewrite ler_add 1:ler_add.
 + by apply Step_Game3_Game4_WOTSTWES_SMDTTCRC.
 by apply Step_Game4_WOTSTWES_SMDTPREC.
 qed.
+
+  
+(*
+  Penultimate lemma comprising complete security proof without initial (PRF-reduction) step, 
+  using alternative definition of the relevant oracle (in the original game) 
+*)
+lemma MEUFGCMA_WOTSTWES_NPRF &m :
+     Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res] 
+  <=    (w - 2)%r
+        * `|Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(false) @ &m : res]
+            - Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(true) @ &m : res]| 
+     + Pr[SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(A), O_SMDTTCR_Default, O_THFC_Default).main() @ &m : res] 
+     + Pr[SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(A), O_SMDTPRE_Default, O_THFC_Default).main() @ &m : res].
+proof. by rewrite -EqPr_MEUFGCMA_WOTSTWES_NOPRF_NPRF MEUFGCMA_WOTSTWES_NOPRF. qed.
 
 (* Security theorem: Combine previous steps to derive security theorem *)
 lemma MEUFGCMA_WOTSTWES &m :

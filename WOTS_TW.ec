@@ -4761,7 +4761,7 @@ wp.
 rnd DBLL.insubd DBLL.val.
 wp; skip => />.
 split => [sk skin | _]; 1: by rewrite valKd.
-split => [| _] sk skin. print dmap1E_can.
+split => [| _] sk skin.
 + rewrite (dmap1E_can _ DBLL.insubd DBLL.val) // 1:valKd. 
   by move=> a ain; rewrite insubdK; smt(supp_dlist_size ge2_len). 
 rewrite dmap_supp //=; split => [ | {2}-> //].

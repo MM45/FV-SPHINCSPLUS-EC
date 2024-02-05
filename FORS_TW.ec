@@ -1176,6 +1176,7 @@ module M_FORS_TW_ES_NPRF = {
 
 
 (* - Proof - *)
+(*
 (* -- Import of relevant definitions and properties --  *)
 clone import DigitalSignatures as DSS_MFORSTWESNPRF with
   type pk_t <- pkFORS list list * pseed * adrs,
@@ -1186,8 +1187,10 @@ clone import DigitalSignatures as DSS_MFORSTWESNPRF with
   proof *.
 
 import Stateless.
+*)
 
-(* -- Oracles -- *)
+(* -- Oracle interfaces -- *)
+(*
 module O_CMA_MFORSTWESNPRF = O_CMA_Default(M_FORS_TW_ES_NPRF).
 
 module O_CMA_MFORSTWESNPRF_AV = {
@@ -1211,15 +1214,119 @@ module O_CMA_MFORSTWESNPRF_AV = {
     return (mk, sigFORSTW);  
   }
 }. 
+*)
+module type Oracle_CMA_MFORSTWESNPRF = {
+  proc init(sk_init : skFORS list list * pseed * adrs) : unit
+  proc sign(m : msg) : mkey * sigFORSTW
+  proc fresh(m : msg) : bool
+  proc nr_queries() : int
+}.
+
+module type SOracle_CMA_MFORSTWESNPRF = {
+  include Oracle_CMA_MFORSTWESNPRF [sign]
+}.
+
+
+
+(* -- Adversary classes -- *)
+module type Adv_EUFCMA_MFORSTWESNPRF (O : SOracle_CMA_MFORSTWESNPRF) = {
+  proc forge(pk : pkFORS list list * pseed * adrs) : msg * (mkey * sigFORSTW)
+}.
+
+
+(* -- Security notions -- *)
+module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORSTWESNPRF) = {
+  proc main() : bool = {    
+    var ad : adrs;
+    var ps : pseed;
+    var pk : pkFORS list list * pseed * adrs;
+    var sk : skFORS list list * pseed * adrs;
+    var m : msg;
+    var sig : mkey * sigFORSTW;
+    var is_valid, is_fresh : bool;
+
+    ad <- witness;
+    ps <$ dpseed;
+    
+    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+
+    O.init(sk);
+
+    (m, sig) <@ A(O).forge(pk);
+
+    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m, sig);
+
+    is_fresh <@ O.fresh(m);
+
+    return is_valid /\ is_fresh; 
+  }
+}.
+
+
+(* -- Oracle implementations -- *)
+(* Default implementation of CMA oracle used for EUF_CMA_MFORSTWESNPRF  *)
+module O_CMA_MFORSTWESNPRF : Oracle_CMA_MFORSTWESNPRF = {
+  var sk : skFORS list list * pseed * adrs
+  var qs : msg list
+
+  proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
+    sk <- sk_init;
+    qs <- [];
+  }
+
+  proc sign(m : msg) : mkey * sigFORSTW = {
+    var sig : mkey * sigFORSTW;
+
+    sig <@ M_FORS_TW_ES_NPRF.sign(sk, m);
+
+    qs <- rcons qs m;
+
+    return sig;
+  }
+    
+  proc fresh(m : msg) : bool = {
+    return ! m \in qs;
+  }
+
+  proc nr_queries() : int = {
+    return size qs;
+  }
+}.
+
+(* 
+  As O_CMA_MFORSTWESNPRF, but additionally keeps track of 
+  all indices resulting from applying the message compression on 
+  the queried messaged
+*) 
+module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
+  include var O_CMA_MFORSTWESNPRF [-init, sign]
+  var lidxs : (int * int * int) list
+  
+  proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
+    O_CMA_MFORSTWESNPRF.init(sk_init);
+    lidxs <- [];
+  }
+
+  proc sign(m : msg) : mkey * sigFORSTW = {
+    var mk : mkey;
+    var sigFORSTW : sigFORSTW;
+
+    (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
+
+    lidxs <- lidxs ++ g (mco mk m);
+
+    return (mk, sigFORSTW);
+  }
+}.
 
 
 (* -- Reduction adversaries -- *)
-module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {  
+module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITSR) = {  
   var ps : pseed
   var ad : adrs
   var skFORSs : skFORS list list
 
-  module O_CMA_R_EUFCMA_ITSR : SOracle_CMA = {    
+  module O_CMA_R_EUFCMA_ITSR : SOracle_CMA_MFORSTWESNPRF = {    
     proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
       var cm : msgFORSTW;
@@ -1249,9 +1356,12 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
     var m' : msg;
     var sig' : mkey * sigFORSTW;
     
-    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen();    
+    ad <- witness;
+    ps <$ dpseed;
     
-    (skFORSs, ps, ad) <- sk;
+    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);    
+    
+    skFORSs <- sk.`1;
     
     (m', sig') <@ A(O_CMA_R_EUFCMA_ITSR).forge(pk);
     
@@ -1274,13 +1384,13 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA) : Adv_ITSR) (O : Oracle_ITSR) = {
   to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
 *)
-module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
+module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
   var ps : pseed
   var ad : adrs
   var leavess : dgstblock list list list list
   var lidxs : (int * int * int) list
   
-  module O_CMA_R_EUFCMA_FSMDTOpenPREC : SOracle_CMA = {
+  module O_CMA_R_EUFCMA_FSMDTOpenPREC : SOracle_CMA_MFORSTWESNPRF = {
     (* Signing as with FORS-TW (No PRF), but obtain secret key elements from OpenPRE oracle *)
     proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
@@ -1431,7 +1541,7 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA) : FC_OpenPRE.Adv_SMDTOpenPREC) (
   }
 }.
 
-module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
+module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
   var leavess : dgstblock list list list list
@@ -1561,7 +1671,7 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.O
 }.
 
 
-module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
+module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
   var leavess : dgstblock list list list list
@@ -1767,7 +1877,7 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC
   }
 }.
 
-module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TRCOC_TCR.Oracle_SMDTTCR, OC : TRCOC.Oracle_THFC) = {
+module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMDTTCRC) (O : TRCOC_TCR.Oracle_SMDTTCR, OC : TRCOC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
   var leavess : dgstblock list list list list
@@ -1927,7 +2037,7 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA) : TRCOC_TCR.Adv_SMDTTCRC) (O : TR
 
 section Proof_EUFCMA_M_FORS_TW_ES.
 
-declare module A <: Adv_EUFCMA {-O_CMA_Default, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_EUFCMA_FSMDTOpenPREC, -R_EUFCMA_FSMDTTCRC, -R_EUFCMA_TRHSMDTTCRC, -R_EUFCMA_TRCOSMDTTCRC}.
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_EUFCMA_FSMDTOpenPREC, -R_EUFCMA_FSMDTTCRC, -R_EUFCMA_TRHSMDTTCRC, -R_EUFCMA_TRCOSMDTTCRC}.
 
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
@@ -1939,7 +2049,7 @@ declare module A <: Adv_EUFCMA {-O_CMA_Default, -O_ITSR_Default, -O_SMDTOpenPRE_
 
 
 local lemma EUFCMA_MFORSTWESNPRF_OpenPRE &m:
-  Pr[EUF_CMA(M_FORS_TW_ES_NPRF, A, O_CMA_Default).main() @ &m : res] 
+  Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
   Pr[ITSR(R_EUFCMA_ITSR(A), O_ITSR_Default).main() @ &m : res]
   +

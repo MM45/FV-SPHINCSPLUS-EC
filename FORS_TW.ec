@@ -48,8 +48,11 @@ const l : { int | 1 <= l } as ge1_l.
 *)
 const s : { int | 1 <= s } as ge1_s. 
 
-(* Number of FORS-TW instances to consider *)
-const d : int = s * l.
+(* 
+  Number of FORS-TW instances to consider
+  Axiomatized instead of explicitly defined to be able to instantiate.
+*)
+const d : { int | d = s * l } as dval.
 
 
 (* -- Properties of parameters -- *)
@@ -67,7 +70,7 @@ proof. by rewrite /t -{1}expr1 StdOrder.IntOrder.ler_weexpn2l 2:ge1_a. qed.
   Number of FORS-TW instances is greater than or equal to 1
 *)
 lemma ge1_d : 1 <= d.
-proof. by rewrite /d StdOrder.IntOrder.mulr_ege1 1:ge1_s ge1_l. qed.
+proof. by rewrite dval StdOrder.IntOrder.mulr_ege1 1:ge1_s ge1_l. qed.
 
 
 
@@ -82,6 +85,12 @@ clone import Subtype as InstanceIndex with
   realize inhabited by exists 0; smt(ge1_d).
 
 type iid = InstanceIndex.sT.
+
+(* Seed for message compression key generation function *)
+type mseed.
+
+(* Randomness for non-deterministic signature generation *)
+type rm.
   
 (* Randomness for message compression *)
 type mkey.
@@ -104,11 +113,16 @@ type msg.
   P x = (exists a, a <= b /\ size x = 8 * n * a) and introduce additional parameter
   a. This would need to be propagated throughout the whole structure, so would also 
   need to adapt WOTS-TW, FL-XMSS-TW, ... :(
+  
+  Solution:
+  Define auxiliary function for f, say fsub, that takes dgstblock as input and prove that it is
+  equivalent to f as long as the input is of the right size (1 block). Then, 
+  prove that the DSPR-related properties with f are equivalent to auxiliary properties that
+  do use fsub instead of f. Then, prove the DSPR stuff with fsub and these auxiliary
+  properties. 
 *)
 type dgst = bool list.
 
-clone import FinType as Msg with
-  type t <= msg.
 
 (* Digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DigestBlock with
@@ -206,9 +220,11 @@ op nr_nodes (a' : int) = 2 ^ (a - a').
 op valid_tidx (tidx : int) : bool =
   0 <= tidx < s.
 
+(*
 (* Type index validity check *)
 op valid_typeidx (typeidx : int) : bool =
   typeidx = trhtype \/ typeidx = trcotype.
+*)
 
 (* Keypair index validity check *)
 op valid_kpidx (kpidx : int) : bool = 
@@ -276,7 +292,7 @@ op valid_fidxvalslp (adidxs : int list) : bool =
   must constitute valid global/context indices)
 *)  
 op valid_fidxvals (adidxs : int list) =
-  valid_fidxvalsgp (drop 4 adidxs) /\ valid_fidxvalslp (take 4 adidxs).
+  valid_fidxvalsgp (drop 5 adidxs) /\ valid_fidxvalslp (take 5 adidxs).
 
 (* 
   Overall validity check for the indices corresponding to a FORS-TW address,
@@ -306,6 +322,12 @@ qed.
 
 
 (* - Distributions - *)  
+(* Proper distribution over seeds for message compression key generation function *)
+op [lossless] dmseed : mseed distr.
+
+(* Proper distribution over randomness for non-deterministic signature generation *)
+op [lossless] drm : rm distr.
+
 (* Proper distribution over randomness for message compression *)
 op [lossless] dmkey : mkey distr.
 
@@ -420,6 +442,26 @@ clone import SKG.PRF as SKG_PRF with
   
 
 (* --- Message compression --- *)
+(* Message compression key geneneration function *)
+op mkg : mseed -> (rm * msg) -> mkey.
+
+clone KeyedHashFunctions as MKG with
+  type key_t <- mseed,
+  type in_t <- rm * msg,
+  type out_t <- mkey,
+  
+    op f <- mkg
+    
+  proof *.
+
+clone import MKG.PRF as MKG_PRF with
+    op dkey <- dmseed,
+    op doutm x <- dmkey 
+  
+  proof *.
+  realize dkey_ll by exact: dmseed_ll.
+  realize doutm_ll by move=> ?; apply dmkey_ll.
+  
 (* Message compression function *)
 op mco : mkey -> msg -> msgFORSTW * iid.
 
@@ -622,6 +664,7 @@ clone import TRCOC.SMDTTCRC as TRCOC_TCR with
   
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k).
+
 
 (* -- Merkle trees -- *)
 (* Update function for height and breadth indices (down the tree) *)
@@ -878,39 +921,39 @@ module M_FORS_TW_ES = {
     return pkFORSs;
   }
    
-  proc keygen() : (pkFORS list list * pseed * adrs) * skFORSTW =  {
-    var ss : sseed;
-    var ps : pseed;
-    var ad : adrs;
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : (pkFORS list list * pseed * adrs) * (mseed * sseed * pseed * adrs) =  {
+    var ms : mseed;
     var pkFORSs : pkFORS list list;
     var pk : (pkFORS list list * pseed * adrs);
-    var sk : skFORSTW;
+    var sk : mseed * sseed * pseed * adrs;
     
-    ss <$ dsseed;
-    ps <$ dpseed;
-    ad <- witness;
+    ms <$ dmseed;
     
     pkFORSs <@ gen_pkFORSs(ss, ps, set_typeidx ad trhtype);
     
     pk <- (pkFORSs, ps, ad);
-    sk <- (ss, ps, ad);
+    sk <- (ms, ss, ps, ad);
     
     return (pk, sk);
   }
   
-  proc sign(sk : skFORSTW, m : msg) : mkey * sigFORSTW = {
+  proc sign(sk : mseed * sseed * pseed * adrs, m : msg) : mkey * sigFORSTW = {
+    var ms : mseed;
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
+    var r : rm; 
     var mk : mkey;
     var cm : msgFORSTW;
     var idx : iid;
     var tidx, kpidx : int;
     var sig : sigFORSTW;
     
-    (ss, ps, ad) <- sk;
+    (ms, ss, ps, ad) <- sk;
     
-    mk <$ dmkey;
+    r <$ drm;
+    
+    mk <- mkg ms (r, m);
     
     (cm, idx) <- mco mk m;
     

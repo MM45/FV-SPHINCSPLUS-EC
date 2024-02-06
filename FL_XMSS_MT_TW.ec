@@ -87,7 +87,7 @@ proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
 
 (* - Operators - *)
 (* -- Auxiliary -- *)
-(* Number of nodes in a (XMSS) binary hash tree (of total height h') at a particular height h'' *)
+(* Number of nodes in a (XMSS) binary tree (of total height h') at a particular height h'' *)
 op nr_nodes (h'' : int) = 2 ^ (h' - h'').
 
 (* 

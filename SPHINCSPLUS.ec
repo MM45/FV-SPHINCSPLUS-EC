@@ -1,8 +1,8 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr RealExp StdOrder.
+require import AllCore List Distr RealExp StdOrder FinType BitEncoding.
 (*---*) import IntOrder.
-
+(*---*) import BS2Int.
 
 (* -- Local -- *)
 require import BinaryTrees MerkleTrees.
@@ -13,6 +13,9 @@ require (*--*) FORS_TW FL_XMSS_MT_TW.
 
 
 (* - Parameters - *)
+(* Size of integer list associated with each address *)
+const adrs_len = 6.
+
 (* 
   Length (in bytes) of messages as well as the length of elements of 
   private keys, public keys, and signatures
@@ -37,10 +40,10 @@ const len : int = len1 + len2.
 (* Height of a single inner tree *)
 const h' : { int | 1 <= h' } as ge1_hp. 
 
-(* Number of WOTS-TW instances of a single inner tree (i.e., number of leaves) *)
+(* Number of WOTS-TW/FORS-TW instances of a single inner tree (i.e., number of leaves) *)
 const l' = 2 ^ h'.
 
-(* Number of layers in the hypertree (i.e., height of tree of XMSS trees) *)
+(* Number of layers in the hypertree (i.e., height of tree of trees) *)
 const d : { int | 1 <= d } as ge1_d.
 
 (* 
@@ -51,10 +54,21 @@ const h : int = h' * d.
 
 (* 
   Number of leaves of "flattened" hypertree
-  (i.e., total number of leaves of all inner trees on bottom layer)
+  (i.e., total number of leaves of all inner trees on bottom layer).
+  Also, number of FORS-TW instances.
 *)
 const l : int = 2 ^ h.
- 
+
+(* Number of trees in a FORS-TW instance *)
+const k : { int | 1 <= k } as ge1_k.
+
+(* Height of each FORS-TW tree *)
+const a : { int | 1 <= a } as ge1_a.
+
+(* Number of leaves of each FORS-TW tree *)
+const t : int = 2 ^ a.
+
+
 (* Address type for chaining (used in tweakable hash function calls of WOTS-TW chains) *)
 const chtype : int.
 
@@ -68,7 +82,7 @@ const pkcotype : int.
   Address type for tree hashing in the hypertree 
   (used in tweakable hash function calls of inner trees) 
 *)
-const trhmtype : int.
+const trhxtype : int.
 
 (* 
   Address type for tree hashing in FORS-TW trees
@@ -85,7 +99,7 @@ const trcotype : int.
 
 (* -- Properties of parameters -- *)
 (* The different address types are distinct *)
-axiom dist_adrstypes : uniq [chtype; pkcotype; trhmtype; trhftype; trcotype].
+axiom dist_adrstypes : uniq [chtype; pkcotype; trhxtype; trhftype; trcotype].
 
 (* l' is greater than or equal to 2 *)
 lemma ge2_lp : 2 <= l'.
@@ -99,10 +113,62 @@ proof. by rewrite /h mulr_ege1 1:ge1_hp ge1_d. qed.
 lemma ge2_l : 2 <= l.
 proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
 
+(* Number of leaves of a FORS-TW tree is greater than or equal to 2 *)
+lemma ge2_t : 2 <= t.
+proof. by rewrite /t -{1}expr1 ler_weexpn2l 2:ge1_a. qed. 
+
 
 
 (* - Operators - *)
-(* -- Validity checks for (indices corresponding to) XMSS-MT-TW addresses -- *)
+(* -- Auxiliary -- *)
+(* Number of nodes in a XMSS binary tree (of total height h') at a particular height h'' *)
+op nr_nodesx (h'' : int) = 2 ^ (h' - h'').
+
+(* Number of nodes in a FORS-TW binary tree (of total height a) at a particular height a' *)
+op nr_nodesf (a' : int) = 2 ^ (a - a').
+
+(* 
+  Number of trees in hypertree (with d layers) at a particular layer d'.
+  Note that each "node" (i.e., inner tree) of the hypertree creates 2 ^ h' children, not 2.
+  Furthermore, note that the number of layers is always one more than the height.
+  This is because the number of layers increases with each level containing nodes, while height
+  increases with each edge between layers. (So, in a sense, the final layer does contribute 
+  to the number of layers but does not contribute to the height)
+*)
+op nr_trees (d' : int) = 2 ^ (h' * (d - d' - 1)).
+
+(* 
+  Number of nodes in "flattened" hypertree (with d layers and inner trees of height h') at
+  a particular layer d' and (inner) height h''.
+*)
+op nr_nodes_ht (d' h'' : int) = nr_trees d' * nr_nodesx h''.
+
+(* Alternative expression for nr_nodes_ht using total height of hypertree (h) *)
+lemma nrnodesht_h (d' h'' : int) :
+     d' < d
+  => h'' <= h'
+  => nr_nodes_ht d' h'' = 2 ^ (h - d' * h' - h'').
+proof.
+move=> gtdp_d dehpp_hp.
+rewrite /nr_nodes_ht /nr_trees /nr_nodes /h -exprD_nneg; 2: smt().
++ by rewrite mulr_ge0; smt(ge1_hp).
+by congr; ring.
+qed. 
+
+(* 
+  Number of nodes in "flattened" hypertree at a particular layer d' 
+  and (inner) height 0 is equal to the number of trees in layer d' - 1 
+*)
+lemma nrnodesht_nrtrees (d' : int) : 
+     0 < d' < d
+  => nr_nodes_ht d' 0 = nr_trees (d' - 1).
+proof.
+move => -[gt0_dp ltd_dp]. 
+rewrite /nr_trees nrnodesht_h //= /h; 1: smt(ge1_hp). 
+by congr; ring.
+qed.
+
+(* -- Validity checks for (indices corresponding to) SPHINCS+ addresses -- *)
 (* Layer index validity check (note: regards hypertree) *)
 op valid_lidx (lidx : int) : bool = 
   0 <= lidx < d.
@@ -116,19 +182,28 @@ op valid_tidx (lidx tidx : int) : bool =
 
 (* Type index validity check *)
 op valid_typeidx (typeidx : int) : bool =
-  typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhtype.
+  typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhxtype \/
+  typeidx = trhftype \/ typeidx = trcotype.
 
 (* Key pair index validity check (note: regards inner tree) *)
 op valid_kpidx (kpidx : int) : bool =
   0 <= kpidx < l'.
 
 (* Tree height index validity check (note: regards inner tree) *)
-op valid_thidx (thidx : int) : bool = 
-  0 <= thidx <= h'.
+op valid_thxidx (thxidx : int) : bool = 
+  0 <= thxidx <= h'.
   
 (* Tree breadth index validity check (note: regards inner tree) *)
-op valid_tbidx (thidx tbidx : int) : bool = 
-  0 <= tbidx < nr_nodes thidx.
+op valid_tbxidx (thxidx tbxidx : int) : bool = 
+  0 <= tbxidx < nr_nodesx thxidx.
+
+(* Tree height index validity check (note: regards FORS-TW tree) *)
+op valid_thfidx (thfidx : int) : bool = 
+  0 <= thfidx <= a.
+  
+(* Tree breadth index validity check (note: regards FORS-TW tree) *)
+op valid_tbfidx (thfidx tbfidx : int) : bool = 
+  0 <= tbfidx < k * nr_nodesf thfidx.
 
 (* Chain index validity check *)
 op valid_chidx (chidx : int) : bool =
@@ -138,8 +213,8 @@ op valid_chidx (chidx : int) : bool =
 op valid_hidx (hidx : int) : bool = 
   0 <= hidx < w - 1.
 
-(* Chaining address indices validity check (local part) *) 
-op valid_xidxvalslpch (adidxs : int list) : bool =
+(* Chaining address indices validity check *) 
+op valid_idxvalsch (adidxs : int list) : bool =
      valid_hidx (nth witness adidxs 0) 
   /\ valid_chidx (nth witness adidxs 1)
   /\ valid_kpidx (nth witness adidxs 2)
@@ -147,8 +222,8 @@ op valid_xidxvalslpch (adidxs : int list) : bool =
   /\ valid_tidx (nth witness adidxs 5) (nth witness adidxs 4)
   /\ valid_lidx (nth witness adidxs 5).
 
-(* Public-key compression address indices validity check (local part) *)  
-op valid_xidxvalslppkco (adidxs : int list) : bool =
+(* Public-key compression address indices value validity check *)  
+op valid_idxvalspkco (adidxs : int list) : bool =
      nth witness adidxs 0 = 0 
   /\ nth witness adidxs 1 = 0
   /\ valid_kpidx (nth witness adidxs 2)
@@ -156,15 +231,195 @@ op valid_xidxvalslppkco (adidxs : int list) : bool =
   /\ valid_tidx (nth witness adidxs 5) (nth witness adidxs 4)
   /\ valid_lidx (nth witness adidxs 5).
 
-(* Tree hashing address indices validity check (local part)*)  
-op valid_xidxvalslptrh (adidxs : int list) : bool =
-     valid_tbidx (nth witness adidxs 1) (nth witness adidxs 0)
-  /\ valid_thidx (nth witness adidxs 1)
+(* Hypertree hashing address indices value validity check *)  
+op valid_idxvalstrhx (adidxs : int list) : bool =
+     valid_tbxidx (nth witness adidxs 1) (nth witness adidxs 0)
+  /\ valid_thxidx (nth witness adidxs 1)
   /\ nth witness adidxs 2 = 0
-  /\ nth witness adidxs 3 = trhtype
+  /\ nth witness adidxs 3 = trhxtype
   /\ valid_tidx (nth witness adidxs 5) (nth witness adidxs 4)
   /\ valid_lidx (nth witness adidxs 5).
 
-(* Local address indices validity check *)
-op valid_xidxvalslp (adidxs : int list) : bool =
-  valid_xidxvalslpch adidxs \/ valid_xidxvalslppkco adidxs \/ valid_xidxvalslptrh adidxs.
+(* FORS-TW tree hashing address indices value validity check *)  
+op valid_idxvalstrhf (adidxs : int list) : bool =
+     valid_tbfidx (nth witness adidxs 1) (nth witness adidxs 0)
+  /\ valid_thfidx (nth witness adidxs 1)
+  /\ valid_kpidx (nth witness adidxs 2)
+  /\ nth witness adidxs 3 = trhftype
+  /\ valid_tidx (nth witness adidxs 5) (nth witness adidxs 4)
+  /\ nth witness adidxs 5 = 0.
+
+(* FORS-TW root compression address indices value validity check *)  
+op valid_idxvalstrco (adidxs : int list) : bool =
+     nth witness adidxs 0 = 0
+  /\ nth witness adidxs 1 = 0
+  /\ valid_kpidx (nth witness adidxs 2)
+  /\ nth witness adidxs 3 = trcotype
+  /\ valid_tidx (nth witness adidxs 5) (nth witness adidxs 4)
+  /\ nth witness adidxs 5 = 0.
+
+(* Overall address indices value validity check *)
+op valid_idxvals (adidxs : int list) : bool =
+  valid_idxvalsch adidxs \/ valid_idxvalspkco adidxs \/ valid_idxvalstrhx adidxs \/
+  valid_idxvalstrhf adidxs \/ valid_idxvalstrco adidxs.
+
+(* Overall address indices validity check *)
+op valid_adrsidxs (adidxs : int list) : bool =
+  size adidxs = adrs_len /\ valid_idxvals adidxs.
+
+(* - Types - *)
+(* Index *)
+clone import Subtype as Index with
+  type T <- int,
+    op P i <- 0 <= i < l
+    
+  proof *.
+  realize inhabited by exists 0; smt(ge2_l).
+
+type index = Index.sT.
+
+
+type mseed.
+
+type mkey.
+
+type sseed.
+
+type pseed.
+
+type msg.
+
+type dgst = bool list.
+
+
+(* Digests with length 1 (block of 8 * n bits) *)
+clone import Subtype as DigestBlock with
+  type T   <- dgst,
+    op P x <- size x = 8 * n
+    
+  proof *.
+  realize inhabited by exists (nseq (8 * n) witness); smt(size_nseq ge1_n).
+  
+type dgstblock = DigestBlock.sT.
+
+(* Finiteness of dgstblock *)
+clone import FinType as DigestBlockFT with
+  type t <= dgstblock,
+  
+    op enum <= map DigestBlock.insubd (map (int2bs (8 * n)) (range 0 (2 ^ (8 * n))))
+    
+  proof *.
+  realize enum_spec.
+    move=> m; rewrite count_uniq_mem 1:map_inj_in_uniq => [x y | |].
+    + rewrite 2!mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) i)) 1:size_int2bs; 1: smt(ge1_n).
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) j)) 1:size_int2bs; 1: smt(ge1_n). 
+      by rewrite eqins. 
+    + rewrite map_inj_in_uniq => [x y /mem_range rng_x /mem_range rng_y|].
+      rewrite -{2}(int2bsK (8 * n) x) 3:-{2}(int2bsK (8 * n) y) //; 1,2: smt(ge1_n).
+      by move=> ->. 
+    + by rewrite range_uniq.
+    rewrite -b2i1; congr; rewrite eqT mapP. 
+    exists (DigestBlock.val m).
+    rewrite DigestBlock.valKd mapP /=. 
+    exists (bs2int (DigestBlock.val m)).
+    rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
+    by rewrite bs2intK bs2int_le2Xs.
+  qed.
+
+(* Lists of length a containing digests with length 1 (block of 8 * n bits) *)
+clone import Subtype as DBAL with
+  type T   <- dgstblock list,
+    op P ls <- size ls = a
+    
+  proof *.
+  realize inhabited by exists (nseq a witness); smt(size_nseq ge1_a).
+   
+(* Authentication paths in FORS-TW trees *)
+type apFORSTW = DBAL.sT.
+
+(* Lists of length k containing secret key (single element)/apFORSTW pairs *)
+clone import Subtype as DBAPKL with
+  type T   <- (dgstblock * apFORSTW) list,
+    op P ls <- size ls = k
+    
+  proof *.
+  realize inhabited by exists (nseq k witness); smt(size_nseq ge1_k).
+
+(* Signatures *)
+type sigFORSTW = DBAPKL.sT.
+
+(* Addresses *)
+clone import HashAddresses as HA with
+  type index <= int,
+    op l <- adrs_len,
+    op valid_idxvals <- valid_idxvals,
+    op valid_adrsidxs <- valid_adrsidxs
+    
+    proof ge1_l.
+    realize ge1_l by trivial.
+    
+import Adrs.
+
+type adrs = HA.adrs.
+
+clone import FORS_TW as FTW with
+  type mseed <- mseed,
+  type mkey <- mkey,
+  type sseed <- sseed,
+  type pseed <- pseed,
+  type msg <- msg,
+  type dgst <- dgst,
+    op nr_nodes <- nr_nodesf,
+    op trhtype <- trhftype,
+    op trcotype <- trcotype,
+    op adrs_len <- adrs_len,
+    op n <- n,
+    op k <- k,
+    op a <- a,
+    op t <- t,
+    op l <- l',
+    op s <- nr_trees 0,
+    op d <- l,
+    op valid_tidx <- valid_tidx 0,
+    op valid_kpidx <- valid_kpidx,
+    op valid_thidx <- valid_thfidx,
+    op valid_tbidx <- valid_tbfidx,
+    op valid_idxvals <- valid_idxvals,
+    op valid_adrsidxs <- valid_adrsidxs,
+    op valid_fidxvalsgp adidxs <- nth witness adidxs 0 = 0,
+  
+  theory DigestBlock <= DigestBlock,
+  theory InstanceIndex <= Index,
+  theory HA <= HA,
+  
+  type iid <- index
+  
+  proof ge5_adrslen, ge1_n, ge1_k, ge1_a, ge1_l, ge1_s, dval, dist_adrstypes, valid_fidxvals_idxvals.
+  realize ge5_adrslen by trivial.
+  realize ge1_n by exact: ge1_n.
+  realize ge1_k by exact ge1_k.
+  realize ge1_a by exact: ge1_a.
+  realize ge1_l by smt(ge2_lp).
+  realize ge1_s by rewrite /nr_trees -add0r -ltzE expr_gt0.
+  realize dval. 
+    rewrite /nr_trees /l' /l /h -exprD_nneg /= 1:mulr_ge0; 1..3: smt(ge1_d ge1_hp).
+    by congr; ring.
+  qed.
+  realize dist_adrstypes by smt(dist_adrstypes).
+  realize valid_fidxvals_idxvals.
+    rewrite /(<=) => ls @/valid_fidxvals @/valid_idxvals @/valid_fidxvalslp.
+    rewrite /valid_fidxvalslptrh /valid_fidxvalslptrco ?nth_drop ?nth_take //=.
+    move=> [l0] [] [#] n1 n2 n3 n4 n5.
+    + do 3! right; left. 
+        rewrite /valid_idxvalstrhf n1 n2 n3 n4 /=.
+    smt.
+     l0 []. *. 
+    smt(). smt.
+    rewrite ?nth_drop //= => [#] vtidx4 l0 @/valid_fidxvalslptrh @/valid_fidxvalslptrco.    rewrite ?nth_take. 
+    ] [#].
+    
+    + do 3! right; left => @/valid_idxvalstrhf.
+     /#.
+    move=> [#].
+(* -- Setters -- *)

@@ -8,7 +8,7 @@ require import AllCore List Distr RealExp StdOrder FinType BitEncoding.
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
 require (*--*) DigitalSignatures.
-require (*--*) FORS_TW FL_XMSS_MT_TW.
+require (*--*) FORS_TW_ES FL_XMSS_MT_TW_ES.
 
 
 
@@ -117,6 +117,49 @@ proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
 lemma ge2_t : 2 <= t.
 proof. by rewrite /t -{1}expr1 ler_weexpn2l 2:ge1_a. qed. 
 
+(* Winternitz parameter w is a power of 2 *)
+lemma wpowof2: exists a, w = 2 ^ a.
+proof. by exists log2_w. qed.
+
+(* log2_w is the (base 2) logarithm of w *)
+lemma log2_wP: log2 w%r = log2_w%r.
+proof. by rewrite /w -RField.fromintXn 2:-rpow_nat 1,2:#smt:(val_log2w) // /log2 logK. qed.
+
+(* Winternitz parameter w equals either 4, 16, or 256 *)
+lemma val_w : w = 4 \/ w = 16 \/ w = 256.
+proof.
+rewrite /w; case: val_log2w => [->|]; last case => ->.
++ by left; rewrite expr2.
++ by right; left; rewrite (: 4 = (2 + 2)) 2:exprD_nneg // expr2. 
++ by right; right; rewrite (: 8 = 2 * 2 * 2) // 2!exprM ?expr2.
+qed.
+
+(* Value of len1 equals either 4 * n, 2 * n, or n *)
+lemma val_len1 : len1 = 4 * n \/ len1 = 2 * n \/ len1 = n.
+proof.
+rewrite /len1 log2_wP (: 8 = 2 * 2 * 2) // ?fromintM. 
+case: val_log2w => [->|]; last case => ->. 
++ by left; rewrite RField.mulrC ?RField.mulrA RField.mulVf //= -fromintM from_int_ceil. 
++ right; left.
+  by rewrite RField.mulrC (: 4 = 2 * 2) // 2!RField.mulrA RField.mulVf //= -fromintM from_int_ceil.
++ right; right.
+  by rewrite RField.mulrC (: 8 = 2 * 2 * 2) // RField.mulrA RField.mulVf //= from_int_ceil.
+qed.
+
+(* len1 is greater than or equal to 1 *)
+lemma ge1_len1 : 1 <= len1.
+proof. smt(val_len1 ler_pmul ge1_n). qed.
+
+(* len2 is greater than or equal to 1 *)
+lemma ge1_len2 : 1 <= len2.
+proof. 
+rewrite /len2 -ler_subl_addr /= -from_int_floor floor_mono.
+by rewrite RealOrder.divr_ge0 log_ge0 //; smt(ge1_len1 val_w).
+qed. 
+
+(* len is greater than or equal to 2 *)
+lemma ge2_len : 2 <= len.
+proof. smt(ge1_len1 ge1_len2). qed.
 
 
 (* - Operators - *)
@@ -270,14 +313,13 @@ op valid_adrsidxs (adidxs : int list) : bool =
 (* - Types - *)
 (* Index *)
 clone import Subtype as Index with
-  type T <- int,
-    op P i <- 0 <= i < l
+  type T <= int,
+    op P i <= 0 <= i < l
     
   proof *.
   realize inhabited by exists 0; smt(ge2_l).
 
 type index = Index.sT.
-
 
 type mseed.
 
@@ -327,6 +369,7 @@ clone import FinType as DigestBlockFT with
     by rewrite bs2intK bs2int_le2Xs.
   qed.
 
+(*  
 (* Lists of length a containing digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DBAL with
   type T   <- dgstblock list,
@@ -349,6 +392,49 @@ clone import Subtype as DBAPKL with
 (* Signatures *)
 type sigFORSTW = DBAPKL.sT.
 
+(* Lists of length len of which each entry is a digest of length 1 (block of 8 * n bits) *)
+clone import Subtype as DBLL with
+  type T   <- dgstblock list,
+    op P l <- size l = len
+  
+  proof *.
+  realize inhabited by exists (nseq len witness); smt(size_nseq ge2_len).
+
+type dgstblocklenlist = DBLL.sT.
+
+type sigWOTS = dgstblocklenlist.
+
+(* Lists of length h' of which the entries are digest of length 1 (block of 8 * n bits) *)
+clone import Subtype as DBHPL with
+  type T <= dgstblock list,
+    op P ls <= size ls = h'
+    
+  proof *.
+  realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge1_hp).
+      
+(* 
+  Authentication paths in (single) FL-XMSS-TW tree.
+  I.e., authentication paths in single inner tree of FL-XMSS-MT-TW hypertree.
+*)
+type apFLXMSSTW = DBHPL.sT.
+
+(* 
+  Lists of length d of which the entries are sigWOTS/authentication path pairs 
+  (i.e., FL-XMSS-TW signatures) 
+*)
+clone import Subtype as SAPDL with
+  type T <= (sigWOTS * apFLXMSSTW) list,
+    op P ls <= size ls = d
+    
+  proof *.
+  realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
+
+type sigFLXMSSTWDL = SAPDL.sT.
+
+(* Signatures *)
+type sigFLXMSSMTTW = index * sigFLXMSSTWDL.
+*)
+
 (* Addresses *)
 clone import HashAddresses as HA with
   type index <= int,
@@ -363,17 +449,10 @@ import Adrs.
 
 type adrs = HA.adrs.
 
+
+(* - Clones and Imports - *)
+(* FORS-TW *)
 clone import FORS_TW as FTW with
-  type mseed <- mseed,
-  type mkey <- mkey,
-  type sseed <- sseed,
-  type pseed <- pseed,
-  type msg <- msg,
-  type dgst <- dgst,
-    op nr_nodes <- nr_nodesf,
-    op trhtype <- trhftype,
-    op trcotype <- trcotype,
-    op adrs_len <- adrs_len,
     op n <- n,
     op k <- k,
     op a <- a,
@@ -381,6 +460,19 @@ clone import FORS_TW as FTW with
     op l <- l',
     op s <- nr_trees 0,
     op d <- l,
+    
+  type mseed <- mseed,
+  type mkey <- mkey,
+  type sseed <- sseed,
+  type pseed <- pseed,
+  type msg <- msg,
+  type dgst <- dgst,
+    
+    op nr_nodes <- nr_nodesf,
+    op trhtype <- trhftype,
+    op trcotype <- trcotype,
+    op adrs_len <- adrs_len,
+
     op valid_tidx <- valid_tidx 0,
     op valid_kpidx <- valid_kpidx,
     op valid_thidx <- valid_thfidx,
@@ -390,11 +482,22 @@ clone import FORS_TW as FTW with
     op valid_fidxvalsgp adidxs <- nth witness adidxs 0 = 0,
   
   theory DigestBlock <= DigestBlock,
+  theory DigestBlockFT <= DigestBlockFT,
+(*
+  theory DBAL <= DBAL,
+  theory DBAPKL <= DBAPKL,
+*)
   theory InstanceIndex <= Index,
   theory HA <= HA,
   
+  type dgstblock <- dgstblock,
+  type adrs <- adrs
+(*
+  ,  
+  type apFORSTW <- apFORSTW,
+  type sigFORSTW <- sigFORSTW,
   type iid <- index
-  
+*)  
   proof ge5_adrslen, ge1_n, ge1_k, ge1_a, ge1_l, ge1_s, dval, dist_adrstypes, valid_fidxvals_idxvals.
   realize ge5_adrslen by trivial.
   realize ge1_n by exact: ge1_n.
@@ -409,17 +512,59 @@ clone import FORS_TW as FTW with
   realize dist_adrstypes by smt(dist_adrstypes).
   realize valid_fidxvals_idxvals.
     rewrite /(<=) => ls @/valid_fidxvals @/valid_idxvals @/valid_fidxvalslp.
-    rewrite /valid_fidxvalslptrh /valid_fidxvalslptrco ?nth_drop ?nth_take //=.
-    move=> [l0] [] [#] n1 n2 n3 n4 n5.
-    + do 3! right; left. 
-        rewrite /valid_idxvalstrhf n1 n2 n3 n4 /=.
-    smt.
-     l0 []. *. 
-    smt(). smt.
-    rewrite ?nth_drop //= => [#] vtidx4 l0 @/valid_fidxvalslptrh @/valid_fidxvalslptrco.    rewrite ?nth_take. 
-    ] [#].
-    
-    + do 3! right; left => @/valid_idxvalstrhf.
-     /#.
-    move=> [#].
+    by rewrite /valid_fidxvalslptrh /valid_fidxvalslptrco ?nth_drop ?nth_take //= /#.
+  qed.
+
+import DBAL BLKAL DBAPKL DBLLKTL.
+
+
+(* FL-XMSS-MT-TW *)
+clone import FL_XMSS_MT_TW as FXMTW with
+  op n <- n,
+  op log2_w <- log2_w,
+  op w <- w,
+  op len1 <- len1,
+  op len2 <- len2,
+  op len <- len,
+  op h' <- h',
+  op l' <- l',
+  op d <- d,
+  op h <- h,
+  op l <- l,
+  
+  op chtype <- chtype,
+  op pkcotype <- pkcotype,
+  op trhtype <- trhxtype,
+  
+  op nr_nodes <- nr_nodesx,
+  op nr_trees <- nr_trees,
+  
+  op valid_lidx <- valid_lidx,
+  op valid_tidx <- valid_tidx,
+  op valid_kpidx <- valid_kpidx,
+  op valid_thidx <- valid_thxidx,
+  op valid_tbidx <- valid_tbxidx,
+  op valid_chidx <- valid_chidx,
+  op valid_hidx <- valid_hidx,
+  
+  op ES.adrs_len <- adrs_len,
+  op ES.valid_idxvals <- valid_idxvals,
+  op ES.valid_adrsidxs <- valid_adrsidxs,
+  op ES.valid_xidxvalsgp <- predT,
+  
+  theory ES.HA <= HA,
+  theory ES.Index <= Index,
+  theory ES.WTW.DigestBlock <= DigestBlock,
+  theory ES.WTW.DigestBlockFT <= DigestBlockFT
+(*  
+  theory ES.DBHPL <= DBHPL,
+  theory ES.SAPDL <= SAPDL,
+*)
+  proof *. ge1_n val_log2w, ge1_hp, ge1_d, dist_adrstypes, ES.ge6_adrslen, ES.ge6_adrslen,
+        ES.valid_xidxvals_idxvals, 
+   
+import ES DBHPL SAPDL.
+import WTW DBLL EmsgWOTS WAddress.
+
+  
 (* -- Setters -- *)

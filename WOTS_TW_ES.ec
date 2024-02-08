@@ -1,4 +1,4 @@
-(* --- Require/Import --- *)
+(* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
 require import AllCore List Distr DList DInterval IntDiv RealExp StdOrder SmtMap StdBigop BitEncoding FinType.
 require (*--*) Word Subtype.
@@ -10,7 +10,7 @@ require (*--*) HashAddresses KeyedHashFunctions TweakableHashFunctions DigitalSi
 
 
 
-(* --- Generic auxilliary properties --- *)
+(* - Generic auxilliary properties - *)
 lemma gt_exprsbde (x n m : int) :
   1 < x => 0 <= n < m => x ^ n < x ^ m.
 proof.
@@ -258,7 +258,7 @@ qed.
 
 
 
-(* --- Parameters --- *)
+(* - Parameters - *)
 (* -- Overall -- *)
 (* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
 const adrs_len : { int | 2 <= adrs_len} as ge2_adrslen.
@@ -383,7 +383,7 @@ proof. smt(ge1_len1 ge1_len2). qed.
 
 
 
-(* --- Types (1/2) --- *)
+(* - Types (1/2) - *)
 (* -- General -- *)
 (* Base/radix w digits *)
 clone import Subtype as BaseW with 
@@ -491,9 +491,11 @@ clone import Word as EmsgWOTS with
 
 
 
-(* --- Distributions --- *)
+(* - Distributions - *)
+(* Only used in PRF step
 (* Proper distribution over secret seeds *)
 op [lossless] dsseed : sseed distr.
+*)
 
 (* Proper distribution over public seeds *)
 op [lossless] dpseed : pseed distr.
@@ -535,7 +537,7 @@ proof. by apply/dmap_ll /ddgstblock_ll. qed.
 
 
 
-(* --- Operators (1/2) --- *)
+(* - Operators (1/2) - *)
 (* -- Validity checks -- *)
 (* Chain index validity check *)
 op valid_chidx (chidx : int) : bool =
@@ -597,7 +599,7 @@ qed.
 
 
 
-(* --- Types (2/2) --- *)
+(* - Types (2/2) - *)
 (* Addresses used in tweakable hash functions *)
 clone import HashAddresses as HA with
   type index <- int,
@@ -609,8 +611,11 @@ clone import HashAddresses as HA with
 
 import Adrs.
 
+type adrs = HA.adrs.
 
-(* --- Operators (2/2) --- *)
+
+
+(* - Operators (2/2) - *)
 (* -- Setters and getters -- *)  
 (* 
   Sets chain index in (WOTS-TW) address
@@ -817,26 +822,27 @@ qed.
 
 (* -- Keyed hash functions -- *)
 (* Keyed hash function (PRF) used to generate WOTS-TW secret keys *)
-op prf_sk : sseed -> (pseed * adrs) -> dgstblock.
+op skg : sseed -> (pseed * adrs) -> dgstblock.
 
-(* Import relevant definitions/properties for keyed hash function (PRF) prf_sk *)
-clone import KeyedHashFunctions as PRF_SK with
+(* Not needed without PRF step.
+(* Import relevant definitions/properties for keyed hash function (PRF) skg *)
+clone import KeyedHashFunctions as SKG with
   type in_t <- (pseed * adrs),
   type out_t <- dgstblock,
   type key_t <- sseed,
   
-    op f <- prf_sk
+    op f <- skg
     
   proof *.
   
-clone import PRF as PRF_SK_PRF with
+clone import PRF as SKG_PRF with
   op dkey <- dsseed,
   op doutm <- fun x => ddgstblock
     
   proof *.
   realize dkey_ll by exact: dsseed_ll.
   realize doutm_ll by rewrite ddgstblock_ll.
-
+*)
     
 (* -- Tweakable hash functions -- *)
 (* 
@@ -2133,7 +2139,7 @@ qed.
 
 
 
-(* --- Types (3/3) -- *)
+(* - Types (3/3) -- *)
 (* -- General -- *)
 (*
   WOTS-TW addresses
@@ -2165,7 +2171,7 @@ type skWOTSTW = sseed * pseed * adrs.
 
 
 
-(* --- WOTS-TW scheme in Encompassing Structure --- *)
+(* - WOTS-TW scheme in Encompassing Structure - *)
 (* -- Specification of WOTS-TW in Encompassing Structure -- *)
 module WOTS_TW_ES = {
   (* Generate secret key *)
@@ -2175,7 +2181,7 @@ module WOTS_TW_ES = {
     
     skWOTS <- [];
     while (size skWOTS < len) {
-      skWOTS_ele <- prf_sk ss (ps, (set_hidx (set_chidx ad (size skWOTS))) 0);
+      skWOTS_ele <- skg ss (ps, (set_hidx (set_chidx ad (size skWOTS))) 0);
       skWOTS <- rcons skWOTS skWOTS_ele;
     }
     
@@ -2428,9 +2434,12 @@ module WOTS_TW_ES_NPRF = {
 
 
 (* -- Adversary classes and oracle interfaces -- *)
-(* Type of oracle given to adversaries in M-EUF-GCMA game for WOTS-TW in encompassing structure *)
-module type Oracle_MEUFGCMA_WOTSTWES  = {
-  proc init(ss_init : sseed, ps_init : pseed) : unit
+(* 
+  Type of oracle given to adversaries in M-EUF-GCMA game for WOTS-TW in encompassing structure
+  (without PRF)
+*)
+module type Oracle_MEUFGCMA_WOTSTWES_NPRF  = {
+  proc init(ps_init : pseed) : unit
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS
   proc get(i : int) : adrs * msgWOTS * pkWOTS * sigWOTS
   proc get_addresses() : adrs list
@@ -2438,16 +2447,19 @@ module type Oracle_MEUFGCMA_WOTSTWES  = {
   proc dist_addresses() : bool
 }.
 
-(* Class of adversaries against M-EUF-GCMA game for WOTS-TW in encompassing structure *)
-module type Adv_MEUFGCMA_WOTSTWES(O : Oracle_MEUFGCMA_WOTSTWES, OC : Oracle_THFC) = {
+(* 
+  Class of adversaries against M-EUF-GCMA game for WOTS-TW in encompassing structure
+  (without PRF)
+*)
+module type Adv_MEUFGCMA_WOTSTWES_NPRF(O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
   proc choose() : unit { O.query, OC.query }
   proc forge(ps : pseed) : int * msgWOTS * sigWOTS {}
 }.
 
 
 (* -- Notions -- *)
-(* M-EUF-GCMA game for WOTS-TW in encompassing structure *) 
-module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTWES, OC : Oracle_THFC) = {
+(* M-EUF-GCMA game for WOTS-TW in encompassing structure without PRF *) 
+module M_EUF_GCMA_WOTSTWES_NPRF(A : Adv_MEUFGCMA_WOTSTWES_NPRF, O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
   module A = A(O, OC)
   
   proc main() : bool = {
@@ -2463,11 +2475,10 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
     var is_valid, is_fresh, dist_wgpidxs : bool;
 
     (* Sample secret seed and public seed *)
-    ss <$ dsseed;
     ps <$ dpseed;
     
     (* Initialize oracles *)
-    O.init(ss, ps);
+    O.init(ps);
     OC.init(ps);
     
     (* 
@@ -2489,7 +2500,7 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
     (* 
       Verify (w.r.t. message m', pkWOTS, ps, and ad) the signature sig' provided by the adversary 
     *)
-    is_valid <@ WOTS_TW_ES.verify((pkWOTS, ps, ad), m', sig');
+    is_valid <@ WOTS_TW_ES_NPRF.verify((pkWOTS, ps, ad), m', sig');
 
     (* 
       Check whether message for which the adversary forged a signature is fresh 
@@ -2530,101 +2541,15 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
 
 
 (* -- Oracle implementations -- *)
-(* Implementation of signing oracle given to adversary in M-EUF-GCMA game for WOTS-TW in encompassing structure *)
-module O_MEUFGCMA_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-  var ss : sseed
+(* Implementation of signing oracle given to adversary in M-EUF-GCMA game for WOTS-TW in encompassing structure without PRF *)
+module O_MEUFGCMA_WOTSTWES_NPRF : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
   var ps : pseed
   var qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list
   
-  proc init(ss_init : sseed, ps_init : pseed) : unit = {
-    ss <- ss_init;
+  proc init(ps_init : pseed) : unit = {
     ps <- ps_init;
     qs <- [];
   }
-  
-  proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
-    var pk : pkWOTSTW;
-    var sk : skWOTSTW;
-    var sig : sigWOTS;
-    var pksig : pkWOTS * sigWOTS;
-    var admpksig : adrs * msgWOTS * pkWOTS * sigWOTS;
-    
-    (pk, sk) <@ WOTS_TW_ES.keygen(ss, ps, val wad); 
-
-    sig <@ WOTS_TW_ES.sign(sk, m);
-        
-    admpksig <- (val wad, m, pk.`1, sig);
-    qs <- rcons qs admpksig;
-      
-    pksig <- (pk.`1, sig);
-    
-    return pksig;
-  } 
-
-  proc get(i : int) : adrs * msgWOTS * pkWOTS * sigWOTS = {
-    return nth witness qs i;
-  }
-  
-  proc get_addresses() : adrs list = {
-    return map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) qs;
-  }
-  
-  proc nr_queries() : int = {
-    return size qs;
-  }
-  
-  proc dist_addresses() : bool = {
-    return uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) qs);
-  }
-}.
-
-(* Implementation of oracle given to adversary in the second game of the game sequence *)
-module O_MEUFGCMA_WOTSTWES_NOPRF : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
-  
-  proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
-    var ad : adrs;
-    var pk : dgstblock list;
-    var sk : dgstblock list;
-    var sig : dgstblock list;
-    var em : emsgWOTS;
-    var pk_ele, sk_ele, sig_ele : dgstblock;
-    var em_ele : int;
-    var pksig : pkWOTS * sigWOTS;
-    var admpksig : adrs * msgWOTS * pkWOTS * sigWOTS;
-    
-    ad <- val wad;
-    
-    sk <$ ddgstblockl;
-
-    pk <- [];
-    while (size pk < len){
-      sk_ele <- nth witness sk (size pk);
-      pk_ele <- cf ps (set_chidx ad (size pk)) 0 (w - 1) (val sk_ele);
-      pk <- rcons pk pk_ele;
-    }
-
-    em <- encode_msgWOTS m;
-    sig <- [];
-    while (size sig < len){
-      sk_ele <- nth witness sk (size sig);
-      em_ele <- BaseW.val em.[size sig];
-      sig_ele <- cf ps (set_chidx ad (size sig)) 0 em_ele (val sk_ele);
-      sig <- rcons sig sig_ele;
-    }
-
-    admpksig <- (ad, m, insubd pk, insubd sig);
-    qs <- rcons qs admpksig;
-
-    pksig <- (insubd pk, insubd sig);
-        
-    return pksig;
-  }
-}.
-
-(* Alternative implementation of oracle given to adversary in the second game of the game sequence. *)
-module O_MEUFGCMA_WOTSTWES_NPRF : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var pk : pkWOTSTW;
@@ -2643,18 +2568,35 @@ module O_MEUFGCMA_WOTSTWES_NPRF : Oracle_MEUFGCMA_WOTSTWES = {
     pksig <- (pk.`1, sig);
     
     return pksig;
-  } 
+  }
+  
+  proc get(i : int) : adrs * msgWOTS * pkWOTS * sigWOTS = {
+    return nth witness qs i;
+  }
+  
+  proc get_addresses() : adrs list = {
+    return map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) qs;
+  }
+  
+  proc nr_queries() : int = {
+    return size qs;
+  }
+  
+  proc dist_addresses() : bool = {
+    return uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) qs);
+  }
 }.
 
 
 (* -- Reduction Adversaries -- *)
+(*
 (* 
-  Reduction adversary that reduces from PRF for prf_sk to distinguishing between
+  Reduction adversary that reduces from PRF for skg to distinguishing between
   Game0_WOTSTWES and MEUFGCMA_WOTSTWES without PRF
 *)
-module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Oracle_PRF) = {
-  module O_R_PRF_Game0NOPRFWOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-    include var O_MEUFGCMA_WOTSTWES [-query]
+module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES_NPRF) : Adv_PRF) (O : Oracle_PRF) = {
+  module O_R_PRF_Game0NOPRFWOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+    include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
     
     proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
       var ad : adrs;
@@ -2716,7 +2658,7 @@ module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Ora
     
     ps <$ dpseed;
     
-    O_R_PRF_Game0NOPRFWOTSTWES.init(witness, ps);
+    O_R_PRF_Game0NOPRFWOTSTWES.init(ps);
     O_THFC_Default.init(ps);
     
     A.choose();
@@ -2741,13 +2683,14 @@ module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Ora
            is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 }.
+*)
 
 (* 
   Reduction adversary that reduces from SM_DT_UD_C to distinguishing between 
   Game2_WOTSTWES and Game3_WOTSTWES (by, as an intermediate step, reducing to 
   distinguishing between the relevant distributions)
 *)
-module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O : Oracle_SMDTUD) (OC : Oracle_THFC) = {
+module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES_NPRF) : Adv_SMDTUDC) (O : Oracle_SMDTUD) (OC : Oracle_THFC) = {
   module O_DistRCH = {
     var b : bool
     var ps : pseed
@@ -2806,8 +2749,8 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
     }
   }
 
-  module O_R_DistRCH_Game23WOTSTW : Oracle_MEUFGCMA_WOTSTWES = {
-    include var O_MEUFGCMA_WOTSTWES [-query]
+  module O_R_DistRCH_Game23WOTSTW : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+    include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
 
     proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
       var ad : adrs;
@@ -2885,7 +2828,7 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
   module A = A(O_R_DistRCH_Game23WOTSTW, O_R_DistRCH_Game23WOTSTW_THFC)
   
   proc choose'() : unit = { 
-    O_R_DistRCH_Game23WOTSTW.init(witness, witness);
+    O_R_DistRCH_Game23WOTSTW.init(witness);
     O_R_DistRCH_Game23WOTSTW_THFC.init(witness);
     
     A.choose();  
@@ -2923,7 +2866,7 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
 
   proc pick() : unit = {
     O_DistRCH.i <$ [0..(w - 3)];
-    O_DistRCH.init(witness, witness);
+    O_DistRCH.init(witness);
     
     choose'();
   }
@@ -2941,12 +2884,12 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
   Reduction adversary that reduces from SM_DT_TCR_C (for f and thfc) to distinguishing between 
   Game3_WOTSTWES and Game4_WOTSTWES 
 *)
-module (R_SMDTTCRC_Game34WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTTCRC) (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
-  module O_R_SMDTTCRC_Game34WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-    include var O_MEUFGCMA_WOTSTWES [-init, query]
+module (R_SMDTTCRC_Game34WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES_NPRF) : Adv_SMDTTCRC) (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
+  module O_R_SMDTTCRC_Game34WOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+    include var O_MEUFGCMA_WOTSTWES_NPRF [-init, query]
     var xll : dgstblock list list
     
-    proc init(ss_init : sseed, ps_init : pseed) = {
+    proc init(ps_init : pseed) = {
       qs <- [];
       xll <- [];
     }
@@ -3012,7 +2955,7 @@ module (R_SMDTTCRC_Game34WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTTCRC) (O
   module A = A(O_R_SMDTTCRC_Game34WOTSTWES, OC)
   
   proc pick() : unit = {
-    O_R_SMDTTCRC_Game34WOTSTWES.init(witness, witness);
+    O_R_SMDTTCRC_Game34WOTSTWES.init(witness);
     
     A.choose();
   }
@@ -3051,12 +2994,12 @@ module (R_SMDTTCRC_Game34WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTTCRC) (O
 }.
 
 (* Reduction adversary that reduces from SM_DT_PRE_C (for f and thfc) to Game4_WOTSTWES *)
-module (R_SMDTPREC_Game4WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTPREC) (O : Oracle_SMDTPRE, OC : Oracle_THFC) = {
-  module O_R_SMDTPREC_Game4WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-    include var O_MEUFGCMA_WOTSTWES [-query, init]
+module (R_SMDTPREC_Game4WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES_NPRF) : Adv_SMDTPREC) (O : Oracle_SMDTPRE, OC : Oracle_THFC) = {
+  module O_R_SMDTPREC_Game4WOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+    include var O_MEUFGCMA_WOTSTWES_NPRF [-query, init]
     var adl : adrs list
     
-    proc init(ss_init : sseed, ps_init : pseed) = {
+    proc init(ps_init : pseed) = {
       qs <- [];
       adl <- [];
     }
@@ -3117,7 +3060,7 @@ module (R_SMDTPREC_Game4WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTPREC) (O 
   module A = A(O_R_SMDTPREC_Game4WOTSTWES, OC)
   
   proc pick() : unit = {
-    O_R_SMDTPREC_Game4WOTSTWES.init(witness, witness);
+    O_R_SMDTPREC_Game4WOTSTWES.init(witness);
     
     A.choose();
   }
@@ -3154,8 +3097,8 @@ module (R_SMDTPREC_Game4WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTPREC) (O 
 }.
 
 
-(* -- Proof of M-EUF-GCMA for WOTS-TW (in an encompassing structure) -- *)
-section Proof_M_EUF_GCMA_WOTSTWES.
+(* -- Proof of M-EUF-GCMA for WOTS-TW (in an encompassing structure) without PRF -- *)
+section Proof_M_EUF_GCMA_WOTSTWES_NPRF.
 (* - (Auxiliary) Imports - *)
 (* 
   Import necessary definitions/properties to reason about programs sampling from
@@ -3184,27 +3127,27 @@ local module type Adv_DistRCH(O : Oracle_DistRCH, OC : Oracle_THFC) = {
 
 (* - Module declarations - *)
 (* Adversary against M-EUF-GCMA of WOTW-TW (in an encompassing structure) *)
-declare module A <: Adv_MEUFGCMA_WOTSTWES {
-  -O_MEUFGCMA_WOTSTWES, -O_PRF_Default, -O_SMDTUD_Default, -O_SMDTTCR_Default, -O_SMDTPRE_Default, -O_THFC_Default,
-  -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_PRF_Game0NOPRFWOTSTWES
+declare module A <: Adv_MEUFGCMA_WOTSTWES_NPRF {
+  -O_MEUFGCMA_WOTSTWES_NPRF, -O_SMDTUD_Default, -O_SMDTTCR_Default, -O_SMDTPRE_Default, -O_THFC_Default,
+  -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES
 }.
 
 (* 
   The adversary's choose procedure always terminates if the oracle procedures it can 
   call during its execution terminate 
 *)
-declare axiom A_choose_ll (O <: Oracle_MEUFGCMA_WOTSTWES {-A} ) (OC <: Oracle_THFC {-A} ) :
+declare axiom A_choose_ll (O <: Oracle_MEUFGCMA_WOTSTWES_NPRF {-A} ) (OC <: Oracle_THFC {-A} ) :
   islossless O.query => islossless OC.query => islossless A(O, OC).choose.
 
 (* The adversary's forge procedure always terminates *)
-declare axiom A_forge_ll (O <: Oracle_MEUFGCMA_WOTSTWES {-A} ) (OC <: Oracle_THFC {-A} ) :
+declare axiom A_forge_ll (O <: Oracle_MEUFGCMA_WOTSTWES_NPRF {-A} ) (OC <: Oracle_THFC {-A} ) :
   islossless A(O, OC).forge.
 
 
 (* - Oracle implementations - *)
-(* Implementation of oracle given to adversary in Game0_WOTSTWES. *)
-local module O_Game0_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+(* Alternative inlined implementation of oracle given to adversary in original game *)
+local module O_MEUFGCMA_WOTSTWES_NPRF_Inlined : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3219,11 +3162,7 @@ local module O_Game0_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
     
     ad <- val wad;
     
-    sk <- [];
-    while (size sk < len) {
-      sk_ele <- prf_sk ss (ps, (set_hidx (set_chidx ad (size sk)) 0));
-      sk <- rcons sk sk_ele;
-    }
+    sk <$ ddgstblockl;
 
     pk <- [];
     while (size pk < len){
@@ -3254,8 +3193,8 @@ local module O_Game0_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
   Implementation of oracle given to adversary in Game2_WOTSTWES.
   Swaps signing and public key generation.
 *)
-local module O_Game2_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game2_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3303,8 +3242,8 @@ local module O_Game2_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
   to get signature (instead of chaining from 0 to this index). Afterward, public key
   is computed by finishing the chains of the signature.
 *)
-local module O_Game34_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game34_WOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3392,11 +3331,11 @@ local module O_DistRCH : Oracle_DistRCH = {
 }.
 
 (* 
-  Auxiliary implementations for O_MEUFGCMA_WOTSTWES_NOPRF, used to obtain the desired form
+  Auxiliary implementations for O_MEUFGCMA_WOTSTWES_NPRF_Inlined, used to obtain the desired form
   for the proof of the PRF reduction 
 *)  
-local module O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3438,8 +3377,8 @@ local module O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample : Oracle_MEUFGCMA_WOTSTWES =
   }
 }.
 
-local module O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3481,8 +3420,8 @@ local module O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES
   }
 }.
 
-local module O_MEUFGCMA_WOTSTWES_NOPRF_Alt : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Alt : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3528,30 +3467,30 @@ local module O_MEUFGCMA_WOTSTWES_NOPRF_Alt : Oracle_MEUFGCMA_WOTSTWES = {
   }
 }.
 
-(* Equivalences between original and auxiliary implementations of O_MEUFGCMA_WOTSTWES_NOPRF *)
-local equiv O_MEUFGCMA_WOTSTWES_NOPRF_Orig_SampleSample : 
-  O_MEUFGCMA_WOTSTWES_NOPRF.query ~ O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample.query : 
-    ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}.
+(* Equivalences between original and auxiliary implementations of O_MEUFGCMA_WOTSTWES_NPRF_Inlined *)
+local equiv O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Orig_SampleSample : 
+  O_MEUFGCMA_WOTSTWES_NPRF_Inlined.query ~ O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample.query : 
+    ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}.
 proof.
 proc; inline *.
 by sim; auto.
 qed.
 
-local equiv O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample_LoopSnocSample : 
-  O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample.query ~ O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample.query : 
-    ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}.
+local equiv O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample_LoopSnocSample : 
+  O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample.query ~ O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample.query : 
+    ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}.
 proof.
 proc.
 seq 2 2 : (#pre /\ ={ad, sk}) => /=; last by sim.
 by sp; call Sample_LoopSnoc_eq; skip.
 qed.
 
-local equiv O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample_Alt : 
-  O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample.query ~ O_MEUFGCMA_WOTSTWES_NOPRF_Alt.query : 
-    ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}.
+local equiv O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample_Alt : 
+  O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample.query ~ O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Alt.query : 
+    ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}.
 proof.
 proc; inline *.
-seq 5 3 : (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, ad, m} /\ l{1} = sk{2}); last by sim => /#.
+seq 5 3 : (={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, ad, m} /\ l{1} = sk{2}); last by sim => /#.
 while (   #post
        /\ n{1} = len
        /\ i{1} = size sk{2} 
@@ -3559,27 +3498,27 @@ while (   #post
 by wp; rnd; skip => />; smt(size_rcons cats1).
 qed.
 
-local equiv O_MEUFGCMA_WOTSTWES_NOPRF_Orig_Alt : 
-  O_MEUFGCMA_WOTSTWES_NOPRF.query ~ O_MEUFGCMA_WOTSTWES_NOPRF_Alt.query : 
-    ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}.
+local equiv O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Orig_Alt : 
+  O_MEUFGCMA_WOTSTWES_NPRF_Inlined.query ~ O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Alt.query : 
+    ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}.
 proof.
-transitivity O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample.query 
-             (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}) 
-             (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}) => [/# | // | |].
-+ by apply O_MEUFGCMA_WOTSTWES_NOPRF_Orig_SampleSample.
-transitivity O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample.query 
-             (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}) 
-             (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}) => [/# | // | |].
-+ by apply O_MEUFGCMA_WOTSTWES_NOPRF_SampleSample_LoopSnocSample.
-by apply O_MEUFGCMA_WOTSTWES_NOPRF_LoopSnocSample_Alt.
+transitivity O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample.query 
+             (={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}) 
+             (={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}) => [/# | // | |].
++ by apply O_MEUFGCMA_WOTSTWES_NPRF_Inlined_Orig_SampleSample.
+transitivity O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample.query 
+             (={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}) 
+             (={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, wad, m} ==> ={O_MEUFGCMA_WOTSTWES_NPRF.ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, res}) => [/# | // | |].
++ by apply O_MEUFGCMA_WOTSTWES_NPRF_Inlined_SampleSample_LoopSnocSample.
+by apply O_MEUFGCMA_WOTSTWES_NPRF_Inlined_LoopSnocSample_Alt.
 qed.
 
 (* 
   Auxiliary implementations for O_Game34_WOTSTWES, used to obtain the desired form
   for the proof of the SM_DT_PRE_C reduction 
 *)  
-local module O_Game34_WOTSTWES_SampleSample : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game34_WOTSTWES_SampleSample : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3628,8 +3567,8 @@ local module O_Game34_WOTSTWES_SampleSample : Oracle_MEUFGCMA_WOTSTWES = {
   }
 }.
 
-local module O_Game34_WOTSTWES_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game34_WOTSTWES_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3681,8 +3620,8 @@ local module O_Game34_WOTSTWES_LoopSnocSample : Oracle_MEUFGCMA_WOTSTWES = {
   }
 }.
 
-local module O_Game34_WOTSTWES_LoopSnocSampleAlt : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game34_WOTSTWES_LoopSnocSampleAlt : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3735,8 +3674,8 @@ local module O_Game34_WOTSTWES_LoopSnocSampleAlt : Oracle_MEUFGCMA_WOTSTWES = {
   }
 }.
 
-local module O_Game34_WOTSTWES_Alt : Oracle_MEUFGCMA_WOTSTWES = {
-  include var O_MEUFGCMA_WOTSTWES [-query]
+local module O_Game34_WOTSTWES_Alt : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+  include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
   
   proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
     var ad : adrs;
@@ -3788,7 +3727,7 @@ local module O_Game34_WOTSTWES_Alt : Oracle_MEUFGCMA_WOTSTWES = {
 (* Equivalences between original and auxiliary implementations of O_Game34_WOTSTWES *)
 local equiv O_Game34_WOTSTWES_Orig_SampleSample : 
   O_Game34_WOTSTWES.query ~ O_Game34_WOTSTWES_SampleSample.query : 
-    ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}.
+    ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}.
 proof.
 proc; inline *.
 by sim; auto.
@@ -3796,13 +3735,13 @@ qed.
 
 local equiv O_Game34_WOTSTWES_SampleSample_LoopSnocSample : 
   O_Game34_WOTSTWES_SampleSample.query ~ O_Game34_WOTSTWES_LoopSnocSample.query : 
-    ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}.
+    ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}.
 proof.
 proc.
 seq 2 2 : (#pre /\ ={ad, sk}) => /=.
 + by sp; call Sample_LoopSnoc_eq; skip.
 sp; sim.
-while (   ={O_MEUFGCMA_WOTSTWES.ps, ad, m, sk, sig, em}
+while (   ={O_MEUFGCMA_WOTSTWES_NPRF.ps, ad, m, sk, sig, em}
        /\ size sig{1} = i{2}
        /\ 0 <= i{2} <= len
        /\ 0 <= size sig{1} <= len).
@@ -3812,12 +3751,12 @@ qed.
 
 local equiv O_Game34_WOTSTWES_LoopSnocSample_LoopSnocSampleAlt : 
   O_Game34_WOTSTWES_LoopSnocSample.query ~ O_Game34_WOTSTWES_LoopSnocSampleAlt.query : 
-    ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}.
+    ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}.
 proof.
 proc; inline *.
 seq 9 5 : (#pre /\ ={ad, sk, em, sig} /\  i{1} = 0 /\ sig{1} = [] /\ sig{2} = []) => /=.
 + sp; wp => /=.
-  while (   ={O_MEUFGCMA_WOTSTWES.ps, ad, m}
+  while (   ={O_MEUFGCMA_WOTSTWES_NPRF.ps, ad, m}
          /\ n{1} = len
          /\ l{1} = sk{2}
          /\ i0{1} = size sk{2}
@@ -3826,7 +3765,7 @@ seq 9 5 : (#pre /\ ={ad, sk, em, sig} /\  i{1} = 0 /\ sig{1} = [] /\ sig{2} = []
   - by auto => |>; smt(cats1 size_rcons).
   by auto => |>; smt(ge2_len).
 sim => /=.
-while (   ={O_MEUFGCMA_WOTSTWES.ps, ad, m, sk, em, sig}
+while (   ={O_MEUFGCMA_WOTSTWES_NPRF.ps, ad, m, sk, em, sig}
        /\ i{1} = size sig{2}
        /\ 0 <= i{1} <= len
        /\ 0 <= size sig{2} <= len).
@@ -3836,7 +3775,7 @@ qed.
 
 local equiv O_Game34_WOTSTWES_LoopSnocSampleAlt_Alt : 
   O_Game34_WOTSTWES_LoopSnocSampleAlt.query ~ O_Game34_WOTSTWES_Alt.query : 
-    ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}.
+    ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}.
 proof.
 proc; inline *.
 seq 5 5 : (   #pre 
@@ -3845,17 +3784,17 @@ seq 5 5 : (   #pre
            /\ (forall (i : int), 0 <= i < len =>
                  nth witness sig{2} i =
                  if BaseW.val em{2}.[i] <> 0
-                 then cf O_MEUFGCMA_WOTSTWES.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
+                 then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
                  else nth witness sk{2} i)
            /\ size sig{2} = len) => /=.
 + swap{1} [4..5] -1; swap{2} 3 -1; sp; wp => /=.
-  while (   ={O_MEUFGCMA_WOTSTWES.ps, ad, m, sk, em}
+  while (   ={O_MEUFGCMA_WOTSTWES_NPRF.ps, ad, m, sk, em}
          /\ valid_wadrs ad{1}
          /\ sig{1} = [] 
          /\ (forall (i : int), 0 <= i < size sig{2} =>
                nth witness sig{2} i =
                if BaseW.val em{2}.[i] <> 0
-               then cf O_MEUFGCMA_WOTSTWES.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
+               then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
                else nth witness sk{2} i)
          /\ size sk{1} = size sig{2}
          /\ 0 <= size sk{1} <= len
@@ -3869,12 +3808,12 @@ seq 5 5 : (   #pre
     by rewrite (: i = size sig{1}) 1:/# neq0_em.
   by skip => |>; smt(ge2_len WAddress.valP).
 sim => /=.
-while{1} (   ={O_MEUFGCMA_WOTSTWES.ps, ad, m, sk, em}
+while{1} (   ={O_MEUFGCMA_WOTSTWES_NPRF.ps, ad, m, sk, em}
           /\ (forall (i : int),
                0 <= i && i < len =>
                nth witness sig{2} i =
                if BaseW.val em{2}.[i] <> 0
-               then cf O_MEUFGCMA_WOTSTWES.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
+               then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{2} (set_chidx ad{2} i) (BaseW.val em{2}.[i] - 1) 1 (val (nth witness sk{2} i))
                else nth witness sk{2} i)
           /\ (forall (i : int), 0 <= i < size sig{1} =>
                 nth witness sig{1} i = nth witness sig{2} i)
@@ -3891,52 +3830,43 @@ qed.
 
 local equiv O_Game34_WOTSTWES_Orig_Alt : 
   O_Game34_WOTSTWES.query ~ O_Game34_WOTSTWES_Alt.query : 
-    ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}.
+    ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}.
 proof.
 transitivity O_Game34_WOTSTWES_SampleSample.query 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) => [/# | // | |].
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) 
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) => [/# | // | |].
 + by apply O_Game34_WOTSTWES_Orig_SampleSample.
 transitivity O_Game34_WOTSTWES_LoopSnocSample.query 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) => [/# | // | |].
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) 
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) => [/# | // | |].
 + by apply O_Game34_WOTSTWES_SampleSample_LoopSnocSample.
 transitivity O_Game34_WOTSTWES_LoopSnocSampleAlt.query 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) 
-             (={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) => [/# | // | |].
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) 
+             (={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) => [/# | // | |].
 + by apply O_Game34_WOTSTWES_LoopSnocSample_LoopSnocSampleAlt.
 by apply O_Game34_WOTSTWES_LoopSnocSampleAlt_Alt.
 qed.
 
 
-(* - Games in game sequence - *)
-(* 
-  Game0_WOTSTWES; first game in game sequence.
-  Identical to M_EUF_GCMA_WOTSTWES, only differing in the query procedure of the 
-  provided Oracle_MEUFGCMA_WOTSTWES (see above for the different oracle implementations). 
-*)
-local module Game0_WOTSTWES = {
-  include M_EUF_GCMA_WOTSTWES(A, O_Game0_WOTSTWES, O_THFC_Default)
-}.
- 
+(* - Games in game sequence - *) 
 (* 
   Game2_WOTSTWES; third game in game sequence.
   Identical to M_EUF_GCMA_WOTSTWES, only differing in the 
-  query procedure of the provided Oracle_MEUFGCMA_WOTSTWES (see above for the 
+  query procedure of the provided Oracle_MEUFGCMA_WOTSTWES_NPRF (see above for the 
   different oracle implementations).
 *)
 local module Game2_WOTSTWES = {
-  include M_EUF_GCMA_WOTSTWES(A, O_Game2_WOTSTWES, O_THFC_Default)
+  include M_EUF_GCMA_WOTSTWES_NPRF(A, O_Game2_WOTSTWES, O_THFC_Default)
 }.
 
 (* 
   Game3_WOTSTWES; fourth game in game sequence.
-  Identical to M_EUF_GCMA_WOTSTWES (and hence to Game2_WOTSTWES), only differing in the 
-  query procedure of the provided Oracle_MEUFGCMA_WOTSTWES (see above for the 
+  Identical to M_EUF_GCMA_WOTSTWES_NPRF (and hence to Game2_WOTSTWES), only differing in the 
+  query procedure of the provided Oracle_MEUFGCMA_WOTSTWES_NPRF (see above for the 
   different oracle implementations).
 *)
 local module Game3_WOTSTWES = {
-  include M_EUF_GCMA_WOTSTWES(A, O_Game34_WOTSTWES, O_THFC_Default)
+  include M_EUF_GCMA_WOTSTWES_NPRF(A, O_Game34_WOTSTWES, O_THFC_Default)
 }.
 
 (* 
@@ -3961,7 +3891,7 @@ local module Game4_WOTSTWES = {
 
     ps <$ dpseed;
     
-    O_Game34_WOTSTWES.init(witness, ps);
+    O_Game34_WOTSTWES.init(ps);
     O_THFC_Default.init(ps);
     
     A.choose();
@@ -4014,7 +3944,7 @@ local module Game3_WOTSTWES_Hchwcoll = {
 
     ps <$ dpseed;
     
-    O_Game34_WOTSTWES.init(witness, ps);
+    O_Game34_WOTSTWES.init(ps);
     O_THFC_Default.init(ps);
     
     A.choose();
@@ -4065,7 +3995,7 @@ local module Game4_WOTSTWES_Alt = {
 
     ps <$ dpseed;
     
-    O_Game34_WOTSTWES.init(witness, ps);
+    O_Game34_WOTSTWES.init(ps);
     O_THFC_Default.init(ps);
     
     A.choose();
@@ -4100,10 +4030,10 @@ local equiv Game4_WOTSTWES_Orig_Alt :
 proof.
 proc; inline *.
 seq 1 1 : (#pre /\ ={ps}); first by rnd.
-seq 9 9 : (={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, ps}); last by sim.
+seq 7 7 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, ps}); last by sim.
 sp => /=.
-call (: ={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default}); last by auto.
-+ conseq (: ={glob O_MEUFGCMA_WOTSTWES, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES, res}) => //.
+call (: ={glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default}); last by auto.
++ conseq (: ={glob O_MEUFGCMA_WOTSTWES_NPRF, wad, m} ==> ={glob O_MEUFGCMA_WOTSTWES_NPRF, res}) => //.
   by apply O_Game34_WOTSTWES_Orig_Alt.
 by sim.
 qed.
@@ -4115,8 +4045,8 @@ qed.
   to distinguishing between Game2_WOTSTWES and Game3_WOTSTWES.
 *)
 local module (R_DistRCH_Game23WOTSTW : Adv_DistRCH) (O : Oracle_DistRCH, OC : Oracle_THFC) = {
-  module O_R_DistRCH_Game23WOTSTW : Oracle_MEUFGCMA_WOTSTWES = {
-    include var O_MEUFGCMA_WOTSTWES [-query]
+  module O_R_DistRCH_Game23WOTSTW : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
+    include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
 
     proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
       var ad : adrs;
@@ -4194,7 +4124,7 @@ local module (R_DistRCH_Game23WOTSTW : Adv_DistRCH) (O : Oracle_DistRCH, OC : Or
   module A = A(O_R_DistRCH_Game23WOTSTW, O_R_DistRCH_Game23WOTSTW_THFC)
   
   proc choose() : unit = { 
-    O_R_DistRCH_Game23WOTSTW.init(witness, witness);
+    O_R_DistRCH_Game23WOTSTW.init(witness);
     O_R_DistRCH_Game23WOTSTW_THFC.init(witness);
     
     A.choose();  
@@ -4294,7 +4224,7 @@ local module (R_SMDTUDC_DistRCH : Adv_SMDTUDC) (O : Oracle_SMDTUD, OC : Oracle_T
   
   proc pick() : unit = {
     O_R_SMDTUDC_DistRCH.i <$ [0..(w - 3)];
-    O_R_SMDTUDC_DistRCH.init(witness, witness);
+    O_R_SMDTUDC_DistRCH.init(witness);
     
     R.choose();
   }
@@ -4611,8 +4541,8 @@ local equiv DistRCHi_Orig_SampleSample :
     ={glob A, i} ==> ={res}.
 proof.
 proc; inline *.
-seq 18 18 : (={glob A, glob O_MEUFGCMA_WOTSTWES, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
-call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
+seq 16 16 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
+call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
        /\ DistRCHi.O_DistRCHi.i{1} = DistRCHi_SampleSample.O_DistRCHi.i{2}) => //=.
 + proc; inline *.
   by sim; rnd; wp; skip.
@@ -4625,8 +4555,8 @@ local equiv DistRCHi_SampleSample_LoopSnocSample :
     ={glob A, i} ==> ={ res}.
 proof.
 proc; inline *.
-seq 18 18 : (={glob A, glob O_MEUFGCMA_WOTSTWES, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
-call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
+seq 16 16 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
+call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
        /\ DistRCHi_SampleSample.O_DistRCHi.i{1} = DistRCHi_LoopSnocSample.O_DistRCHi.i{2}) => //=.
 + proc.
   inline{1} 2; inline{2} 2.
@@ -4642,8 +4572,8 @@ local equiv DistRCHi_LoopSnocSample_Alt :
     ={glob A, i} ==> ={ res}.
 proof.
 proc; inline *.
-seq 18 18 : (={glob A, glob O_MEUFGCMA_WOTSTWES, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
-call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
+seq 16 16 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
+call (:   ={glob O_THFC_Default, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_DistRCH, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl} 
        /\ DistRCHi_LoopSnocSample.O_DistRCHi.i{1} = DistRCHil.O_DistRCHi.i{2}) => //=.
 + proc.
   inline{1} 2; inline{1} 5; inline{2} 2.
@@ -4720,39 +4650,39 @@ local module SM_DT_UD_Cir = {
 }.
 
 
-(* - Additional (auxiliary) lemmas - *)
-(* 
-  The success probablity in M_EUF_GCMA_WOTSTWES when using O_MEUFGCMA_WOTSTWES_NOPRF is equal
-  to the analogous probability when using O_MEUFGCMA_WOTSTWES_NPRF.
+(* - Game-playing proof - *)
+(*
+  First step: Show that the success probablity in M_EUF_GCMA_WOTSTWES_NPRF when using O_MEUFGCMA_WOTSTWES_NPRF is equal
+  to the analogous probability when using O_MEUFGCMA_WOTSTWES_NPRF_Inlined.
 *)
-local lemma EqPr_MEUFGCMA_WOTSTWES_NOPRF_NPRF &m:
-  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res] 
+local lemma EqPr_MEUFGCMA_WOTSTWES_NPRF_Inlined &m:
+  Pr[M_EUF_GCMA_WOTSTWES_NPRF(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res]
   =
-  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res].
+  Pr[M_EUF_GCMA_WOTSTWES_NPRF(A, O_MEUFGCMA_WOTSTWES_NPRF_Inlined, O_THFC_Default).main() @ &m : res].
 proof.
 byequiv => //=.
 proc.
-seq 5 5 : (={ps, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, glob A}); 2: by sim.
-seq 4 4 : (={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, ss, ps}); 1: by sim.
-call (: ={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default}); first last.
+seq 4 4 : (={ps, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.tws, glob A}); 2: by sim.
+seq 3 3 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, ps}); 1: by sim.
+call (: ={glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default}); first last.
 + by proc; wp.
 + by wp.
 proc; inline *.
 wp => /=.
 while (   ={em}
-       /\ sig0{2} = sig{1}
-       /\ val skWOTS0{2} = sk{1}
-       /\ ps0{2} = O_MEUFGCMA_WOTSTWES.ps{1}
-       /\ ad0{2} = ad{1}).
+       /\ sig0{1} = sig{2}
+       /\ val skWOTS0{1} = sk{2}
+       /\ ps0{1} = O_MEUFGCMA_WOTSTWES_NPRF.ps{2}
+       /\ ad0{1} = ad{2}).
 + by wp; skip.
 wp => /=.
 while (   ={m}
-       /\ pkWOTS0{2} = pk{1}
-       /\ val skWOTS1{2} = sk{1}
-       /\ ps1{2} = O_MEUFGCMA_WOTSTWES.ps{1}
-       /\ ad1{2} = ad{1}).
+       /\ pkWOTS0{1} = pk{2}
+       /\ val skWOTS1{1} = sk{2}
+       /\ ps1{1} = O_MEUFGCMA_WOTSTWES_NPRF.ps{2}
+       /\ ad1{1} = ad{2}).
 + by wp; skip.
-wp.
+wp; symmetry.
 rnd DBLL.insubd DBLL.val.
 wp; skip => />.
 split => [sk skin | _]; 1: by rewrite valKd.
@@ -4763,277 +4693,14 @@ rewrite dmap_supp //=; split => [ | {2}-> //].
 by rewrite insubdK; smt(supp_dlist_size ge2_len).
 qed.
 
-
-(* - Game-playing proof - *)
-(* Zeroeth step: Show equivalence between M_EUF_GCMA_WOTSTWES and Game0_WOTSTWES *)
-local equiv MEUFGCMA_Game0_WOTSTWES :
-  M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES, O_THFC_Default).main ~ Game0_WOTSTWES.main : 
+(* Second step: Show equivalence between M_EUF_GCMA_WOTSTWES_NPRF without PRF and Game2_WOTSTWES *)
+local equiv MEUFGCMA_WOTSTWES_NPRF_Inlined_Game2_WOTSTWES : 
+  M_EUF_GCMA_WOTSTWES_NPRF(A, O_MEUFGCMA_WOTSTWES_NPRF_Inlined, O_THFC_Default).main ~ Game2_WOTSTWES.main : 
     ={glob A} ==> ={res}.
 proof.
 proc; inline *.
-seq 11 11 : (={glob A, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, ps}); last by sim.
-call (: ={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default}); [|by proc; inline *; sim | by auto]. 
-proc; inline *.
-wp => /=.
-while (   ={glob O_MEUFGCMA_WOTSTWES, em}
-       /\ ad0{1} = ad{2}
-       /\ sig0{1} = sig{2} 
-       /\ size sig0{1} <= len 
-       /\ size sig{2} <= len
-       /\ skWOTS0{1} = insubd sk{2}
-       /\ size sk{2} = len
-       /\ ps0{1} = O_MEUFGCMA_WOTSTWES.ps{1}).
-+ by wp; skip => |> &1 lelen_szsig ltlen_szsig; smt(size_rcons DBLL.insubdK).
-wp => /=.
-while{1} (   0 <= size skWOTS3{1} <= len
-          /\ (forall i, 0 <= i < len => 
-                nth witness skWOTS1{1} i = prf_sk ss2{1} (ps3{1}, (set_hidx (set_chidx ad3{1} i) 0)))
-          /\ (forall i, 0 <= i < size skWOTS3{1} => nth witness skWOTS3{1} i = nth witness skWOTS1{1} i))
-         (len - size skWOTS3{1}).
-+ move => _ z.
-  by wp; skip => |> *; smt(size_rcons nth_rcons).
-wp => /=.
-while (   ={glob O_MEUFGCMA_WOTSTWES}
-       /\ pkWOTS0{1} = pk{2} 
-       /\ size pkWOTS0{1} <= len 
-       /\ size pk{2} <= len
-       /\ size sk{2} = len
-       /\ skWOTS2{1} = insubd sk{2}
-       /\ ps2{1} = O_MEUFGCMA_WOTSTWES.ps{1}
-       /\ ad2{1} = ad{2}).
-+ by wp; skip => |> &1 lelen_szpk ltlen_szpk; smt(size_rcons DBLL.insubdK).
-wp => /=.
-while (   ={glob O_MEUFGCMA_WOTSTWES}
-       /\ 0 <= size skWOTS1{1} <= len
-       /\ ss1{1} = O_MEUFGCMA_WOTSTWES.ss{2}
-       /\ ps1{1} = O_MEUFGCMA_WOTSTWES.ps{1}
-       /\ skWOTS1{1} = sk{2}
-       /\ ad1{1} = ad{2}
-       /\ (forall i, 0 <= i < size skWOTS1{1} =>
-             nth witness skWOTS1{1} i = prf_sk ss1{1} (ps1{1}, (set_hidx (set_chidx ad1{1} i) 0)))).
-+ by wp; skip => |>; smt(nth_rcons size_rcons).
-wp; skip => |> &1. 
-split => [| *]; [by smt(ge2_len) | split => [| *]; first by smt(ge2_len)].
-split => [| *]; [by smt(ge2_len) | split => [/# | *]; rewrite andbA; split; first by smt(ge2_len)].
-by congr; apply (eq_from_nth witness) => /#.
-qed.
-
-(* First step: Reduce PRF of prf_sk to distinguishing between Game0_WOTSTWES and M_EUF_GCMA_WOTSTWES without PRF *)
-local lemma Step_Game0_MEUFGCMA_WOTSTWES_NOPRF_PRF &m :
-  `|Pr[Game0_WOTSTWES.main() @ &m : res] - Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]|
-  =
-  `|Pr[PRF(R_PRF_Game0NOPRFWOTSTWES(A), O_PRF_Default).main(false) @ &m : res] - Pr[PRF(R_PRF_Game0NOPRFWOTSTWES(A), O_PRF_Default).main(true) @ &m : res]|.
-proof.
-do 2! congr; last congr.
-+ byequiv => //=.
-  proc; inline *.
-  wp => /=.
-  seq 11 14 : (={glob A, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, ps}); last by sim.
-  call (:   ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs} 
-         /\ O_PRF_Default.b{2} = false
-         /\ O_MEUFGCMA_WOTSTWES.ss{1} = O_PRF_Default.k{2}); conseq => |>.
-  - proc. 
-    inline O_PRF_Default.query.
-    seq 3 3 : (={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, ad, m, sk}); last by sim.
-    while (   #post 
-           /\ O_PRF_Default.b{2} = false
-           /\ O_MEUFGCMA_WOTSTWES.ss{1} = O_PRF_Default.k{2}); last by auto.
-    rcondf{2} 2; first by auto.     
-    by wp; skip.
-  - by sim. 
-  by wp; rnd; wp; rnd; wp; skip.
-byequiv => //=.
-transitivity M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF_Alt, O_THFC_Default).main
-             (={glob A} ==> ={res})
-             (arg{2} = true /\ ={glob A} ==> ={res}) => [/# | // | |].             
-+ proc.
-  seq 5 5 : (={glob A, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, ps}); last by sim.
-  call (: ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp, O_THFC_Default.tws}) => |>.
-  - conseq (: ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, wad, m} 
-              ==> 
-              ={O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs, res}) => //.
-    * by apply O_MEUFGCMA_WOTSTWES_NOPRF_Orig_Alt.  
-  - by proc; sim.
-  by inline *; wp; do 2! rnd; skip.
-proc.
-inline{2} 2.
-wp 13 13 => /=.
-conseq (: _ 
-          ==>
-             ={dist_wgpidxs} 
-          /\ (dist_wgpidxs{2}
-             =>
-             (   (0 <= nrqs{1} <= c /\ 0 <= i{1} < nrqs{1}
-              /\ is_valid{1} /\ is_fresh{1} /\ disj_wgpidxs adlO{1} adlOC{1})
-              =
-                 (0 <= nrqs{2} <= c /\ 0 <= i{2} < nrqs{2}
-              /\ is_valid{2} /\ is_fresh{2} /\ disj_wgpidxs adlO{2} adlOC{2})))) => [/#|].
-inline{1} 13; inline{1} 12; inline{1} 11; inline{1} 10; inline{1} 7.
-inline{2} 13; inline{2} 12; inline{2} 11; inline{2} 10; inline{2} 7.
-seq 5 5 : ((uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-           =
-           uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{2}))
-           /\
-           (uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{2})
-            =>
-            ={glob A, O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws, ps})).
-+ call (: (! (uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs))),
-              ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.ps, O_MEUFGCMA_WOTSTWES.qs}
-           /\ O_PRF_Default.b{2} = true
-           /\ O_MEUFGCMA_WOTSTWES.ss{1} = O_PRF_Default.k{2}
-           /\ all valid_wadrs (map (fun (q : _ * _ * _ * _) => q.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-           /\ (forall (ad : adrs), 
-                 (get_wgpidxs ad \in (map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2})) 
-                 =>
-                 (exists (ad' : adrs), (O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in O_PRF_Default.m{2} /\ get_wgpidxs ad = get_wgpidxs ad'))
-            /\ (forall (ad : adrs), 
-                 (O_MEUFGCMA_WOTSTWES.ps{2}, ad) \in O_PRF_Default.m{2}
-                 =>
-                 (get_wgpidxs ad \in (map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2}))),
-           (uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-            =
-            uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{2}))) => //=.
-  - move=> O OC; apply (A_choose_ll O OC).
-  - proc.
-    sp 1 1; wp => /=.
-    case (get_wgpidxs ad{2} \in map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2}).
-    * conseq (: _ ==> true) => |>. 
-      + move=> &2 uqpfqs qsch relqsm relmqs pfadin pk sig m pk' csig'.
-        split => [nuqpfrcqs |]. 
-        - apply negbTE => @/uniq_wgpidxs.
-          rewrite -map_comp /(\o) map_rcons /= rcons_uniq negb_and /=.
-          left; move/mapP: pfadin => [q] [qin /= ->].
-          by rewrite mapP; exists q.
-        pose uqpfrcqs := uniq_wgpidxs _; have //: ! uqpfrcqs. 
-        rewrite /uqpfrcqs /uniq_wgpidxs.
-        rewrite -map_comp /(\o) map_rcons /= rcons_uniq negb_and /=.
-        left; move/mapP: pfadin => [q] [qin /= ->].
-        by rewrite mapP; exists q.
-      while (size sig{1} = size sig{2}); first by auto; smt(size_rcons).
-      wp. 
-      while (size pk{1} = size pk{2}); first by auto; smt(size_rcons).
-      wp. 
-      while (size sk{1} = size sk{2} /\ O_PRF_Default.b{2} = true).
-      + inline{2} 1.
-        rcondt{2} 2; first by auto.
-        wp; sp => /=. 
-        conseq (: _ ==> true); first by smt(size_rcons).
-        by sp; if{2}; auto. 
-      by wp; skip. 
-    while (={ad, sk, sig, em, O_MEUFGCMA_WOTSTWES.ps} /\ size sk{1} = len /\ 0 <= size sig{1} <= len).
-    * wp; skip => |>; smt(size_rcons).
-    wp.
-    while (={ad, pk, sk, O_MEUFGCMA_WOTSTWES.ps} /\ size sk{1} = len /\ 0 <= size pk{1} <= len).
-    * wp; skip => |>; smt(size_rcons).
-    wp => /=.
-    exists* O_PRF_Default.m{2}; elim* => m.
-    while (   ={ad, sk}
-           /\ valid_wadrs ad{2}
-           /\ O_PRF_Default.b{2} = true
-           /\ ! (get_wgpidxs ad{2} \in map (fun (q : adrs * msgWOTS * pkWOTS * sigWOTS) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2})
-           /\ (forall (ad' : adrs), 
-                 (get_wgpidxs ad' \in (map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2})) 
-                 =>
-                 (exists (ad'' : adrs), (O_MEUFGCMA_WOTSTWES.ps{2}, ad'') \in m /\ get_wgpidxs ad' = get_wgpidxs ad''))
-           /\ (forall (ad' : adrs),
-                 (O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in m
-                 =>
-                 (get_wgpidxs ad' \in (map (fun (q : _ * _ * _ *_) => get_wgpidxs q.`1) O_MEUFGCMA_WOTSTWES.qs{2})))
-           /\ (forall (ad' : adrs), 
-                 (O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in O_PRF_Default.m{2} 
-                 <=> 
-                 (((O_MEUFGCMA_WOTSTWES.ps{2}, ad') \in m) \/ (ad' \in mkseq (fun (i : int) => set_hidx (set_chidx ad{2} i) 0) (size sk{2}))))
-           /\ 0 <= size sk{2} <= len).
-    * inline *.
-      rcondt{2} 2; first by auto.
-      rcondt{2} 2.
-      + auto => |> &1 adch npfadin relqsm relmqs relmm ge0_szsk _ ltlen_szsk.
-        move/iffLR: (relmm (set_hidx (set_chidx ad{m0} (size sk{m0})) 0)) => /contra; apply.
-        rewrite negb_or; split.
-        - move: (relmqs (set_hidx (set_chidx ad{m0} (size sk{m0})) 0)) => /contra /(_ _) //.
-          pose gpfss := get_wgpidxs _; have -> //: gpfss = get_wgpidxs ad{m0}; rewrite /gpfss.
-          by rewrite eq_gp_setchhidx // /#.
-        rewrite mapP negb_exists => i /=; rewrite negb_and -implybE mem_iota /= => rng_i.
-        by apply neq_after_setchhidx => //; smt(val_w).
-      wp; rnd; wp; skip => |> &2 adch npfadin relqsm relmqs relmm ge0_szsk _ ltlen_szsk skele skelein.
-      rewrite !andbA -3!andbA; split; last by smt(size_rcons).  
-      split => [| ad']; first by rewrite get_set_sameE oget_some.
-      rewrite mem_set; split => -[].
-      + by rewrite size_rcons mkseqS //= mem_rcons /= => /relmm [] ->.
-      + by move=> [_ ->]; right; rewrite size_rcons mkseqS //= mem_rcons.
-      + by rewrite relmm => ->.
-      rewrite size_rcons mkseqS //= mem_rcons /= => -[-> // |].
-      by rewrite relmm => ->.
-    wp; skip => |> &2 uqpf qsch relqsm relmqs npfadin. 
-    split; first by smt(mkseq0 ge2_len WAddress.valP).
-    move=> mr skr /lezNgt gelen_szsk _  _ relmrm ge0_szskr lelen_szskr. 
-    split => [| pkr /lezNgt gelen_szpkr _  eqln_szskr ge0_szpkr lelen_szpkr]; first by smt(ge2_len).
-    split => [| sigr /lezNgt gelen_szsigr _  ge0_szsigr lelen_szsigr uqpfrc]; first by smt(ge2_len).
-    split; first by rewrite map_rcons -cats1 all_cat /= qsch WAddress.valP.
-    split => [ad' pfadpin | ad' adpin]. 
-    * move/mapP: pfadpin => [q] [] /= + ->; rewrite mem_rcons /= => -[-> /= | qin].
-      + exists (set_hidx (set_chidx (WAddress.val wad{2}) 0) 0) => //=.
-        split; first by rewrite relmrm mapP; right; exists 0 => //=; smt(mem_iota ge2_len).
-        by rewrite eq_sym eq_gp_setchhidx //=; smt(ge2_len val_w WAddress.valP).
-      move: (relqsm q.`1 _); first by rewrite mapP; exists q.
-      by move=> [ad''] [adppin ->]; exists ad''; rewrite relmrm adppin.
-    rewrite map_rcons mem_rcons; case (get_wgpidxs ad' = get_wgpidxs (WAddress.val wad{2})) => [-> //| neqgpf /=].
-    rewrite neqgpf /= (relmqs ad'); move/relmrm: adpin => [-> // |].
-    apply contraLR => _; rewrite mapP negb_exists => i /=; rewrite negb_and -implybE => /mem_iota /= rng_i.
-    by move: (eq_gp_setchhidx (WAddress.val wad{2}) i 0 _ _ _) neqgpf => //=; smt(ge2_len val_w WAddress.valP).
-  - move=> &2 @/uniq_wgpidxs nuqpfqs.
-    proc.
-    wp => /=.
-    conseq (: _ ==> true). 
-    * move=> &1 [#] equqpfqs adch pk' sig' /=.
-      by rewrite nuqpfqs /uniq_wgpidxs 2!map_rcons rcons_uniq /= equqpfqs nuqpfqs.
-    while (0 <= size sig <= len) (len - size sig); first by auto; smt(size_rcons). 
-    wp.
-    while (0 <= size pk <= len) (len - size pk); first by auto; smt(size_rcons).
-    wp.
-    while (0 <= size sk <= len) (len - size sk); first auto; smt(size_rcons ddgstblock_ll).
-    by wp; skip => |>; smt(ge2_len).
-  - move=> &1.
-    proc.
-    wp => /=.
-    conseq (: _ ==> true).
-    * move => &2 [#] @/uniq_wgpidxs nuqpfqs equqpfqs adch pk' sig' /=.
-      by rewrite 2!map_rcons /= rcons_uniq negb_and /= equqpfqs nuqpfqs.
-    while (0 <= size sig <= len) (len - size sig); first by auto; smt(size_rcons). 
-    wp.
-    while (0 <= size pk <= len) (len - size pk); first by auto; smt(size_rcons).
-    wp.
-    while (0 <= size sk <= len) (len - size sk); first auto; inline *; wp; sp => /=.
-    * by if; [if |]; auto => |>; smt(size_rcons ddgstblock_ll).
-    by wp; skip => |>; smt(ge2_len).
-  - by proc; wp; skip.
-  - move=> &2 nuqpfqs.
-    by proc; wp; skip. 
-  - move=> &1.
-    by proc; wp; skip.
-  by inline *; wp; rnd; wp; rnd; wp; skip => |>; smt(mem_empty ge2_len).
-case (uniq_wgpidxs (map (fun (q : _ * _ * _ *_) => q.`1) O_MEUFGCMA_WOTSTWES.qs{2})).
-+ sim => |> /#. 
-wp => /=; conseq (: _ ==> true) => |>.
-inline *.
-wp.
-while (size pkWOTS1{1} = size pkWOTS0{2} /\ 0 <= size pkWOTS1{1} <= len).
-+ by auto; smt(size_rcons). 
-wp => /=.
-call{1} (: true ==> true); 2: call{2} (: true ==> true); first 2 proc true => //.
-+ by move=> O OC; apply (A_forge_ll O OC).
-+ by move=> O OC; apply (A_forge_ll O OC).
-by skip; smt(ge2_len).
-qed.
-
-(* Second step: Show equivalence between M_EUF_GCMA_WOTSTWES without PRF and Game2_WOTSTWES *)
-local equiv MEUFGCMA_WOTSTWES_NOPRF_Game2_WOTSTWES : 
-  M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main ~ Game2_WOTSTWES.main : 
-    ={glob A} ==> ={res}.
-proof.
-proc; inline *.
-seq 12 12 : (={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, ps, i, m', sig'}); last by sim.
-do 2! call (: ={glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default}); [|by proc; inline *; sim | by auto].
+seq 8 8 : (={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, ps}); last by sim.
+call (: ={glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default}); [|by proc; inline *; sim | by auto].
 proc.
 wp; swap{1} [5..6] -2; swap{2} 6 -1.
 seq 5 5 : (    #pre 
@@ -5046,7 +4713,7 @@ while{1} (   valid_wadrs ad{1}
           /\ (forall (i : int), 0 <= i < size sig => 
                nth witness sig i 
                = 
-               cf O_MEUFGCMA_WOTSTWES.ps (set_chidx ad i) 0 (BaseW.val em.[i]) (val (nth witness sk i))){1}
+               cf O_MEUFGCMA_WOTSTWES_NPRF.ps (set_chidx ad i) 0 (BaseW.val em.[i]) (val (nth witness sk i))){1}
           /\ size sig{1} <= len)
          (len - size sig{1}).
 + move=> _ z.
@@ -5059,7 +4726,7 @@ while{1} (   valid_wadrs ad{1}
           /\ (forall (i : int), 0 <= i < size pk => 
                 nth witness pk i
                 = 
-                cf O_MEUFGCMA_WOTSTWES.ps (set_chidx ad i) 0 (w - 1) (val (nth witness sk i))){1}
+                cf O_MEUFGCMA_WOTSTWES_NPRF.ps (set_chidx ad i) 0 (w - 1) (val (nth witness sk i))){1}
           /\ size pk{1} <= len)
          (len - size pk{1}).
 + move=> _ z.
@@ -5072,7 +4739,7 @@ while{2} (    valid_wadrs ad{2}
           /\ (forall (i : int), 0 <= i < size pk => 
                 nth witness pk i 
                 =
-                cf O_MEUFGCMA_WOTSTWES.ps (set_chidx ad i) 0 (w - 1) (val (nth witness sk i))){2}
+                cf O_MEUFGCMA_WOTSTWES_NPRF.ps (set_chidx ad i) 0 (w - 1) (val (nth witness sk i))){2}
           /\ size pk{2} <= len)
          (len - size pk{2}).
 + move=> _ z.
@@ -5085,7 +4752,7 @@ while{2} (   valid_wadrs ad{2}
           /\ (forall (i : int), 0 <= i < size sig => 
                 nth witness sig i 
                 = 
-                cf O_MEUFGCMA_WOTSTWES.ps (set_chidx ad i) 0 (BaseW.val em.[i]) (val (nth witness sk i))){2}
+                cf O_MEUFGCMA_WOTSTWES_NPRF.ps (set_chidx ad i) 0 (BaseW.val em.[i]) (val (nth witness sk i))){2}
           /\ size sig{2} <= len)
          (len - size sig{2}).
 + move=> _ z.
@@ -5122,25 +4789,25 @@ proof.
 do 2! congr; last congr.
 + byequiv => //.
   proc; inline *.
-  seq 10 16 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
+  seq 7 14 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
               /\ b{2} = false
-              /\ (O_MEUFGCMA_WOTSTWES.ps = ps){1}
+              /\ (O_MEUFGCMA_WOTSTWES_NPRF.ps = ps){1}
               /\ (O_DistRCH.b = b){2}
               /\ (O_DistRCH.ps = ps){2}
               /\ (O_THFC_Default.pp = ps){1}
               /\ (O_THFC_Default.pp = ps){2}
-              /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
-              /\ O_MEUFGCMA_WOTSTWES.qs{2} = []
+              /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
+              /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{2} = []
               /\ O_THFC_Default.tws{1} = []
               /\ O_THFC_Default.tws{2} = []
               /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} = []).
   - by auto => |>.
-  seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
+  seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
              /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
-  - call (:   ={O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp} 
+  - call (:   ={O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.pp} 
            /\ O_DistRCH.b{2} = false
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
            /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
     * proc; inline *.
       rcondf{2} 6; first by auto.
@@ -5163,7 +4830,7 @@ do 2! congr; last congr.
                   /\ (forall (i : int), 0 <= i < len =>
                        nth witness sig{1} i 
                        = 
-                       cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
+                       cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
                   /\ (forall (i : int), 0 <= i < len => 
                        nth witness chal{2} i
                        = 
@@ -5173,8 +4840,8 @@ do 2! congr; last congr.
                /\ ad0{2} = ad{2}
                /\ valid_wadrs ad{1}
                /\ sk{1} = chal'{2}
-               /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-               /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+               /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+               /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
                /\ ad0{2} = ad{2} 
                /\ m0{2} = m{2} 
                /\ em{1} = em0{2}
@@ -5184,7 +4851,7 @@ do 2! congr; last congr.
                /\ (forall (i : int), 0 <= i < size sig{1} =>
                     nth witness sig{1} i 
                     = 
-                    cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
+                    cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
                /\ (forall (i : int), 0 <= i < size chal0{2} => 
                     nth witness chal0{2} i 
                     = 
@@ -5203,8 +4870,8 @@ do 2! congr; last congr.
              /\ sk{1} = chal'{2}
              /\ sk{1} \in ddgstblockl
              /\ chal'{2} \in ddgstblockl
-             /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-             /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+             /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+             /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
              /\ 0 <= size pk{1} <= len
              /\ 0 <= size pk{2} <= len
              /\ 0 <= size sig{2} <= len
@@ -5215,7 +4882,7 @@ do 2! congr; last congr.
              /\ (forall (i : int), 0 <= i < len =>
                   nth witness sig{1} i 
                   = 
-                  cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
+                  cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
              /\ (forall (i : int), 0 <= i < len => 
                   nth witness chal{2} i 
                   = 
@@ -5231,8 +4898,8 @@ do 2! congr; last congr.
                 /\ sk{1} = chal'{2}
                 /\ sk{1} \in ddgstblockl
                 /\ chal'{2} \in ddgstblockl
-                /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-                /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+                /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+                /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
                 /\ 0 <= size pk{1} < len
                 /\ 0 <= size pk{2} < len
                 /\ 0 <= size sig{2} < len
@@ -5240,7 +4907,7 @@ do 2! congr; last congr.
                 /\ (forall (i : int), 0 <= i < len =>
                       nth witness sig{1} i 
                       = 
-                      cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
+                      cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) 0 (BaseW.val em{1}.[i]) (val (nth witness sk{1} i)))
                 /\ (forall (i : int), 0 <= i < len => 
                      nth witness chal{2} i 
                      =
@@ -5302,31 +4969,31 @@ do 2! congr; last congr.
       by auto.
     by skip.
   wp => /=.
-  by sim : (   ={m, m', i, O_MEUFGCMA_WOTSTWES.qs}
+  by sim : (   ={m, m', i, O_MEUFGCMA_WOTSTWES_NPRF.qs}
             /\ pkWOTS0{1} = pkWOTS{2}
             /\ pkWOTS1{1} = pkWOTS0{2}
             /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
 byequiv => //.
 proc; inline *.
-seq 10 16 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
+seq 7 14 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
              /\ b{2} = true
-             /\ (O_MEUFGCMA_WOTSTWES.ps = ps){1}
+             /\ (O_MEUFGCMA_WOTSTWES_NPRF.ps = ps){1}
              /\ (O_DistRCH.b = b){2}
              /\ (O_DistRCH.ps = ps){2}
              /\ (O_THFC_Default.pp = ps){1}
              /\ (O_THFC_Default.pp = ps){2}
-             /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
-             /\ O_MEUFGCMA_WOTSTWES.qs{2} = []
+             /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
+             /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{2} = []
              /\ O_THFC_Default.tws{1} = []
              /\ O_THFC_Default.tws{2} = []
              /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} = []).
 + by auto => |>.
-seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
+seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
            /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
-+ call (:   ={O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp} 
++ call (:   ={O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.pp} 
          /\ O_DistRCH.b{2} = true
-         /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-         /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+         /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+         /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
          /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
   - proc; inline *.
     rcondt{2} 6; first by auto.
@@ -5351,7 +5018,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                     nth witness sig{1} i 
                     = 
                     if BaseW.val em{1}.[i] <> 0
-                    then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                    then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                     else nth witness sk{1} i)).
     * while{1} (   ={m, ad, pk, em}
                /\ valid_wadrs ad{1}
@@ -5359,14 +5026,14 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                /\ em{2} = encode_msgWOTS m{2}
                /\ sk{1} = chal'{2}
                /\ chal{2} = chal'{2}
-               /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-               /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+               /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+               /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
                /\ 0 <= size sig{1} <= len
                /\ (forall (i : int), 0 <= i < size sig{1} =>
                     nth witness sig{1} i 
                     = 
                     if BaseW.val em{1}.[i] <> 0
-                    then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                    then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                     else nth witness sk{1} i))
              (len - size sig{1}); last first.
       + wp; skip => |> &2 adch chalin.
@@ -5385,8 +5052,8 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
            /\ chal{2} = chal'{2}
            /\ sk{1} \in ddgstblockl
            /\ chal'{2} \in ddgstblockl
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
            /\ 0 <= size pk{1} <= len
            /\ 0 <= size pk{2} <= len
            /\ 0 <= size sig{2} <= len
@@ -5397,7 +5064,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                 nth witness sig{1} i 
                 = 
                 if BaseW.val em{1}.[i] <> 0
-                then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                 else nth witness sk{1} i)
            /\ (forall (i : int), 0 <= i < size sig{2} => 
                  nth witness sig{1} i = nth witness sig{2} i)); last first.
@@ -5411,8 +5078,8 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
               /\ chal{2} = chal'{2}
               /\ sk{1} \in ddgstblockl
               /\ chal'{2} \in ddgstblockl
-              /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_DistRCH.ps{2}
-              /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{2}
+              /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_DistRCH.ps{2}
+              /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{2}
               /\ 0 <= size pk{1} < len
               /\ 0 <= size pk{2} < len
               /\ 0 <= size sig{2} < len
@@ -5420,7 +5087,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
               /\ (forall (i : int), 0 <= i < size sig{1} =>
                     nth witness sig{1} i = 
                     if BaseW.val em{1}.[i] <> 0
-                    then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                    then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                     else nth witness sk{1} i)
               /\ (forall (i : int), 0 <= i < size sig{2} => 
                     nth witness sig{1} i = nth witness sig{2} i)
@@ -5466,7 +5133,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
     by auto.
   by skip.
 wp => /=.
-by sim : (   ={m, m', i, O_MEUFGCMA_WOTSTWES.qs}
+by sim : (   ={m, m', i, O_MEUFGCMA_WOTSTWES_NPRF.qs}
           /\ pkWOTS0{1} = pkWOTS{2}
           /\ pkWOTS1{1} = pkWOTS0{2}
           /\ O_THFC_Default.tws{1} = R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2}).
@@ -5490,8 +5157,8 @@ have ->:
                  (={glob A} /\ arg{1} = false /\ arg{2} = 0 ==> ={res})
                  (={glob A, i} ==> ={res}) => [/# | // | |]; last first.
     * by apply DistRCHi_Orig_Alt.
-    proc; inline *. 
-    seq 16 17: (   ={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
+    proc; inline *.
+    seq 14 15: (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
                 /\ b{1} = false
                 /\ i{2} = 0
                 /\ O_DistRCH.b{1} = b{1}
@@ -5499,10 +5166,10 @@ have ->:
                 /\ O_THFC_Default.pp{1} = ps{1}
                 /\ O_DistRCH.ps{1} = ps{1}
                 /\ O_THFC_Default.tws{1} = []
-                /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
+                /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
                 /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{1} = []); first by auto.
-    seq 1 1 : (={glob A, O_MEUFGCMA_WOTSTWES.qs, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
-    call (:   ={O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl}
+    seq 1 1 : (={glob A, O_MEUFGCMA_WOTSTWES_NPRF.qs, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
+    call (:   ={O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.pp, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl}
            /\ O_DistRCH.b{1} = false
            /\ DistRCHi.O_DistRCHi.i{2} = 0) => //; last first.
     * by proc => |>; sim.
@@ -5515,7 +5182,7 @@ have ->:
                (={glob A, i} ==> ={res}) => [/# | // | |]; last first.
   * by apply DistRCHi_Orig_Alt.
   proc; inline *.
-  seq 16 17: (   ={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
+  seq 14 15: (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
               /\ b{1} = true
               /\ i{2} = w - 2
               /\ O_DistRCH.b{1} = b{1}
@@ -5523,10 +5190,10 @@ have ->:
               /\ O_THFC_Default.pp{1} = ps{1}
               /\ O_DistRCH.ps{1} = ps{1}
               /\ O_THFC_Default.tws{1} = []
-              /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
+              /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
               /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{1} = []); first by auto.
-  seq 1 1 : (={glob A, O_MEUFGCMA_WOTSTWES.qs, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
-  call (:   ={O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl}
+  seq 1 1 : (={glob A, O_MEUFGCMA_WOTSTWES_NPRF.qs, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}); last by sim.
+  call (:   ={O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.pp, O_DistRCH.ps, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl}
          /\ O_DistRCH.b{1} = true
          /\ DistRCHi.O_DistRCHi.i{2} = w - 2) => //; last first.
   - by proc => |>; sim.
@@ -5574,7 +5241,7 @@ have ->:
   - byequiv => //.
     proc => /=; inline{1} 6.
     wp; inline{1} 5; inline{2} 5; inline{2} 6; inline{2} 4; inline{2} 7.
-    seq 6 8 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, i}
+    seq 6 8 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, i}
                /\ i{1} = k
                /\ b{2} = false
                /\ ps{1} = pp{2}
@@ -5584,49 +5251,49 @@ have ->:
                /\ O_DistRCH.ps{1} = ps{1}
                /\ O_THFC_Default.pp{1} = ps{1}
                /\ O_SMDTUD_Default.pp{2} = pp{2}
-               /\ O_MEUFGCMA_WOTSTWES.qs{1} = [] 
+               /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = [] 
                /\ O_THFC_Default.tws{1} = []
                /\ O_SMDTUD_Default.ts{2} = []
                /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{1} = []).
-    * by inline *; auto.
-    seq 1 2 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
-               /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-               /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k
+    * inline *. auto.
+    seq 1 2 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
+               /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+               /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k
                /\ all (fun (ad : adrs) => 
                          ad \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                         \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k) 
+                         \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k) 
                          O_THFC_Default.tws{2}).
     * wp => /=.
-      call (:   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
+      call (:   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
              /\ O_DistRCH.ps{1} = O_SMDTUD_Default.pp{2}
              /\ O_SMDTUD_Default.pp{2} = O_THFC_Default.pp{2} 
              /\ O_SMDTUD_Default.b{2} = false
              /\ DistRCHil.O_DistRCHi.i{1} = k
              /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-             /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-             /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k
+             /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+             /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k
              /\ all (fun (ad : adrs) => 
                          ad \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                         \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k) 
+                         \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k) 
                          O_THFC_Default.tws{2}); last by auto.
       + proc.
-        seq 2 2 : (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, chal}
+        seq 2 2 : (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, chal}
                    /\ valid_wadrs ad{1}
                    /\ O_DistRCH.ps{1} = O_SMDTUD_Default.pp{2}
                    /\ O_SMDTUD_Default.pp{2} = O_THFC_Default.pp{2}
                    /\ O_SMDTUD_Default.b{2} = false
                    /\ DistRCHil.O_DistRCHi.i{1} = k
                    /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-                   /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-                   /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
+                   /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+                   /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
                    /\ all (fun (ad' : adrs) => 
                                ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                               \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                               \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                                O_THFC_Default.tws{2}
                    /\ size chal{1} = len).
         - inline *; swap{1} 7 -2.
           wp => /=.
-          while (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0, chal0}
+          while (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0, chal0}
                  /\ ad0{1} = ad{1}
                  /\ m0{1} = m{1}
                  /\ em0{1} = encode_msgWOTS m0{1}
@@ -5636,11 +5303,11 @@ have ->:
                  /\ O_SMDTUD_Default.b{2} = false
                  /\ DistRCHil.O_DistRCHi.i{1} = k
                  /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-                 /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-                 /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
+                 /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+                 /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
                  /\ all (fun (ad' : adrs) => 
                              ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                              O_THFC_Default.tws{2}
                  /\ (forall (i : int), 0 <= i < len =>
                        nth witness chal'{2} i
@@ -5666,7 +5333,7 @@ have ->:
                       /\ chal_ele0{2} = cf O_THFC_Default.pp{2} (set_chidx ad0{2} (size chal0{2})) (R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} + 1) (j0{2} - 1) (val (nth witness chal'{2} (size chal0{2})))
                       /\ all (fun (ad' : adrs) => 
                              ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                              O_THFC_Default.tws{2}
                       /\ size chal'{2} = len
                       /\ 0 <= size chal0{2} < len
@@ -5695,7 +5362,7 @@ have ->:
             rewrite leem1k_j /= {1}(: em1k = 1 + (em1k - 1)) // /cf => ->.
             by rewrite ch_comp 1:validwadrs_setchidx 3:valP //; smt(BaseW.valP).
           wp => /=.
-          while (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0}
+          while (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0}
                      /\ ad0{1} = ad{1}
                      /\ m0{1} = m{1}
                      /\ em0{1} = encode_msgWOTS m0{1}
@@ -5705,14 +5372,14 @@ have ->:
                      /\ O_SMDTUD_Default.b{2} = false
                      /\ DistRCHil.O_DistRCHi.i{1} = k
                      /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-                     /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
+                     /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
                      /\ O_SMDTUD_Default.ts{2} 
                         = 
-                        relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k 
+                        relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k 
                         ++ relcqsad_udi_outer ad0{2} m0{2} k (size chal'{2})
                      /\ all (fun (ad' : adrs) => 
                                  ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                                 \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                                 \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                                  O_THFC_Default.tws{2}
                      /\ (forall (i : int), 0 <= i < size chal'{2} =>
                            nth witness chal'{2} i
@@ -5830,15 +5497,15 @@ have ->:
     split; last by apply uniq_relcqsadudi => /#.
     rewrite andbC; split; first split => [| _].
     * by smt(relcqsadudi_rng).
-    * apply (IntOrder.ler_trans (size O_MEUFGCMA_WOTSTWES.qs{2} * len)); first by smt(relcqsadudi_rng).
+    * apply (IntOrder.ler_trans (size O_MEUFGCMA_WOTSTWES_NPRF.qs{2} * len)); first by smt(relcqsadudi_rng).
       by rewrite ler_pmul //; smt(ge2_len).
-    apply (djl_parts _ _ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} (reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{2} k)) => //. 
+    apply (djl_parts _ _ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} (reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{2} k)) => //. 
     * by apply disj_relcqsadudi => /#.
     by apply disj_relcqsadudi_reltqsadudi => /#.
   byequiv => //.
   proc => /=; inline{1} 6.
   wp; inline{1} 5; inline{2} 5; inline{2} 6; inline{2} 4; inline{2} 7.
-  seq 6 8 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES, glob O_THFC_Default, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
+  seq 6 8 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, glob O_THFC_Default, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
              /\ i{1} = k + 1
              /\ i{2} = k
              /\ b{2} = true
@@ -5849,48 +5516,48 @@ have ->:
              /\ O_DistRCH.ps{1} = ps{1}
              /\ O_THFC_Default.pp{1} = ps{1}
              /\ O_SMDTUD_Default.pp{2} = pp{2}
-             /\ O_MEUFGCMA_WOTSTWES.qs{1} = [] 
+             /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = [] 
              /\ O_THFC_Default.tws{1} = []
              /\ O_SMDTUD_Default.ts{2} = []
              /\ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{1} = []).
   * by inline *; auto.
-  seq 1 2 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
-             /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-             /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k
+  seq 1 2 : (   ={glob A, glob O_MEUFGCMA_WOTSTWES_NPRF, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, ps}
+             /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+             /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k
              /\ all (fun (ad : adrs) => 
-                       ad \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k) 
+                       ad \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k) 
                        O_THFC_Default.tws{2}).
   * wp => /=.
-    call (:   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
+    call (:   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b}
            /\ O_DistRCH.ps{1} = O_SMDTUD_Default.pp{2}
            /\ O_SMDTUD_Default.pp{2} = O_THFC_Default.pp{2} 
            /\ O_SMDTUD_Default.b{2} = true
            /\ DistRCHil.O_DistRCHi.i{1} = k + 1
            /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-           /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-           /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k
+           /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+           /\ O_SMDTUD_Default.ts{2} = relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k
            /\ all (fun (ad : adrs) => 
                        ad \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                       \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k) 
+                       \/ ad \in reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k) 
                        O_THFC_Default.tws{2}); last by auto.
     + proc.
-      seq 2 2 : (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, chal}
+      seq 2 2 : (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, chal}
                  /\ valid_wadrs ad{1}
                  /\ O_DistRCH.ps{1} = O_SMDTUD_Default.pp{2}
                  /\ O_SMDTUD_Default.pp{2} = O_THFC_Default.pp{2}
                  /\ O_SMDTUD_Default.b{2} = true
                  /\ DistRCHil.O_DistRCHi.i{1} = k + 1
                  /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-                 /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-                 /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
+                 /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+                 /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
                  /\ all (fun (ad' : adrs) => 
                              ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                             \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                              O_THFC_Default.tws{2}
                  /\ size chal{1} = len).
       - inline *; swap{1} 5 -2.
         wp => /=.
-        while (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0, chal0, chal'}
+        while (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, em0, chal0, chal'}
                /\ ad0{1} = ad{1}
                /\ m0{1} = m{1}
                /\ em0{1} = encode_msgWOTS m0{1}
@@ -5900,11 +5567,11 @@ have ->:
                /\ O_SMDTUD_Default.b{2} = true
                /\ DistRCHil.O_DistRCHi.i{1} = k + 1
                /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-               /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-               /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
+               /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+               /\ O_SMDTUD_Default.ts{2} = relcqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k
                /\ all (fun (ad' : adrs) => 
                            ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                           \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                           \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                            O_THFC_Default.tws{2}
                /\ size chal'{1} = len
                /\ 0 <= size chal0{1} <= len).
@@ -5923,7 +5590,7 @@ have ->:
                     /\ chal_ele0{2} = cf O_THFC_Default.pp{2} (set_chidx ad0{2} (size chal0{2})) (R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} + 1) (j0{2} - 1) (val (nth witness chal'{2} (size chal0{2})))
                     /\ all (fun (ad' : adrs) => 
                            ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                           \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                           \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                            O_THFC_Default.tws{2}
                     /\ size chal'{2} = len
                     /\ 0 <= size chal0{2} < len
@@ -5945,7 +5612,7 @@ have ->:
           wp; skip => |> &2 adch qsch twssp eqlen_szcp ge0_szc0 lelen_szc0 ltlen_szc0 leem1k_j.
           by split => [| twsr jr]; [rewrite /cf ch0 1:validwadrs_setchidx 3:valP //= valKd /# | smt(size_rcons)].
         wp => /=.
-        while (   ={glob O_MEUFGCMA_WOTSTWES, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, chal'}
+        while (   ={glob O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default.pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_DistRCH.b, ad, m, ad0, m0, chal'}
                    /\ ad0{1} = ad{1}
                    /\ m0{1} = m{1}
                    /\ em0{2} = encode_msgWOTS m0{2}
@@ -5955,14 +5622,14 @@ have ->:
                    /\ O_SMDTUD_Default.b{2} = true
                    /\ DistRCHil.O_DistRCHi.i{1} = k + 1
                    /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{2} = k
-                   /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
+                   /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
                    /\ O_SMDTUD_Default.ts{2} 
                       = 
-                      relcqsad_udi O_MEUFGCMA_WOTSTWES.qs{1} k 
+                      relcqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{1} k 
                       ++ relcqsad_udi_outer ad0{2} m0{2} k (size chal'{2})
                    /\ all (fun (ad' : adrs) => 
                                ad' \in R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} 
-                               \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
+                               \/ ad' \in reltqsad_udi (rcons O_MEUFGCMA_WOTSTWES_NPRF.qs{1} (ad{2}, m{2}, insubd pk{2}, insubd sig{2})) k) 
                                O_THFC_Default.tws{2}
                    /\ 0 <= size chal'{1} <= len).
         * wp; sp => /=.
@@ -6059,9 +5726,9 @@ have ->:
   split; last by apply uniq_relcqsadudi => /#.
   rewrite andbC; split; first split => [| _].
   * by smt(relcqsadudi_rng).
-  * apply (IntOrder.ler_trans (size O_MEUFGCMA_WOTSTWES.qs{2} * len)); first by smt(relcqsadudi_rng).
+  * apply (IntOrder.ler_trans (size O_MEUFGCMA_WOTSTWES_NPRF.qs{2} * len)); first by smt(relcqsadudi_rng).
     by rewrite ler_pmul //; smt(ge2_len).
-  apply (djl_parts _ _ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} (reltqsad_udi O_MEUFGCMA_WOTSTWES.qs{2} k)) => //. 
+  apply (djl_parts _ _ R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl{2} (reltqsad_udi O_MEUFGCMA_WOTSTWES_NPRF.qs{2} k)) => //. 
   * by apply disj_relcqsadudi => /#.
   by apply disj_relcqsadudi_reltqsadudi => /#.
 have ->:
@@ -6127,14 +5794,14 @@ do 3! congr; rewrite eq_sym Pr[mu_split 0 <= R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistR
   byequiv => //.
   proc; inline{1} 2; inline{1} 7; inline{2} 4.
   swap{1} 4 -3; swap{2} 4 -2. 
-  seq 10 6 : (   ={glob A, pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.ts, O_THFC_Default.tws}
+  seq 10 6 : (   ={glob A, pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.ts, O_THFC_Default.tws}
                /\ i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}); last by wp => /=; sim.
   inline *.
-  call (:   ={R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
+  call (:   ={R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
          /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}).
   - proc.
     inline *.
-    seq 7 7 : (   ={m, em0, chal', ad0, ad, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
+    seq 7 7 : (   ={m, em0, chal', ad0, ad, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
                /\ valid_wadrs ad{1}
                /\ ad0{1} = ad{1}
                /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}); last by sim.
@@ -6160,14 +5827,14 @@ rewrite (indbigsplit (w - 2)); first by smt(val_w).
 byequiv => //.
 proc; inline{1} 2; inline{1} 7; inline{2} 4.
 swap{1} 4 -3; swap{2} 4 -2.
-seq 10 6 : (   ={glob A, pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.ts, O_THFC_Default.tws}
+seq 10 6 : (   ={glob A, pp, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.ts, O_THFC_Default.tws}
                /\ i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}); last by wp => /=; sim.
 inline *.
-call (:   ={R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
+call (:   ={R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
          /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}).
 + proc.
   inline *.
-  seq 7 7 : (   ={m, em0, chal', ad0, ad, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
+  seq 7 7 : (   ={m, em0, chal', ad0, ad, R_DistRCH_Game23WOTSTW.O_R_DistRCH_Game23WOTSTW_THFC.adl, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_SMDTUD_Default.b, O_SMDTUD_Default.pp, O_SMDTUD_Default.ts, O_THFC_Default.tws, O_THFC_Default.pp}
              /\ valid_wadrs ad{1}
              /\ ad0{1} = ad{1} 
              /\ R_SMDTUDC_DistRCHil.O_R_SMDTUDC_DistRCHil.i{1} = R_SMDTUDC_DistRCH.O_R_SMDTUDC_DistRCH.i{2}); last by sim.
@@ -6204,9 +5871,9 @@ have ->:
   Pr[Game3_WOTSTWES.main() @ &m : res] = Pr[Game3_WOTSTWES_Hchwcoll.main() @ &m : res].
 + byequiv => //. 
   proc; inline *.
-  seq 12 11 : (={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps, i, m', sig'}); last first.
-  - by wp; sim : (={i, m, m', O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws} /\ pkWOTS0{1} = pkWOTS{2} /\ pkWOTS1{1} = pkWOTS0{2}).
-  do 2! call (: ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, O_MEUFGCMA_WOTSTWES.ps}); first 2 by proc; inline *; sim.
+  seq 9 9 : (={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps, i, m', sig'}); last first.
+  - by wp; sim : (={i, m, m', O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.tws} /\ pkWOTS0{1} = pkWOTS{2} /\ pkWOTS1{1} = pkWOTS0{2}).
+  do 2! call (: ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, O_MEUFGCMA_WOTSTWES_NPRF.ps}); first 2 by proc; inline *; sim.
    by auto.
 rewrite Pr[mu_split Game3_WOTSTWES_Hchwcoll.hchwcoll].
 have -> /#: 
@@ -6215,7 +5882,7 @@ have -> /#:
   Pr[Game4_WOTSTWES.main() @ &m : res].
 byequiv => //.
 proc; inline *. wp.
-by wp; sim :  (={i, ps, pkWOTS0, pkWOTS, ad, m, m', sig, sig', O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.tws}).
+by wp; sim :  (={i, ps, pkWOTS0, pkWOTS, ad, m, m', sig, sig', O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.tws}).
 qed.
 
 (* Fifth step: Reduce SM-DT-TCR-C of f to distinguishing between Game3_WOTSTWES and Game4_WOTSTWES *)
@@ -6227,16 +5894,16 @@ proof.
 rewrite Game3_Game4_WOTSTWES_Hchwcoll ger0_norm 1:Pr[mu_ge0] //.
 byequiv => //.
 proc; inline *.
-swap{2} 13 -11.
+swap{2} 12 -10.
 wp => /=.
-seq 9 12 : (   ={glob A, ps}
+seq 7 11 : (   ={glob A, ps}
             /\ pp{2} = ps{2}
-            /\ O_MEUFGCMA_WOTSTWES.ps{1} = ps{1}
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = ps{1}
             /\ O_THFC_Default.pp{1} = ps{1}
             /\ O_SMDTTCR_Default.pp{2} = ps{2}
             /\ O_THFC_Default.pp{2} = ps{2}
-            /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
-            /\ O_MEUFGCMA_WOTSTWES.qs{2} = []
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{2} = []
             /\ R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} = []
             /\ O_THFC_Default.tws{1} = []
             /\ O_SMDTTCR_Default.ts{2} = []
@@ -6263,28 +5930,28 @@ pose sigvals (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock li
                if em_ele <> 0
                then cf ps (set_chidx ad j) (em_ele - 1) 1 (val (nth witness xl j))
                else nth witness xl j) (range 0 i)) (zip qs xll).
-seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
+seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
             /\ pp{2} = ps{2}
-            /\ O_MEUFGCMA_WOTSTWES.ps{1} = ps{1}
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = ps{1}
             /\ O_THFC_Default.pp{1} = ps{1}
             /\ O_SMDTTCR_Default.pp{2} = ps{2}
             /\ O_THFC_Default.pp{2} = ps{2}
-            /\ size O_MEUFGCMA_WOTSTWES.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
-            /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-            /\ pkvals O_MEUFGCMA_WOTSTWES.qs{1} O_MEUFGCMA_WOTSTWES.ps{1} len
-            /\ sigvals O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1} len
-            /\ unzip1 O_SMDTTCR_Default.ts{2} = relcqsad_tcr O_MEUFGCMA_WOTSTWES.qs{1}
-            /\ unzip2 O_SMDTTCR_Default.ts{2} = relcqsdg_tcr O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1}).
-+ call (:   ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs}
-         /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{1}
+            /\ size O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
+            /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+            /\ pkvals O_MEUFGCMA_WOTSTWES_NPRF.qs{1} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} len
+            /\ sigvals O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} len
+            /\ unzip1 O_SMDTTCR_Default.ts{2} = relcqsad_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+            /\ unzip2 O_SMDTTCR_Default.ts{2} = relcqsdg_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1}).
++ call (:   ={glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs}
+         /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{1}
          /\ O_THFC_Default.pp{1} = O_THFC_Default.pp{2}
          /\ O_THFC_Default.pp{2} = O_SMDTTCR_Default.pp{2}
-         /\ size O_MEUFGCMA_WOTSTWES.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
-         /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1})
-         /\ pkvals O_MEUFGCMA_WOTSTWES.qs{1} O_MEUFGCMA_WOTSTWES.ps{1} len
-         /\ sigvals O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1} len
-         /\ unzip1 O_SMDTTCR_Default.ts{2} = relcqsad_tcr O_MEUFGCMA_WOTSTWES.qs{1}
-         /\ unzip2 O_SMDTTCR_Default.ts{2} = relcqsdg_tcr O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1}); last by auto.
+         /\ size O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
+         /\ all valid_wadrs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
+         /\ pkvals O_MEUFGCMA_WOTSTWES_NPRF.qs{1} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} len
+         /\ sigvals O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} len
+         /\ unzip1 O_SMDTTCR_Default.ts{2} = relcqsad_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+         /\ unzip2 O_SMDTTCR_Default.ts{2} = relcqsdg_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1}); last by auto.
   - proc; inline * => //.
     seq 6 5 : (   #pre
                /\ ={ad, pk, em}
@@ -6301,7 +5968,7 @@ seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
                      nth witness sig{1} i 
                      = 
                      if BaseW.val em{1}.[i] <> 0
-                     then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                     then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                      else nth witness sk{1} i)).
     * wp => /=.
       while{1} (   valid_wadrs ad{1}
@@ -6310,7 +5977,7 @@ seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
                       nth witness sig{1} i
                       = 
                       if BaseW.val em{1}.[i] <> 0
-                      then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
+                      then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i] - 1) 1 (val (nth witness sk{1} i))
                       else nth witness sk{1} i))
                (len - size sig{1}).
       + move=> _ z; wp; skip => |> &1 adch _ valsig ltlen_szsig.
@@ -6325,19 +5992,19 @@ seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
         by rewrite (: i = size sig{1}) 1:/# /= neq0_em.
       wp; rnd; wp; skip => |> *; split; smt(ge2_len WAddress.valP).
     wp => //=.
-    while (   ={glob O_THFC_Default, ad, m, pk, em, O_MEUFGCMA_WOTSTWES.qs} 
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{1}
+    while (   ={glob O_THFC_Default, ad, m, pk, em, O_MEUFGCMA_WOTSTWES_NPRF.qs} 
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{1}
            /\ O_THFC_Default.pp{1} = O_THFC_Default.pp{2} 
            /\ O_THFC_Default.pp{2} = O_SMDTTCR_Default.pp{2}
-           /\ size O_MEUFGCMA_WOTSTWES.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
+           /\ size O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
            /\ unzip1 O_SMDTTCR_Default.ts{2} 
               = 
-              relcqsad_tcr O_MEUFGCMA_WOTSTWES.qs{1} 
+              relcqsad_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} 
               ++ relcqsad_tcr_outer ad{2} m{2} (size pk{2})
            /\ unzip2 O_SMDTTCR_Default.ts{2} 
               = 
-              relcqsdg_tcr O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1} 
-              ++ relcqsdg_tcr_outer O_MEUFGCMA_WOTSTWES.ps{1} ad{2} m{2} (insubd sig{1}) xl{2} (size pk{2})
+              relcqsdg_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} 
+              ++ relcqsdg_tcr_outer O_MEUFGCMA_WOTSTWES_NPRF.ps{1} ad{2} m{2} (insubd sig{1}) xl{2} (size pk{2})
            /\ valid_wadrs ad{1} 
            /\ em{1} = encode_msgWOTS m{1} 
            /\ em{2} = encode_msgWOTS m{2} 
@@ -6353,30 +6020,30 @@ seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
                 nth witness sig{1} i 
                 =
                 if (BaseW.val em{1}.[i]) <> 0 
-                then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i)((BaseW.val em{1}.[i]) - 1) 1 (val (nth witness sk{1} i))
+                then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i)((BaseW.val em{1}.[i]) - 1) 1 (val (nth witness sk{1} i))
                 else nth witness sk{1} i)
            /\ (forall (i : int), 0 <= i < size pk{1} =>
                 nth witness pk{1} i 
                 =
-                cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i]) (w - 1 - BaseW.val em{1}.[i]) (val (nth witness sig{1} i)))
+                cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i]) (w - 1 - BaseW.val em{1}.[i]) (val (nth witness sig{1} i)))
            /\ (forall (i : int), 0 <= i && i < size sig{2} =>
                  nth witness sig{1} i = nth witness sig{2} i)).
     * wp => /=.
-      while{2} (   ={glob O_THFC_Default, ad, m, pk, em, O_MEUFGCMA_WOTSTWES.qs} 
-                /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_THFC_Default.pp{1} 
+      while{2} (   ={glob O_THFC_Default, ad, m, pk, em, O_MEUFGCMA_WOTSTWES_NPRF.qs} 
+                /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_THFC_Default.pp{1} 
                 /\ O_THFC_Default.pp{1} = O_THFC_Default.pp{2} 
                 /\ O_THFC_Default.pp{2} = O_SMDTTCR_Default.pp{2}
-                /\ size O_MEUFGCMA_WOTSTWES.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
+                /\ size O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = size R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2}
                 /\ unzip1 O_SMDTTCR_Default.ts{2} 
                    = 
-                   relcqsad_tcr O_MEUFGCMA_WOTSTWES.qs{1} 
+                   relcqsad_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} 
                    ++ relcqsad_tcr_outer ad{2} m{2} (size pk{2})
                    ++ relcqsad_tcr_inner (set_chidx ad{2} (size pk{2})) em_ele{2} j{2}
                 /\ unzip2 O_SMDTTCR_Default.ts{2} 
                    = 
-                   relcqsdg_tcr O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES.ps{1} 
-                   ++ relcqsdg_tcr_outer O_MEUFGCMA_WOTSTWES.ps{1} ad{2} m{2} (insubd sig{1}) xl{2} (size pk{2})
-                   ++ relcqsdg_tcr_inner O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{2} (size pk{2})) em_ele{2} sig_ele{2} x{2} j{2}
+                   relcqsdg_tcr O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{2} O_MEUFGCMA_WOTSTWES_NPRF.ps{1} 
+                   ++ relcqsdg_tcr_outer O_MEUFGCMA_WOTSTWES_NPRF.ps{1} ad{2} m{2} (insubd sig{1}) xl{2} (size pk{2})
+                   ++ relcqsdg_tcr_inner O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{2} (size pk{2})) em_ele{2} sig_ele{2} x{2} j{2}
                 /\ valid_wadrs ad{1} 
                 /\ em{1} = encode_msgWOTS m{1} 
                 /\ em{2} = encode_msgWOTS m{2} 
@@ -6392,12 +6059,12 @@ seq 1 1 : (    ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
                      nth witness sig{1} i 
                      =
                      if (BaseW.val em{1}.[i]) <> 0 
-                     then cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i)((BaseW.val em{1}.[i]) - 1) 1 (val (nth witness sk{1} i))
+                     then cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i)((BaseW.val em{1}.[i]) - 1) 1 (val (nth witness sk{1} i))
                      else nth witness sk{1} i)
                 /\ (forall (i : int), 0 <= i < size pk{1} =>
                       nth witness pk{1} i 
                       =
-                      cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i]) (w - 1 - BaseW.val em{1}.[i]) (val (nth witness sig{1} i)))  
+                      cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) (BaseW.val em{1}.[i]) (w - 1 - BaseW.val em{1}.[i]) (val (nth witness sig{1} i)))  
                 /\ (forall (i : int), 0 <= i && i < size sig{2} =>
                       nth witness sig{1} i = nth witness sig{2} i)
                 /\ em_ele{2} = BaseW.val em{2}.[size pk{2}]
@@ -6487,7 +6154,7 @@ seq 1 1 : (   #pre
            /\ ={m', sig'}
            /\ i{1} = i0{2}).
 + by call(: true); skip.
-case (0 <= i{1} < size O_MEUFGCMA_WOTSTWES.qs{1}); last first.
+case (0 <= i{1} < size O_MEUFGCMA_WOTSTWES_NPRF.qs{1}); last first.
 + conseq (: _ ==> true) => [/#| ]. 
   while{1} (true) (len - size pkWOTS0{1}); first by auto; smt(size_rcons).
   by wp; skip => |> /#.
@@ -6518,73 +6185,73 @@ split; first by smt(uniq_relcqsadtcr allP all_map).
 rewrite andbA; split; last by rewrite rcqsad &(disj_relcqsadtcr).
 pose i := find_chwcollidx _ _ _ _ _ _.
 pose j := find_collidx_l _ _ _ _ _ _.
-pose k := find_collidx_r ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1 i)
-           (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i])
+pose k := find_collidx_r ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1 i)
+           (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i])
            (BaseW.val (encode_msgWOTS m'{1}).[i])
-           (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`4) i))
+           (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`4) i))
            (val (nth witness (val sig'{1}) i)).
 have rng_i: 0 <= i < len by apply hchwcoll_findchrng.
-move/allP: (qsch) => qsch'; move: (qsch' ((nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1) _) => //.
-+ by rewrite mapP; exists (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}); rewrite mem_nth.
+move/allP: (qsch) => qsch'; move: (qsch' ((nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1) _) => //.
++ by rewrite mapP; exists (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}); rewrite mem_nth.
 move => adch_i0.
 have eq_cf : 
-  cf ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1 i)
-     (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i])
-     (w - 1 - BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i])
-     (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`4) i)) =
-  cf ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1 i)
+  cf ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1 i)
+     (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i])
+     (w - 1 - BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i])
+     (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`4) i)) =
+  cf ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1 i)
      (BaseW.val (encode_msgWOTS m'{1}).[i])
      (w - 1 - BaseW.val (encode_msgWOTS m'{1}).[i]) (val (nth witness (val sig'{1}) i)).
 + move: (pkpval i _); first by smt().
   rewrite /pkvals allP /= in pkvs.
-  move: (pkvs (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}) _); first by rewrite mem_nth => /#.
+  move: (pkvs (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}) _); first by rewrite mem_nth => /#.
   move/allP => /= h; move: (h i _); first by rewrite mem_range.
   by move => <-; rewrite -eqins_pk insubdK 1:/#.
 move/hchwcoll_hcoll /(_ _ _): (eq_cf) => // hcoll.
 move/hchwcoll_findlcollrng /(_ _ _): (eq_cf) => //; rewrite -/j -/i => rng_j.
 move/(nth_find witness): (hchwcoll); rewrite nth_range //= -/i; elim => ltem_emp neq_nthsig.
-have neq0_em: BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i] <> 0 by smt(BaseW.valP).
+have neq0_em: BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i] <> 0 by smt(BaseW.valP).
 have ->:
-  (nth witness O_SMDTTCR_Default.ts{1} (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))).`2
+  (nth witness O_SMDTTCR_Default.ts{1} (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))).`2
   =
-  nth witness (unzip2 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1)).
+  nth witness (unzip2 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1)).
 + rewrite (nth_map witness witness) //.
   rewrite (: size O_SMDTTCR_Default.ts{1} = size (unzip2 O_SMDTTCR_Default.ts{1})) 1:size_map //. 
   by rewrite rcqsdg qsdgtcridx_rng // neq0_em /#.
 have ->:
   nth witness (unzip2 O_SMDTTCR_Default.ts{1}) 
-              (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
+              (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
   =
-  val (extr_coll_l ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1 i)
-              (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i])
+  val (extr_coll_l ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1 i)
+              (BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i])
               (BaseW.val (encode_msgWOTS m'{1}).[i])
-              (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`4) i))
+              (val (nth witness (val (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`4) i))
               (val (nth witness (val sig'{1}) i))).
 + rewrite rcqsdg nth_relcqsdgtcr_qsdgtcridx // 1:/# neq0_em /= /extr_coll_l -/cf -/j /=. 
   rewrite (Ring.IntID.addrC j 1) /cf ch_comp 1:validwadrs_setchidx 3:valP //=; first 3 smt(BaseW.valP).
   congr; rewrite /sigvals allP /= in sigvs.
   move: (sigvs (nth (witness, witness) 
-               (zip O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1}) i0{1}) _). 
+               (zip O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1}) i0{1}) _). 
   - by rewrite mem_nth; smt(size_zip).
   move/allP => /= h; move: (h i _); first by rewrite mem_range.
   by rewrite ?nth_zip // neq0_em /= => ->.
 have ->: 
   (nth witness O_SMDTTCR_Default.ts{1}
-     (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))).`1
+     (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))).`1
   =
-  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1)).
+  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1)).
 + rewrite(nth_map witness witness) //.
   rewrite (: size O_SMDTTCR_Default.ts{1} = size (unzip2 O_SMDTTCR_Default.ts{1})) 1:size_map //. 
   by rewrite rcqsdg qsdgtcridx_rng // neq0_em /#.
 have {1}-> :
-  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
+  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
   = 
-  (set_hidx (set_chidx ((nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1) i) ((BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`2).[i]) + j)).
+  (set_hidx (set_chidx ((nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1) i) ((BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`2).[i]) + j)).
 + by rewrite rcqsad -eq_qsadtcridx_qsdgtcridx 3:nth_relcqsadtcr_qsadtcridx // neq0_em /= /#.
 have {1}->: 
-  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
+  nth witness (unzip1 O_SMDTTCR_Default.ts{1}) (qsdgtcr_idx O_MEUFGCMA_WOTSTWES_NPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))
   =
-  (set_hidx (set_chidx ((nth witness O_MEUFGCMA_WOTSTWES.qs{1} i0{1}).`1) i) ((BaseW.val (encode_msgWOTS m'{1}).[i]) + k)).
+  (set_hidx (set_chidx ((nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{1} i0{1}).`1) i) ((BaseW.val (encode_msgWOTS m'{1}).[i]) + k)).
 + by rewrite rcqsad -eq_qsadtcridx_qsdgtcridx 3:nth_relcqsadtcr_qsadtcridx // neq0_em /= /#.
 by apply collision_extraction.
 qed.
@@ -6599,40 +6266,40 @@ byequiv => //.
 transitivity Game4_WOTSTWES_Alt.main (={glob A} ==> ={res}) (={glob A} ==> res{1} => res{2}) => [/# | // | |].
 + by apply Game4_WOTSTWES_Orig_Alt.             
 proc; inline *.
-swap{2} 13 -11.
+swap{2} 12 -10.
 wp => /=.
-seq 9 12 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES.qs, ps}
+seq 7 11 : (   ={glob A, glob O_THFC_Default, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
             /\ pp{2} = ps{2}
-            /\ O_MEUFGCMA_WOTSTWES.ps{1} = ps{1}
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = ps{1}
             /\ O_THFC_Default.pp{1} = ps{1}
             /\ O_THFC_Default.pp{2} = ps{2}
             /\ O_SMDTPRE_Default.pp{2} = ps{2}
-            /\ O_MEUFGCMA_WOTSTWES.qs{1} = []
-            /\ O_MEUFGCMA_WOTSTWES.qs{2} = []
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{1} = []
+            /\ O_MEUFGCMA_WOTSTWES_NPRF.qs{2} = []
             /\ O_SMDTPRE_Default.ts{2} = []
             /\ O_THFC_Default.tws{1} = []
             /\ O_THFC_Default.tws{2} = []
             /\ R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2} = []).
 + by auto.
-seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
+seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES_NPRF.qs, ps}
            /\ pp{2} = ps{2}
-           /\ all (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => valid_wadrs admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1}
-           /\ unzip1 O_SMDTPRE_Default.ts{2} = relcqsad_pre O_MEUFGCMA_WOTSTWES.qs{1}
-           /\ unzip2 O_SMDTPRE_Default.ts{2} = relcqsdg_pre O_MEUFGCMA_WOTSTWES.qs{1}
+           /\ all (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => valid_wadrs admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+           /\ unzip1 O_SMDTPRE_Default.ts{2} = relcqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+           /\ unzip2 O_SMDTPRE_Default.ts{2} = relcqsdg_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
            /\ (uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) 
-                 O_MEUFGCMA_WOTSTWES.qs{1})
+                 O_MEUFGCMA_WOTSTWES_NPRF.qs{1})
                => 
                disj_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) 
-                 O_MEUFGCMA_WOTSTWES.qs{1}) O_THFC_Default.tws{1} 
+                 O_MEUFGCMA_WOTSTWES_NPRF.qs{1}) O_THFC_Default.tws{1} 
                => 
                disj_lists (unzip1 O_SMDTPRE_Default.ts{2}) O_THFC_Default.tws{2})).
-+ call (:   ={O_MEUFGCMA_WOTSTWES.qs, O_THFC_Default.pp}
-         /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_SMDTPRE_Default.pp{2}
++ call (:   ={O_MEUFGCMA_WOTSTWES_NPRF.qs, O_THFC_Default.pp}
+         /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_SMDTPRE_Default.pp{2}
          /\ O_THFC_Default.pp{1} = O_SMDTPRE_Default.pp{2}
-         /\ all (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => valid_wadrs admpksig.`1) O_MEUFGCMA_WOTSTWES.qs{1}
-         /\ unzip1 O_SMDTPRE_Default.ts{2} = relcqsad_pre O_MEUFGCMA_WOTSTWES.qs{1}
-         /\ unzip2 O_SMDTPRE_Default.ts{2} = relcqsdg_pre O_MEUFGCMA_WOTSTWES.qs{1}
-         /\ R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2} = reltqsad_pre O_MEUFGCMA_WOTSTWES.qs{1}
+         /\ all (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => valid_wadrs admpksig.`1) O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+         /\ unzip1 O_SMDTPRE_Default.ts{2} = relcqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+         /\ unzip2 O_SMDTPRE_Default.ts{2} = relcqsdg_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
+         /\ R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2} = reltqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1}
          /\ (forall ad, ad \in O_THFC_Default.tws{2} => 
                ad \in O_THFC_Default.tws{1} \/ ad \in R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2})); last first.
   - skip => |> _ _ _ tws qs ts tws' qsch rcqsad rcqsdg twspmem uqpfqs /hasPn djpfqs.
@@ -6655,7 +6322,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                     let sig_ele = nth witness sig{1} i in
                     nth witness pk{1} i
                     =
-                    cf O_MEUFGCMA_WOTSTWES.ps{1} (set_chidx ad{1} i) 
+                    cf O_MEUFGCMA_WOTSTWES_NPRF.ps{1} (set_chidx ad{1} i) 
                       em_ele (w - 1 - em_ele) (val sig_ele)))
              (len - size pk{1}).
     * move=> _ z.
@@ -6668,17 +6335,17 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
            /\ valid_wadrs ad{2} 
            /\ em{1} = encode_msgWOTS m{1}
            /\ em{2} = encode_msgWOTS m{2}
-           /\ O_MEUFGCMA_WOTSTWES.ps{1} = O_SMDTPRE_Default.pp{2}
+           /\ O_MEUFGCMA_WOTSTWES_NPRF.ps{1} = O_SMDTPRE_Default.pp{2}
            /\ O_THFC_Default.pp{1} = O_SMDTPRE_Default.pp{2}
            /\ unzip1 O_SMDTPRE_Default.ts{2} 
               = 
-              relcqsad_pre O_MEUFGCMA_WOTSTWES.qs{1} ++ relcqsad_pre_outer ad{2} m{2} (size pk{2})
+              relcqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1} ++ relcqsad_pre_outer ad{2} m{2} (size pk{2})
            /\ unzip2 O_SMDTPRE_Default.ts{2} 
               = 
-              relcqsdg_pre O_MEUFGCMA_WOTSTWES.qs{1} ++ relcqsdg_pre_outer m{2} sig{2} (size pk{2})
+              relcqsdg_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1} ++ relcqsdg_pre_outer m{2} sig{2} (size pk{2})
            /\ R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2}
               =
-              reltqsad_pre O_MEUFGCMA_WOTSTWES.qs{1} ++ reltqsad_pre_outer ad{2} m{2} (size pk{2})
+              reltqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1} ++ reltqsad_pre_outer ad{2} m{2} (size pk{2})
            /\ size sig{1} = size pk{2}
            /\ (forall (ad : adrs), ad \in O_THFC_Default.tws{2} =>
                 ad \in O_THFC_Default.tws{1} \/
@@ -6701,7 +6368,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                 /\ em_ele{2} = BaseW.val em{2}.[size pk{2}]
                 /\ R_SMDTPREC_Game4WOTSTWES.O_R_SMDTPREC_Game4WOTSTWES.adl{2}
                    =
-                   reltqsad_pre O_MEUFGCMA_WOTSTWES.qs{1} 
+                   reltqsad_pre O_MEUFGCMA_WOTSTWES_NPRF.qs{1} 
                    ++ reltqsad_pre_outer ad{2} m{2} (size pk{2})
                    ++ reltqsad_pre_inner (set_chidx ad{2} (size pk{2})) em_ele{2} j{2}
                 /\ size sig{1} = size pk{2}
@@ -6796,7 +6463,7 @@ split => [/# | /lezNgt gelen_szq3 ge1_szqs led_szqs ge0_i0 ltszqs_i0 eqins_pkp n
 split; first by smt(size_map relcqsadpre_rng ge2_len). 
 split; first by rewrite rcqsad uniq_relcqsadpre 1:all_map.
 split => [| /#].
-pose q := nth witness O_MEUFGCMA_WOTSTWES.qs{2} i0{2}; rewrite eq_sym in neqq2_mp.
+pose q := nth witness O_MEUFGCMA_WOTSTWES_NPRF.qs{2} i0{2}; rewrite eq_sym in neqq2_mp.
 move/(nhchwcoll_hchwpre ps{2} q.`1 _ _ q.`4 sig'{2}) /(_ _): (neqq2_mp) => //.
 move=> hchwpre; rewrite eq_sym; pose qsdgidx := qsdgpre_idx _ _ _.
 rewrite -(nth_map witness witness snd qsdgidx O_SMDTPRE_Default.ts{2}).
@@ -6820,10 +6487,12 @@ rewrite -/q -/fchw nth_relcqsadpre_qsadpreidx 2,4:/# //.
 by apply hchwpre_findprerng.
 qed.
 
-  
-(* Penultimate lemma comprising complete security proof without initial (PRF-reduction) step *)
-lemma MEUFGCMA_WOTSTWES_NOPRF &m :
-     Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res] 
+(* 
+  Final result: Bound M_EUF_GCMA of WOTS-TW in an encompassing structure (without PRF) with
+  properties of tweakable hash function used in the chains.
+*)
+lemma MEUFGCMA_WOTSTWES_NPRF &m :
+     Pr[M_EUF_GCMA_WOTSTWES_NPRF(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res] 
   <=    (w - 2)%r
         * `|Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(false) @ &m : res]
             - Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(true) @ &m : res]| 
@@ -6836,11 +6505,12 @@ have ^ -> ->:
     = 
     Pr[SM_DT_UD_C(R_SMDTUDC_DistRCH, O_SMDTUD_Default, O_THFC_Default).main(b) @ &m: res].
 + by move=> b; byequiv=> //; sim.
+rewrite EqPr_MEUFGCMA_WOTSTWES_NPRF_Inlined.
 have ->:
-  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]
+  Pr[M_EUF_GCMA_WOTSTWES_NPRF(A, O_MEUFGCMA_WOTSTWES_NPRF_Inlined, O_THFC_Default).main() @ &m : res]
   =
   Pr[Game2_WOTSTWES.main() @ &m : res].
-+ by byequiv MEUFGCMA_WOTSTWES_NOPRF_Game2_WOTSTWES. 
++ by byequiv MEUFGCMA_WOTSTWES_NPRF_Inlined_Game2_WOTSTWES. 
 have ->:
   Pr[Game2_WOTSTWES.main() @ &m : res]
   =
@@ -6866,55 +6536,4 @@ rewrite ler_add 1:ler_add.
 by apply Step_Game4_WOTSTWES_SMDTPREC.
 qed.
 
-  
-(*
-  Penultimate lemma comprising complete security proof without initial (PRF-reduction) step, 
-  using alternative definition of the relevant oracle (in the original game) 
-*)
-lemma MEUFGCMA_WOTSTWES_NPRF &m :
-     Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NPRF, O_THFC_Default).main() @ &m : res] 
-  <=    (w - 2)%r
-        * `|Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(false) @ &m : res]
-            - Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(true) @ &m : res]| 
-     + Pr[SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(A), O_SMDTTCR_Default, O_THFC_Default).main() @ &m : res] 
-     + Pr[SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(A), O_SMDTPRE_Default, O_THFC_Default).main() @ &m : res].
-proof. by rewrite -EqPr_MEUFGCMA_WOTSTWES_NOPRF_NPRF MEUFGCMA_WOTSTWES_NOPRF. qed.
-
-(* Security theorem: Combine previous steps to derive security theorem *)
-lemma MEUFGCMA_WOTSTWES &m :
-    Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES, O_THFC_Default).main() @ &m : res] 
-    <=
-  `|Pr[PRF(R_PRF_Game0NOPRFWOTSTWES(A), O_PRF_Default).main(false) @ &m : res] - 
-    Pr[PRF(R_PRF_Game0NOPRFWOTSTWES(A), O_PRF_Default).main(true) @ &m : res]|
-    +
-   (w - 2)%r * 
-  `|Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(false) @ &m : res] - 
-    Pr[SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(A), O_SMDTUD_Default, O_THFC_Default).main(true) @ &m : res]| 
-    +
-    Pr[SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(A), O_SMDTTCR_Default, O_THFC_Default).main() @ &m : res] 
-    +
-    Pr[SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(A), O_SMDTPRE_Default, O_THFC_Default).main() @ &m : res].
-proof.
-move: (MEUFGCMA_WOTSTWES_NOPRF &m) => thm_nprf.
-have ->:
-  Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES, O_THFC_Default).main() @ &m : res] 
-  = 
-  Pr[Game0_WOTSTWES.main() @ &m : res].
-+ by byequiv MEUFGCMA_Game0_WOTSTWES.
-have ->:
-  Pr[Game0_WOTSTWES.main() @ &m : res]
-  =
-  `|Pr[Game0_WOTSTWES.main() @ &m : res] - 
-    Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res] + 
-    Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]|.
-+ by smt(ge0_mu).
-apply (ler_trans (  `|Pr[Game0_WOTSTWES.main() @ &m : res] -
-                      Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]|
-                  +   Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res])).
-+ rewrite -{4}(ger0_norm Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]). 
-  - by rewrite Pr[mu_ge0].
-  by apply ler_norm_add.
-by rewrite -2!addrA ler_add 1:Step_Game0_MEUFGCMA_WOTSTWES_NOPRF_PRF // addrA.
-qed.
-
-end section Proof_M_EUF_GCMA_WOTSTWES.
+end section Proof_M_EUF_GCMA_WOTSTWES_NPRF.

@@ -8,16 +8,21 @@ require import AllCore List Distr DList StdOrder StdBigop IntDiv RealExp FinType
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
 require (*--*) DigitalSignatures.
-require (*--*) WOTS_TW.
+require (*--*) WOTS_TW_ES.
 
 
 (* - Parameters - *)
+(* -- General -- *)
+(* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
+const adrs_len : { int | 6 <= adrs_len} as ge6_adrslen.
+
 (* 
   Length (in bytes) of messages as well as the length of elements of 
   private keys, public keys, and signatures
 *)
 const n : { int | 1 <= n } as ge1_n.
 
+(* -- WOTS-TW -- *)
 (* Base 2 logarithm of the Winternitz parameter w *)
 const log2_w : { int | log2_w = 2 \/ log2_w = 4 \/ log2_w = 8 } as val_log2w.
 
@@ -33,18 +38,19 @@ const len2 : int = floor (log2 ((len1 * (w - 1))%r) / log2 w%r) + 1.
 (* Number of elements (of length n) in private keys, public keys, and signatures *)
 const len : int = len1 + len2.
 
-(* Height of a single (XMSS) binary hash tree *)
-const h' : { int | 1 <= h' } as ge1_hp. 
 
-(* Number of WOTS-TW instances of a single (XMSS) binary hash tree (i.e., number of leaves) *)
+(* FL-XMSS(-MT)-TW *)
+(* Height of a single inner (XMSS) tree  *)
+const h' : { int | 0 <= h' } as ge0_hp. 
+
+(* Number of WOTS-TW instances of a single inner (XMSS) tree (i.e., number of leaves) *)
 const l' = 2 ^ h'.
 
 (* Number of layers in the hypertree (i.e., height of tree of XMSS trees) *)
 const d : { int | 1 <= d } as ge1_d.
 
 (* 
-  Height of "flattened" hypertree 
-  (i.e., total height of concatenation of inner trees) 
+  Height of "flattened" hypertree (i.e., total height of concatenation of inner trees) 
 *)
 const h : int = h' * d.
 
@@ -71,28 +77,79 @@ const trhtype : int.
 (* The different address types are distinct *)
 axiom dist_adrstypes : chtype <> pkcotype /\ chtype <> trhtype /\ pkcotype <> trhtype.
 
-(* l' is greater than or equal to 2 *)
-lemma ge2_lp : 2 <= l'.
-proof. by rewrite /l' ler_eexpr; smt(ge1_hp). qed.
+(* l' is greater than or equal to 1 *)
+lemma ge1_lp : 1 <= l'.
+proof. by rewrite /l' -add0r -ltzE expr_gt0. qed.
 
-(* h is greater than or equal to 1 *)
-lemma ge1_h : 1 <= h.
-proof. by rewrite /h mulr_ege1 1:ge1_hp ge1_d. qed.
+(* h is greater than or equal to 0 *)
+lemma ge0_h : 0 <= h.
+proof. by rewrite /h mulr_ge0 1:ge0_hp; smt(ge1_d). qed.
 
-(* l is greater than or equal to 2 *)
-lemma ge2_l : 2 <= l.
-proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
+(* l is greater than or equal to 1 *)
+lemma ge2_l : 1 <= l.
+proof.  by rewrite /l -add0r -ltzE expr_gt0. qed.
 
 
 
-(* - Types - *)
+(* - Types (1/3) - *)
+(* -- General -- *)
+(* Index *)
+clone import Subtype as Index with
+  type T <- int,
+    op P i <- 0 <= i < l
+    
+  proof *.
+  realize inhabited by exists 0; smt(ge2_l).
+
+type index = Index.sT.
+
+(* Secret seeds *)
 type sseed.
 
+(* Public seeds *)
 type pseed.
 
+(* Digests, i.e., outputs of (tweakable) hash functions. *)
 type dgst = bool list.
 
-(* - Operators - *)
+(* Digests with length 1 (block of 8 * n bits) *)
+clone import Subtype as DigestBlock with
+  type T   <= dgst,
+    op P x <= size x = 8 * n
+    
+  proof *.
+  realize inhabited by exists (nseq (8 * n) witness); smt(size_nseq ge1_n).
+  
+type dgstblock = DigestBlock.sT.
+
+(* Finiteness of dgstblock *)
+clone import FinType as DigestBlockFT with
+  type t <= dgstblock,
+  
+    op enum <= map DigestBlock.insubd (map (int2bs (8 * n)) (range 0 (2 ^ (8 * n))))
+    
+  proof *.
+  realize enum_spec.
+    move=> m; rewrite count_uniq_mem 1:map_inj_in_uniq => [x y | |].
+    + rewrite 2!mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) i)) 1:size_int2bs; 1: smt(ge1_n).
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) j)) 1:size_int2bs; 1: smt(ge1_n). 
+      by rewrite eqins. 
+    + rewrite map_inj_in_uniq => [x y /mem_range rng_x /mem_range rng_y|].
+      rewrite -{2}(int2bsK (8 * n) x) 3:-{2}(int2bsK (8 * n) y) //; 1,2: smt(ge1_n).
+      by move=> ->. 
+    + by rewrite range_uniq.
+    rewrite -b2i1; congr; rewrite eqT mapP. 
+    exists (DigestBlock.val m).
+    rewrite DigestBlock.valKd mapP /=. 
+    exists (bs2int (DigestBlock.val m)).
+    rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
+    by rewrite bs2intK bs2int_le2Xs.
+  qed.
+
+
+
+(* - Operators (1/2) - *)
 (* -- Auxiliary -- *)
 (* Number of nodes in a (XMSS) binary tree (of total height h') at a particular height h'' *)
 op nr_nodes (h'' : int) = 2 ^ (h' - h'').
@@ -121,9 +178,9 @@ lemma nrnodesht_h (d' h'' : int) :
 proof.
 move=> gtdp_d dehpp_hp.
 rewrite /nr_nodes_ht /nr_trees /nr_nodes /h -exprD_nneg; 2: smt().
-+ by rewrite mulr_ge0; smt(ge1_hp).
++ by rewrite mulr_ge0 1:ge0_hp /#.
 by congr; ring.
-qed. 
+qed.
 
 (* 
   Number of nodes in "flattened" hypertree at a particular layer d' 
@@ -134,7 +191,7 @@ lemma nrnodesht_nrtrees (d' : int) :
   => nr_nodes_ht d' 0 = nr_trees (d' - 1).
 proof.
 move => -[gt0_dp ltd_dp]. 
-rewrite /nr_trees nrnodesht_h //= /h; 1: smt(ge1_hp). 
+rewrite /nr_trees nrnodesht_h //= /h 1:ge0_hp. 
 by congr; ring.
 qed.
 
@@ -163,9 +220,11 @@ op valid_lidx (lidx : int) : bool =
 op valid_tidx (lidx tidx : int) : bool = 
   0 <= tidx < nr_trees lidx.
 
+(*
 (* Type index validity check *)
 op valid_typeidx (typeidx : int) : bool =
   typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhtype.
+*)
 
 (* Key pair index validity check (note: regards inner tree) *)
 op valid_kpidx (kpidx : int) : bool =
@@ -217,13 +276,6 @@ op valid_xidxvalslptrh (adidxs : int list) : bool =
 (* Local address indices validity check *)
 op valid_xidxvalslp (adidxs : int list) : bool =
   valid_xidxvalslpch adidxs \/ valid_xidxvalslppkco adidxs \/ valid_xidxvalslptrh adidxs.
-
-
-
-(* - Fixed-Length XMSS-MT-TW in an encompassing structure - *)
-theory ES.
-(* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
-const adrs_len : { int | 6 <= adrs_len} as ge6_adrslen.
 
 (* 
   Validity check for the values of the list of integers corresonding to addresses used in
@@ -288,7 +340,16 @@ qed.
 
 
 
-(* - Types (1/3) - *)
+(* - Distributions (1/2) - *)
+(* Proper distribution over public seeds *)
+op [lossless] dpseed : pseed distr.
+
+(* Proper distribution over (single) digestblocks  *)
+op [lossless] ddgstblock : dgstblock distr.
+
+
+
+(* - Types (2/3) - *)
 (* 
   Addresses used in encompassing structure (complete set, including FL-XMSS-MT-TW addresses)
 *)
@@ -305,15 +366,19 @@ import Adrs.
 
 type adrs = HA.adrs.
 
+
+
 (* - Clones and imports - *)
-(* WOTS-TW *)
-clone import WOTS_TW as WTW with
+(* WOTS-TW-ES *)
+clone import WOTS_TW_ES as WTWES with
   type sseed <- sseed,
   type pseed <- pseed,
     op adrs_len <- adrs_len,
     op n <- n,
     op log2_w <- log2_w,
     op w <- w,
+    op len1 <- len1,
+    op len2 <- len2,
     op len <- len,
     op c <- bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d,
 
@@ -327,21 +392,26 @@ clone import WOTS_TW as WTW with
                                      /\ valid_lidx (nth witness adidxswgp 3)
                                      /\ valid_xidxvalsgp (drop 4 adidxswgp),
 
-  theory HA <= HA,
+    op dpseed <- dpseed,
+    op ddgstblock <- ddgstblock,
+    
+  theory DigestBlock <- DigestBlock,
+  theory DigestBlockFT <- DigestBlockFT,
+  theory HA <- HA
   
-  type adrs <- adrs
-  
-  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, valid_widxvals_idxvals.
+  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, dpseed_ll, ddgstblock_ll, valid_widxvals_idxvals.
   realize ge2_adrslen by smt(ge6_adrslen).
   realize ge1_n by exact: ge1_n.
   realize val_log2w by exact: val_log2w.
   realize ge1_c.
     rewrite (: d = d - 1 + 1) // big_int_recr /= 2:ler_paddl; 1: smt(ge1_d).
     + rewrite sumr_ge0_seq => d' /mem_range [ge0_dp ltd_dp] _ /=. 
-      by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge1_h).   
-    rewrite nrnodesht_h; 1,2: smt(ge1_hp ge1_d).
+      by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge0_h).   
+    rewrite nrnodesht_h; 1,2: smt(ge0_hp ge1_d).
     by rewrite -add0r -ltzE expr_gt0.
   qed.
+  realize dpseed_ll by exact: dpseed_ll. 
+  realize ddgstblock_ll by exact: ddgstblock_ll.
   realize valid_widxvals_idxvals.
     rewrite /(<=) => adidxs valwadidxs; apply valid_xidxvals_idxvals.
     move: valwadidxs => @/valid_widxvals @/valid_widxvalsgp @/valid_widxvalslp.
@@ -349,20 +419,22 @@ clone import WOTS_TW as WTW with
     by rewrite drop_drop //= ?nth_drop //= ?nth_take //= /#.
   qed.
     
-import DigestBlock DBLL WAddress EmsgWOTS.
+import DBLL WAddress EmsgWOTS.
 
 
 
-(* - Types (2/3) - *)
-(* Integers between 0 (including) and l (including), used for the signing index *)
-clone import Subtype as Index with
-  type T <= int,
-    op P <= fun (i : int), 0 <= i < l
-    
-  proof *.
-  realize inhabited by exists 0; smt(ge2_l).
-  
-type index = Index.sT.
+(* - Types (3/3) - *)
+(* -- FL-XMSS(-MT)-TW specific -- *)
+(* Public keys *)
+type pkFLXMSSMT = dgstblock.
+type pkFLXMSSMTTW = pkFLXMSSMT * pseed * adrs.
+
+(* Secret keys *)
+type skFLXMSSMTTW = index * sseed * pseed * adrs.
+
+(* Messages *)
+type msgFLXMSSMT = msgWOTS.
+type msgFLXMSSMTTW = msgFLXMSSMT.
 
 (* Lists of length h' of which the entries are digest of length 1 (block of 8 * n bits) *)
 clone import Subtype as DBHPL with
@@ -370,46 +442,39 @@ clone import Subtype as DBHPL with
     op P ls <= size ls = h'
     
   proof *.
-  realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge1_hp).
+  realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge0_hp).
       
-(* 
-  Authentication paths in (single) FL-XMSS-TW tree.
-  I.e., authentication paths in single inner tree of FL-XMSS-MT-TW hypertree.
-*)
-type apFLXMSSTW = DBHPL.sT.
-
-(* Public keys *)
-type pkFLXMSSMTTW = dgstblock * pseed * adrs.
-
-(* Secret keys *)
-type skFLXMSSMTTW = index * sseed * pseed * adrs.
-
-(* Messages *)
-type msgFLXMSSMTTW = msgWOTS.
+(* Authentication paths in inner (XMSS) tree *)
+type apFLXMSS = DBHPL.sT.
+type apFLXMSSTW = apFLXMSS.
 
 (* 
   Lists of length d of which the entries are sigWOTS/authentication path pairs 
-  (i.e., FL-XMSS-TW signatures) 
+  (i.e., FL-XMSS signatures) 
 *)
 clone import Subtype as SAPDL with
-  type T <= (sigWOTS * apFLXMSSTW) list,
+  type T <= (sigWOTS * apFLXMSS) list,
     op P ls <= size ls = d
     
   proof *.
   realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
 
-type sigFLXMSSTWDL = SAPDL.sT.
+type sigFLXMSSDL = SAPDL.sT.
+type sigFLXMSSTWDL = sigFLXMSSDL.
 
 (* Signatures *)
-type sigFLXMSSMTTW = index * sigFLXMSSTWDL.
+type sigFLXMSSMT = index * sigFLXMSSDL.
+type sigFLXMSSMTTW = sigFLXMSSMT.
 
 
 
-(* - Distributions - *)
-(* Proper distribution over messages considered for FL-XMSS-MT-TW *)
-op [lossless] dmsgFLXMSSMTTW : msgFLXMSSMTTW distr.
+(* - Distributions (2/2) - *)
+(* Proper distribution over messages considered for FL-XMSS-MT *)
+op [lossless] dmsgFLXMSSMT : msgFLXMSSMT distr.
+op dmsgFLXMSSMTTW : msgFLXMSSMTTW distr = dmsgFLXMSSMT.
 
-(* 
+(*
+(*
   Proper distribution over (full) secret keys of FL-XMSS, 
   i.e., a list of length l' containing (full) WOTS secret keys.
 *)
@@ -418,10 +483,11 @@ op dskWOTSlp : skWOTS list distr = dlist dskWOTS l'.
 (* Properness of distribution over full FL-XMSS secret keyes*)
 lemma dskWOTSlp_ll : is_lossless dskWOTSlp.
 proof. by rewrite dlist_ll dskWOTS_ll. qed.
+*)
 
 
 
-(* - Operators - *)
+(* - Operators (2/2) - *)
 (* - Validity/type checks for (indices corresponding to) XMSS-TW addresses - *)
 op valid_xidxchvals (adidxs : int list) : bool =
   valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslpch (take 6 adidxs).
@@ -491,7 +557,6 @@ op set_thtbidx (ad : adrs) (i j : int) : adrs =
   insubd (put (put (val ad) 0 j) 1 i).
 
 
-
 (* -- Tweakable hash functions -- *)
 (* 
   Tweakable hash function used for the compression of public (WOTS-TW) keys to leaves
@@ -530,8 +595,8 @@ clone PKCOC.SMDTTCRC as PKCOC_TCR with
   realize ge0_tsmdttcr.
   rewrite (: d = d - 1 + 1) // big_int_recr /= 2:ler_paddl; 1: smt(ge1_d).
   + rewrite sumr_ge0_seq => d' /mem_range [ge0_dp ltd_dp] _ /=. 
-    by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge1_h).     
-  by rewrite nrnodesht_h 3:expr_ge0; 1,2: smt(ge1_hp ge1_d).
+    by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge0_h).     
+  by rewrite nrnodesht_h 3:expr_ge0; 1,2: smt(ge0_hp ge1_d).
   qed.
   
 (* 
@@ -623,13 +688,19 @@ op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (a
   an authentication path w.r.t. a certain public seed, address, (initial) height index, and 
   (initial) breadth index
 *)   
-op extract_coll_bt_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (ap : dgstblock list) (bs : bool list) (leaf : dgstblock) (hidx bidx : int) =
+op extract_coll_bt_ap_trh (ps : pseed) 
+                          (ad : adrs) 
+                          (bt : dgstblock bintree) 
+                          (ap : dgstblock list) 
+                          (bs : bool list) 
+                          (leaf : dgstblock) 
+                          (hidx bidx : int) =
    extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
 
 
 
 (* - Specifications - *)
-(* Fixed-Length FL-XMSS-MT-TW in Encompassing Structure *)
+(* Fixed-Length XMSS-MT-TW in Encompassing Structure *)
 module FL_XMSS_MT_TW_ES = {
   (* Compute list of (inner tree) leaves from a secret seed, public seed, and address *) 
   proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
@@ -764,7 +835,6 @@ module FL_XMSS_MT_TW_ES = {
   }
 }.
 
-
 (* Fixed-Length FL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
 module FL_XMSS_MT_TW_ES_NPRF = {
   (* Compute list of (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
@@ -793,9 +863,11 @@ module FL_XMSS_MT_TW_ES_NPRF = {
   
   proc keygen(ps : pseed, ad : adrs) : pkFLXMSSMTTW * (index * skWOTS list list list * pseed * adrs) = {
     var root : dgstblock;
-    var skWOTSlp : skWOTS list;
-    var skWOTSlb : skWOTS list list;
-    var skWOTSld : skWOTS list list list;
+    var skWOTS_ele : dgstblock;
+    var skWOTS : dgstblock list;
+    var skWOTSit : skWOTS list;
+    var skWOTSsl : skWOTS list list;
+    var skWOTSal : skWOTS list list list;
     var leaves : dgstblock list;
     var pk : pkFLXMSSMTTW;
     var sk : (index * skWOTS list list list * pseed * adrs);
@@ -803,34 +875,45 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     (*
       For each layer in the hypertree (starting from layer 0, i.e., the bottom layer),
       sample the secret key for each inner tree in that layer (starting from the left-most inner tree).
-      The result is the full secret key of the hypertree, which is stored in skWOTSld.
+      The result is the full secret key of the hypertree (skWOTSlal).
       This secret key is a list that contains a single list for each of the layers in the hypertree, starting with
       a list for the bottom layer and ending with a list of the top layer.
       In turn, a list for a layer contains the secret keys for each of the inner trees in that layer, starting
       with the secret key for the left-most inner tree and ending with the secret key for the right-most inner tree.
-      Lastly, each secret key of an inner tree is a list of length l' containing WOTS-TW secret keys corresponding
-      to the leaves of that inner tree, from left to right.    
+      Then, each secret key of an inner tree is a list of length l' containing WOTS-TW secret keys
+      corresponding to the leaves of that inner tree, from left to right.
+      Finally, each WOTS-TW secret key is a list of length len of dgstblock elements.
+      Nested while-loop construction (instead of using, e.g., dlist) in order to ease PRF proof step.   
     *)
-    skWOTSld <- [];
-    while (size skWOTSld < d) {
-      skWOTSlb <- [];
-      while (size skWOTSlb < nr_trees (size skWOTSld)) {
-        (* Sample list of length l' containing WOTS-TW secret keys, i.e., sample secret key of single inner tree *)
-        skWOTSlp <$ dskWOTSlp;
+    skWOTSal <- [];
+    while (size skWOTSal < d) {
+      skWOTSsl <- [];
+      while (size skWOTSsl < nr_trees (size skWOTSal)) {
+        skWOTSit <- [];
+        while (size skWOTSit < l) {
+          skWOTS <- [];
+          while (size skWOTS < len) {
+            skWOTS_ele <$ ddgstblock;
+            skWOTS <- rcons skWOTS skWOTS_ele;  
+          }
+          
+          (* Add WOTS-TW secret key to list of secret keys of this inner tree *)
+          skWOTSit <- rcons skWOTSit (DBLL.insubd skWOTS);
+        }
         
-        (* Add secret key of inner tree to list of secret keys for inner trees in this layer *)
-        skWOTSlb <- rcons skWOTSlb skWOTSlp;
+        (* Add secret key of inner tree to list of secret keys in this layer *)
+        skWOTSsl <- rcons skWOTSsl skWOTSit;
       }
-      
-      skWOTSld <- rcons skWOTSld skWOTSlb; 
+      (* Add secret key of layer to list of secret keys for all layers *)
+      skWOTSal <- rcons skWOTSal skWOTSsl; 
     }
 
     (* 
       Extract secret key of the top-most inner tree in the hyper tree 
       and compute the corresponding leaves.
     *)
-    skWOTSlp <- nth witness (nth witness skWOTSld (d - 1)) 0;
-    leaves <@ leaves_from_sklpsad(skWOTSlp, ps, set_tidx (set_lidx ad (d - 1)) 0);
+    skWOTSit <- nth witness (nth witness skWOTSal (d - 1)) 0;
+    leaves <@ leaves_from_sklpsad(skWOTSit, ps, set_tidx (set_lidx ad (d - 1)) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
@@ -839,7 +922,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     root <- val_bt_trh ps (set_typeidx (set_tidx (set_lidx ad (d - 1)) 0) trhtype) (list2tree leaves) h' 0;
     
     pk <- (root, ps, ad);
-    sk <- (insubd 0, skWOTSld, ps, ad);
+    sk <- (insubd 0, skWOTSal, ps, ad);
     
     return (pk, sk); 
   }
@@ -995,7 +1078,7 @@ module EUF_NACMA_FLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) = {
 
 
 (* -- Reduction adversaries -- *)
-module (R_MEUFGCMAWOTSTWES_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWES) (O : Oracle_MEUFGCMA_WOTSTWES, OC : Oracle_THFC) = {
+module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWES_NPRF) (O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
   proc choose() : unit = {
   
   }
@@ -1029,13 +1112,13 @@ module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : TRHC_TCR.Ad
 
 section Proof_EUF_NACMA_FL_XMSS_MT_TW_ES_NPRF.
 
-declare module A <: Adv_EUFNACMA_FLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWES, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWES_EUFNACMA, -R_SMDTTCRCPKCO_EUFNACMA, -R_SMDTTCRCTRH_EUFNACMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
+declare module A <: Adv_EUFNACMA_FLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWES_NPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNACMA, -R_SMDTTCRCPKCO_EUFNACMA, -R_SMDTTCRCTRH_EUFNACMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
 
 
 local lemma EUFNACMA_FLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
   Pr[EUF_NACMA_FLXMSSMTTWESNPRF(A).main() @ &m : res]
   <=
-  Pr[M_EUF_GCMA_WOTSTWES(R_MEUFGCMAWOTSTWES_EUFNACMA(A), O_MEUFGCMA_WOTSTWES_NPRF, FC.O_THFC_Default).main() @ &m : res]
+  Pr[M_EUF_GCMA_WOTSTWES_NPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A), O_MEUFGCMA_WOTSTWES_NPRF, FC.O_THFC_Default).main() @ &m : res]
   +
   Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNACMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
@@ -1047,23 +1130,21 @@ lemma EUFNACMA_FLXMSSMTTWESNPRF &m :
   Pr[EUF_NACMA_FLXMSSMTTWESNPRF(A).main() @ &m : res]
   <=
   (w - 2)%r
-    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWES_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
-        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWES_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
+    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
+        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
   + 
-  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWES_EUFNACMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
+  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
   + 
-  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWES_EUFNACMA(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
   +
   Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNACMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNACMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
-move: (MEUFGCMA_WOTSTWES_NPRF (R_MEUFGCMAWOTSTWES_EUFNACMA(A)) _ _ &m) 
+move: (MEUFGCMA_WOTSTWES_NPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)) _ _ &m) 
       (EUFNACMA_FLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
 + admit. 
 admit. 
 qed.
 
 end section Proof_EUF_NACMA_FL_XMSS_MT_TW_ES_NPRF.
-
-end ES.

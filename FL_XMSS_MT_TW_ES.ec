@@ -152,7 +152,7 @@ clone import FinType as DigestBlockFT with
 
 
 
-(* - Operators (1/2) - *)
+(* - Operators (1/3) - *)
 (* -- Auxiliary -- *)
 (* Number of nodes in a (XMSS) binary tree (of total height h') at a particular height h'' *)
 op nr_nodes (h'' : int) = 2 ^ (h' - h'').
@@ -370,197 +370,14 @@ import Adrs.
 type adrs = HA.adrs.
 
 
-
-(* - Clones and imports - *)
-(* WOTS-TW-ES *)
-clone import WOTS_TW_ES as WTWES with
-  type sseed <- sseed,
-  type pseed <- pseed,
-    op adrs_len <- adrs_len,
-    op n <- n,
-    op log2_w <- log2_w,
-    op w <- w,
-    op len1 <- len1,
-    op len2 <- len2,
-    op len <- len,
-    op c <- bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d,
-
-    op valid_chidx <- valid_chidx,
-    op valid_hidx <- valid_hidx,
-    op valid_idxvals <- valid_idxvals,
-    op valid_adrsidxs <- valid_adrsidxs,
-    op valid_widxvalsgp adidxswgp <=    valid_kpidx (nth witness adidxswgp 0) 
-                                     /\ nth witness adidxswgp 1 = chtype
-                                     /\ valid_tidx (nth witness adidxswgp 3) (nth witness adidxswgp 2) 
-                                     /\ valid_lidx (nth witness adidxswgp 3)
-                                     /\ valid_xidxvalsgp (drop 4 adidxswgp),
-
-    op dpseed <- dpseed,
-    op ddgstblock <- ddgstblock,
-    
-  theory DigestBlock <- DigestBlock,
-  theory DigestBlockFT <- DigestBlockFT,
-  theory HA <- HA
-  
-  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, dpseed_ll, ddgstblock_ll, valid_widxvals_idxvals.
-  realize ge2_adrslen by smt(ge6_adrslen).
-  realize ge1_n by exact: ge1_n.
-  realize val_log2w by exact: val_log2w.
-  realize ge1_c.
-    rewrite (: d = d - 1 + 1) // big_int_recr /= 2:ler_paddl; 1: smt(ge1_d).
-    + rewrite sumr_ge0_seq => d' /mem_range [ge0_dp ltd_dp] _ /=. 
-      by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge0_h).   
-    rewrite nrnodesht_h; 1,2: smt(ge0_hp ge1_d).
-    by rewrite -add0r -ltzE expr_gt0.
-  qed.
-  realize dpseed_ll by exact: dpseed_ll. 
-  realize ddgstblock_ll by exact: ddgstblock_ll.
-  realize valid_widxvals_idxvals.
-    rewrite /(<=) => adidxs valwadidxs; apply valid_xidxvals_idxvals.
-    move: valwadidxs => @/valid_widxvals @/valid_widxvalsgp @/valid_widxvalslp.
-    rewrite /valid_xidxvals /valid_xidxvalslp /valid_xidxvalslpch. 
-    by rewrite drop_drop //= ?nth_drop //= ?nth_take //= /#.
-  qed.
-    
-import DBLL WAddress EmsgWOTS.
-
-
-
-(* - Types (3/3) - *)
-(* -- FL-XMSS(-MT)-TW specific -- *)
-(* Public keys *)
-type pkFLXMSSMT = dgstblock.
-type pkFLXMSSMTTW = pkFLXMSSMT * pseed * adrs.
-
-(* Secret keys *)
-type skFLXMSSMTTW = index * sseed * pseed * adrs.
-
-(* Messages *)
-type msgFLXMSSMT = msgWOTS.
-type msgFLXMSSMTTW = msgFLXMSSMT.
-
-(* Lists of length h' of which the entries are digest of length 1 (block of 8 * n bits) *)
-clone import Subtype as DBHPL with
-  type T <= dgstblock list,
-    op P ls <= size ls = h'
-    
-  proof *.
-  realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge0_hp).
-      
-(* Authentication paths in inner (XMSS) tree *)
-type apFLXMSS = DBHPL.sT.
-type apFLXMSSTW = apFLXMSS.
-
-(* 
-  Lists of length d of which the entries are sigWOTS/authentication path pairs 
-  (i.e., FL-XMSS signatures) 
-*)
-clone import Subtype as SAPDL with
-  type T <= (sigWOTS * apFLXMSS) list,
-    op P ls <= size ls = d
-    
-  proof *.
-  realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
-
-type sigFLXMSSDL = SAPDL.sT.
-type sigFLXMSSTWDL = sigFLXMSSDL.
-
-(* Signatures *)
-type sigFLXMSSMT = index * sigFLXMSSDL.
-type sigFLXMSSMTTW = sigFLXMSSMT.
-
-
-
-(* - Distributions (2/2) - *)
-(* Proper distribution over messages considered for FL-XMSS-MT *)
-op [lossless] dmsgFLXMSSMT : msgFLXMSSMT distr.
-op dmsgFLXMSSMTTW : msgFLXMSSMTTW distr = dmsgFLXMSSMT.
-
-(*
-(*
-  Proper distribution over (full) secret keys of FL-XMSS, 
-  i.e., a list of length l' containing (full) WOTS secret keys.
-*)
-op dskWOTSlp : skWOTS list distr = dlist dskWOTS l'.
-
-(* Properness of distribution over full FL-XMSS secret keyes*)
-lemma dskWOTSlp_ll : is_lossless dskWOTSlp.
-proof. by rewrite dlist_ll dskWOTS_ll. qed.
-*)
-
-
-
-(* - Operators (2/2) - *)
-(* - Validity/type checks for (indices corresponding to) XMSS-TW addresses - *)
-op valid_xidxchvals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslpch (take 6 adidxs).
-
-op valid_xidxpkcovals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslppkco (take 6 adidxs).
-  
-op valid_xidxtrhvals (adidxs : int list) : bool =
-  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslptrh (take 6 adidxs).
-  
-op valid_xadrschidxs (adidxs : int list) : bool =
-  size adidxs = adrs_len /\ valid_xidxchvals adidxs.
-
-op valid_xadrspkcoidxs (adidxs : int list) : bool =
-  size adidxs = adrs_len /\ valid_xidxpkcovals adidxs.
-  
-op valid_xadrstrhidxs (adidxs : int list) : bool =
-  size adidxs = adrs_len /\ valid_xidxtrhvals adidxs.
-
-lemma valid_xadrsidxs_xadrschpkcotrhidxs (adidxs : int list) :
-  valid_xadrsidxs adidxs
-  <=>
-  valid_xadrschidxs adidxs \/ valid_xadrspkcoidxs adidxs \/ valid_xadrstrhidxs adidxs.  
-proof. smt(). qed.
-
-op valid_xadrsch (ad : adrs) : bool =
-  valid_xadrschidxs (val ad).
-  
-op valid_xadrspkco (ad : adrs) : bool =
-  valid_xadrspkcoidxs (val ad).
-  
-op valid_xadrstrh (ad : adrs) : bool =
-  valid_xadrstrhidxs (val ad).
-
-op valid_xadrs (ad : adrs) : bool =
-  valid_xadrsidxs (val ad).
-
-lemma valid_xadrs_xadrschpkcotrh (ad : adrs) :
-  valid_xadrs ad
-  <=>
-  valid_xadrsch ad \/ valid_xadrspkco ad \/ valid_xadrstrh ad.  
-proof. smt(). qed.
-
-lemma eq_valid_xadrsch_wadrs (ad : adrs) :
-  valid_xadrsch ad <=> valid_wadrs ad.
-proof.
-rewrite /valid_xadrsch /valid_xadrschidxs /valid_xidxchvals /valid_xidxvalslpch. 
-rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals /valid_widxvalslp.
-by rewrite drop_drop // ?nth_drop // ?nth_take. 
-qed.
-
-
-(* -- Setters -- *)
-op set_lidx (ad : adrs) (i : int) : adrs =
-  set_idx ad 5 i.
-
-op set_tidx (ad : adrs) (i : int) : adrs =
-  set_idx ad 4 i.
-
-op set_typeidx (ad : adrs) (i : int) : adrs =
-  insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
-
-op set_kpidx (ad : adrs) (i : int) : adrs =
-  set_idx ad 2 i.
-  
-op set_thtbidx (ad : adrs) (i j : int) : adrs =
-  insubd (put (put (val ad) 0 j) 1 i).
-
-
+(* - Operators (2/3) -- *)
 (* -- Tweakable hash functions -- *)
+(* 
+  Tweakable hash function collection that contains all tweakable hash functions
+  used in FORS-TW, FL-XMSS-MT-TW, SPHINCS+ 
+*)
+op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
+
 (* 
   Tweakable hash function used for the compression of public (WOTS-TW) keys to leaves
   of inner trees
@@ -636,6 +453,206 @@ clone TRHC.SMDTTCRC as TRHC_TCR with
   proof *.
   realize ge0_tsmdttcr by smt(ge2_l).  
 
+  
+(* -- Validity/type checks for (indices corresponding to) XMSS-TW addresses -- *)
+op valid_xidxchvals (adidxs : int list) : bool =
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslpch (take 6 adidxs).
+
+op valid_xidxpkcovals (adidxs : int list) : bool =
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslppkco (take 6 adidxs).
+  
+op valid_xidxtrhvals (adidxs : int list) : bool =
+  valid_xidxvalsgp (drop 6 adidxs) /\ valid_xidxvalslptrh (take 6 adidxs).
+  
+op valid_xadrschidxs (adidxs : int list) : bool =
+  size adidxs = adrs_len /\ valid_xidxchvals adidxs.
+
+op valid_xadrspkcoidxs (adidxs : int list) : bool =
+  size adidxs = adrs_len /\ valid_xidxpkcovals adidxs.
+  
+op valid_xadrstrhidxs (adidxs : int list) : bool =
+  size adidxs = adrs_len /\ valid_xidxtrhvals adidxs.
+
+lemma valid_xadrsidxs_xadrschpkcotrhidxs (adidxs : int list) :
+  valid_xadrsidxs adidxs
+  <=>
+  valid_xadrschidxs adidxs \/ valid_xadrspkcoidxs adidxs \/ valid_xadrstrhidxs adidxs.  
+proof. smt(). qed.
+
+op valid_xadrsch (ad : adrs) : bool =
+  valid_xadrschidxs (val ad).
+  
+op valid_xadrspkco (ad : adrs) : bool =
+  valid_xadrspkcoidxs (val ad).
+  
+op valid_xadrstrh (ad : adrs) : bool =
+  valid_xadrstrhidxs (val ad).
+
+op valid_xadrs (ad : adrs) : bool =
+  valid_xadrsidxs (val ad).
+
+lemma valid_xadrs_xadrschpkcotrh (ad : adrs) :
+  valid_xadrs ad
+  <=>
+  valid_xadrsch ad \/ valid_xadrspkco ad \/ valid_xadrstrh ad.  
+proof. smt(). qed.
+
+
+(* -- Setters -- *)
+op set_lidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 5 i.
+
+op set_tidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 4 i.
+
+op set_typeidx (ad : adrs) (i : int) : adrs =
+  insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
+
+op set_kpidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 2 i.
+  
+op set_thtbidx (ad : adrs) (i j : int) : adrs =
+  insubd (put (put (val ad) 0 j) 1 i).
+
+  
+
+(* - Clones and imports - *)
+(* WOTS-TW-ES *)
+clone import WOTS_TW_ES as WTWES with 
+    op adrs_len <- adrs_len,
+    op n <- n,
+    op log2_w <- log2_w,
+    op w <- w,
+    op len1 <- len1,
+    op len2 <- len2,
+    op len <- len,
+    op c <- bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d,
+
+  type sseed <- sseed,
+  type pseed <- pseed,
+  type dgst <- dgst,
+  
+    op valid_chidx <- valid_chidx,
+    op valid_hidx <- valid_hidx,
+    op valid_idxvals <- valid_idxvals,
+    op valid_adrsidxs <- valid_adrsidxs,
+    op valid_widxvalsgp adidxswgp <=    valid_kpidx (nth witness adidxswgp 0) 
+                                     /\ nth witness adidxswgp 1 = chtype
+                                     /\ valid_tidx (nth witness adidxswgp 3) (nth witness adidxswgp 2) 
+                                     /\ valid_lidx (nth witness adidxswgp 3)
+                                     /\ valid_xidxvalsgp (drop 4 adidxswgp),
+
+    
+    op thfc <- thfc,
+    
+    op dpseed <- dpseed,
+    op ddgstblock <- ddgstblock,
+    
+  theory DigestBlock <- DigestBlock,
+  theory DigestBlockFT <- DigestBlockFT,
+  theory HA <- HA,
+  
+  type dgstblock <- dgstblock,
+  type adrs <- adrs
+  
+  proof ge2_adrslen, ge1_n, val_log2w, ge1_c, dpseed_ll, ddgstblock_ll, valid_widxvals_idxvals.
+  realize ge2_adrslen by smt(ge6_adrslen).
+  realize ge1_n by exact: ge1_n.
+  realize val_log2w by exact: val_log2w.
+  realize ge1_c.
+    rewrite (: d = d - 1 + 1) // big_int_recr /= 2:ler_paddl; 1: smt(ge1_d).
+    + rewrite sumr_ge0_seq => d' /mem_range [ge0_dp ltd_dp] _ /=. 
+      by rewrite nrnodesht_h 3:expr_ge0 //; 1,2: smt(ge0_h).   
+    rewrite nrnodesht_h; 1,2: smt(ge0_hp ge1_d).
+    by rewrite -add0r -ltzE expr_gt0.
+  qed.
+  realize dpseed_ll by exact: dpseed_ll. 
+  realize ddgstblock_ll by exact: ddgstblock_ll.
+  realize valid_widxvals_idxvals.
+    rewrite /(<=) => adidxs valwadidxs; apply valid_xidxvals_idxvals.
+    move: valwadidxs => @/valid_widxvals @/valid_widxvalsgp @/valid_widxvalslp.
+    rewrite /valid_xidxvals /valid_xidxvalslp /valid_xidxvalslpch. 
+    by rewrite drop_drop //= ?nth_drop //= ?nth_take //= /#.
+  qed.
+    
+import DBLL WAddress EmsgWOTS.
+
+(*
+lemma eq_valid_xadrsch_wadrs (ad : adrs) :
+  valid_xadrsch ad <=> valid_wadrs ad.
+proof.
+rewrite /valid_xadrsch /valid_xadrschidxs /valid_xidxchvals /valid_xidxvalslpch. 
+rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals /valid_widxvalslp.
+by rewrite drop_drop // ?nth_drop // ?nth_take. 
+qed.
+*)
+
+(* - Types (3/3) - *)
+(* -- FL-XMSS(-MT)-TW specific -- *)
+(* Public keys *)
+type pkFLXMSSMT = dgstblock.
+type pkFLXMSSMTTW = pkFLXMSSMT * pseed * adrs.
+
+(* Secret keys *)
+type skFLXMSSMTTW = index * sseed * pseed * adrs.
+
+(* Messages *)
+type msgFLXMSSMT = msgWOTS.
+type msgFLXMSSMTTW = msgFLXMSSMT.
+
+(* Lists of length h' of which the entries are digest of length 1 (block of 8 * n bits) *)
+clone import Subtype as DBHPL with
+  type T <= dgstblock list,
+    op P ls <= size ls = h'
+    
+  proof *.
+  realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge0_hp).
+      
+(* Authentication paths in inner (XMSS) tree *)
+type apFLXMSS = DBHPL.sT.
+type apFLXMSSTW = apFLXMSS.
+
+(* 
+  Lists of length d of which the entries are sigWOTS/authentication path pairs 
+  (i.e., FL-XMSS signatures) 
+*)
+clone import Subtype as SAPDL with
+  type T <= (sigWOTS * apFLXMSS) list,
+    op P ls <= size ls = d
+    
+  proof *.
+  realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
+
+type sigFLXMSSDL = SAPDL.sT.
+type sigFLXMSSTWDL = sigFLXMSSDL.
+
+(* Signatures *)
+type sigFLXMSSMT = index * sigFLXMSSDL.
+type sigFLXMSSMTTW = sigFLXMSSMT.
+
+
+
+(* - Distributions (2/2) - *)
+(* Proper distribution over messages considered for FL-XMSS-MT *)
+op [lossless] dmsgFLXMSSMT : msgFLXMSSMT distr.
+op dmsgFLXMSSMTTW : msgFLXMSSMTTW distr = dmsgFLXMSSMT.
+
+(*
+(*
+  Proper distribution over (full) secret keys of FL-XMSS, 
+  i.e., a list of length l' containing (full) WOTS secret keys.
+*)
+op dskWOTSlp : skWOTS list distr = dlist dskWOTS l'.
+
+(* Properness of distribution over full FL-XMSS secret keyes*)
+lemma dskWOTSlp_ll : is_lossless dskWOTSlp.
+proof. by rewrite dlist_ll dskWOTS_ll. qed.
+*)
+
+
+
+(* - Operators (2/2) - *)
+(* -- Merkle (hyper)ree -- *)
 (* Update function for height and breadth indices (down the tree) *)
 op updhbidx (hbidx : int * int) (b : bool) : int * int = 
   (hbidx.`1 - 1, if b then 2 * hbidx.`2 + 1 else 2 * hbidx.`2).

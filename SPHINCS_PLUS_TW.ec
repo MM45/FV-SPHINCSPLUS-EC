@@ -113,7 +113,6 @@ axiom dist_adrstypes : uniq [chtype; pkcotype; trhxtype; trhftype; trcotype].
 lemma ge1_l : 1 <= l.
 proof. by rewrite /l -add0r -ltzE expr_gt0. qed.
 
-(*
 (* l' is greater than or equal to 1 *)
 lemma ge1_lp : 1 <= l'.
 proof. by rewrite /l' -add0r -ltzE expr_gt0. qed.
@@ -126,6 +125,7 @@ proof. rewrite /h mulr_ge0 1:ge0_hp; smt(ge1_d). qed.
 lemma ge2_t : 2 <= t.
 proof. by rewrite /t -{1}expr1 ler_weexpn2l 2:ge1_a. qed. 
 
+(*
 (* Winternitz parameter w is a power of 2 *)
 lemma wpowof2: exists a, w = 2 ^ a.
 proof. by exists log2_w. qed.
@@ -209,8 +209,8 @@ type dgst = bool list.
 
 (* Digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DigestBlock with
-  type T   <- dgst,
-    op P x <- size x = 8 * n
+  type T   <= dgst,
+    op P x <= size x = 8 * n
     
   proof *.
   realize inhabited by exists (nseq (8 * n) witness); smt(size_nseq ge1_n).
@@ -241,6 +241,7 @@ clone import FinType as DigestBlockFT with
     rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
     by rewrite bs2intK bs2int_le2Xs.
   qed.
+
 
   
 (* - Operators - *)
@@ -306,10 +307,12 @@ op valid_lidx (lidx : int) : bool =
 op valid_tidx (lidx tidx : int) : bool = 
   0 <= tidx < nr_trees lidx.
 
+(*
 (* Type index validity check *)
 op valid_typeidx (typeidx : int) : bool =
   typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhxtype \/
   typeidx = trhftype \/ typeidx = trcotype.
+*)
 
 (* Key pair index validity check (note: regards inner tree) *)
 op valid_kpidx (kpidx : int) : bool =
@@ -465,6 +468,11 @@ type sigFLXMSSMTTW = index * sigFLXMSSTWDL.
 (* Proper distribution over seeds for message compression key generation function *)
 op [lossless] dmseed : mseed distr.
 
+(*
+(* Proper distribution over randomness for non-deterministic signature generation *)
+op [lossless] drm : rm distr.
+*)
+
 (* Proper distribution over randomness for message compression *)
 op [lossless] dmkey : mkey distr.
 
@@ -473,6 +481,7 @@ op [lossless] dpseed : pseed distr.
 
 (* Proper distribution over secret seeds *)
 op [lossless] dsseed : sseed distr.
+
 
 (* Proper distribution over digests of length 1 (block of 8 * n bits) *)
 op [lossless] ddgstblock : dgstblock distr.
@@ -487,9 +496,15 @@ clone import HashAddresses as HA with
     op valid_idxvals <- valid_idxvals,
     op valid_adrsidxs <- valid_adrsidxs
     
-    proof ge1_l.
-    realize ge1_l by trivial.
-    
+  proof *. 
+  realize ge1_l by trivial.
+  realize Adrs.inhabited. 
+    exists [0; 0; 0; pkcotype; 0; 0].
+    rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals. right; left.
+    rewrite /valid_idxvalspkco /= /valid_kpidx /valid_tidx /valid_lidx /nr_trees.
+    by rewrite ?expr_gt0 //; smt(ge1_d).
+  qed.
+  
 import Adrs.
 
 type adrs = HA.adrs.
@@ -577,7 +592,8 @@ op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
 
 (* - Clones and Imports - *)
 (* FORS-TW *)
-clone import FORS_TW as FTW with
+clone import FORS_TW_ES as FTWES with
+    op adrs_len <- adrs_len,
     op n <- n,
     op k <- k,
     op a <- a,
@@ -597,7 +613,6 @@ clone import FORS_TW as FTW with
     op nr_nodes <- nr_nodesf,
     op trhtype <- trhftype,
     op trcotype <- trcotype,
-    op adrs_len <- adrs_len,
 
     op valid_tidx <- valid_tidx 0,
     op valid_kpidx <- valid_kpidx,
@@ -607,32 +622,38 @@ clone import FORS_TW as FTW with
     op valid_adrsidxs <- valid_adrsidxs,
     op valid_fidxvalsgp adidxs <- nth witness adidxs 0 = 0,
   
-  theory DigestBlock <= DigestBlock,
-  theory DigestBlockFT <= DigestBlockFT,
-(*
-  theory DBAL <= DBAL,
-  theory DBAPKL <= DBAPKL,
-*)
-  theory InstanceIndex <= Index,
-  theory HA <= HA,
+    op skg <- skg,
+    op mkg <- mkg,
+    
+    op thfc <- thfc,
+    op f <- f,
+    op trh <- trh,
+    op trco <- trco,
+    
+    op dmseed <- dmseed,
+    op dmkey <- dmkey,  
+    op dpseed <- dpseed,
+    op ddgstblock <- ddgstblock,
+  
+  theory DigestBlock <- DigestBlock,
+  theory DigestBlockFT <- DigestBlockFT,
+  theory Index <- Index,
+  theory HA <- HA,
   
   type dgstblock <- dgstblock,
+  type index <- index,
   type adrs <- adrs
-(*
-  ,  
-  type apFORSTW <- apFORSTW,
-  type sigFORSTW <- sigFORSTW,
-  type iid <- index
-*)  
-  proof ge5_adrslen, ge1_n, ge1_k, ge1_a, ge1_l, ge1_s, dval, dist_adrstypes, valid_fidxvals_idxvals.
+  
+  proof ge5_adrslen, ge1_n, ge1_k, ge1_a, ge1_l, ge1_s, dval, dist_adrstypes, 
+        valid_fidxvals_idxvals, dmseed_ll, dmkey_ll, dpseed_ll, ddgstblock_ll.
   realize ge5_adrslen by trivial.
   realize ge1_n by exact: ge1_n.
   realize ge1_k by exact ge1_k.
   realize ge1_a by exact: ge1_a.
-  realize ge1_l by smt(ge2_lp).
+  realize ge1_l by smt(ge1_lp).
   realize ge1_s by rewrite /nr_trees -add0r -ltzE expr_gt0.
   realize dval. 
-    rewrite /nr_trees /l' /l /h -exprD_nneg /= 1:mulr_ge0; 1..3: smt(ge1_d ge1_hp).
+    rewrite /nr_trees /l' /l /h -exprD_nneg /= 1:mulr_ge0; 1..3: smt(ge1_d ge0_hp).
     by congr; ring.
   qed.
   realize dist_adrstypes by smt(dist_adrstypes).
@@ -640,57 +661,92 @@ clone import FORS_TW as FTW with
     rewrite /(<=) => ls @/valid_fidxvals @/valid_idxvals @/valid_fidxvalslp.
     by rewrite /valid_fidxvalslptrh /valid_fidxvalslptrco ?nth_drop ?nth_take //= /#.
   qed.
-
+  realize dmseed_ll by exact: dmseed_ll.
+  realize dmkey_ll by exact: dmkey_ll.
+  realize dpseed_ll by exact: dpseed_ll.
+  realize ddgstblock_ll by exact: ddgstblock_ll.
+  
 import DBAL BLKAL DBAPKL DBLLKTL.
 
 
 (* FL-XMSS-MT-TW *)
-clone import FL_XMSS_MT_TW as FXMTW with
-  op n <- n,
-  op log2_w <- log2_w,
-  op w <- w,
-  op len1 <- len1,
-  op len2 <- len2,
-  op len <- len,
-  op h' <- h',
-  op l' <- l',
-  op d <- d,
-  op h <- h,
-  op l <- l,
+clone import FL_XMSS_MT_TW_ES as FXMTWES with
+    op adrs_len <- adrs_len,
+    op n <- n,
+    op log2_w <- log2_w,
+    op w <- w,
+    op len1 <- len1,
+    op len2 <- len2,
+    op len <- len,
+    op h' <- h',
+    op l' <- l',
+    op d <- d,
+    
+  type sseed <- sseed,
+  type pseed <- pseed,
+  type dgst <- dgst,
+    
+    op nr_nodes <- nr_nodesx,
+    op chtype <- chtype,
+    op trhtype <- trhxtype,
+    op pkcotype <- pkcotype,
+
+    op valid_lidx <- valid_lidx,
+    op valid_tidx <- valid_tidx,
+    op valid_kpidx <- valid_kpidx,
+    op valid_thidx <- valid_thxidx,
+    op valid_tbidx <- valid_tbxidx,
+    op valid_chidx <- valid_chidx,
+    op valid_hidx <- valid_hidx,
+    
+    op valid_idxvals <- valid_idxvals,
+    op valid_adrsidxs <- valid_adrsidxs,
+    op valid_xidxvalsgp <- predT,
+        
+    op thfc <- thfc,
+    op trh <- trh,
+    op pkco <- pkco,
+    op WTWES.f <- f,
+    
+    op dpseed <- dpseed,
+    op ddgstblock <- ddgstblock,
   
-  op chtype <- chtype,
-  op pkcotype <- pkcotype,
-  op trhtype <- trhxtype,
+  theory DigestBlock <- DigestBlock,
+  theory DigestBlockFT <- DigestBlockFT,
+  theory Index <- Index,
+  theory HA <- HA,
   
-  op nr_nodes <- nr_nodesx,
-  op nr_trees <- nr_trees,
+  type dgstblock <- dgstblock,
+  type index <- index,
+  type adrs <- adrs
   
-  op valid_lidx <- valid_lidx,
-  op valid_tidx <- valid_tidx,
-  op valid_kpidx <- valid_kpidx,
-  op valid_thidx <- valid_thxidx,
-  op valid_tbidx <- valid_tbxidx,
-  op valid_chidx <- valid_chidx,
-  op valid_hidx <- valid_hidx,
+  proof ge6_adrslen, ge1_n, val_log2w, ge0_hp, ge1_d, dist_adrstypes, 
+        valid_xidxvals_idxvals, dpseed_ll, ddgstblock_ll, WTWES.WAddress.inhabited.
+  realize ge6_adrslen by trivial.
+  realize ge1_n by exact: ge1_n.
+  realize val_log2w by exact: val_log2w.
+  realize ge0_hp by exact: ge0_hp.
+  realize ge1_d by exact: Top.ge1_d.
+  realize dist_adrstypes by smt(Top.dist_adrstypes).
+  realize valid_xidxvals_idxvals.
+    move => ls @/valid_xidxvals @/valid_xidxvalslp @/predT /=.
+    rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
+    by rewrite ?nth_take //= /#.
+  qed.
+  realize dpseed_ll by exact: dpseed_ll.
+  realize ddgstblock_ll by exact: ddgstblock_ll.
+  realize WTWES.WAddress.inhabited.
+    exists (Adrs.insubd [0; 0; 0; chtype; 0; 0]).
+    rewrite /valid_wadrs insubdK 1:/valid_adrsidxs /adrs_len /= /valid_idxvals.
+    + left; rewrite /valid_idxvalsch /= /valid_kpidx /l' /valid_tidx /nr_trees.
+      by rewrite ?expr_gt0 //=; smt(val_w ge2_len Top.ge1_d).
+    rewrite /valid_wadrsidxs /adrs_len /= /valid_widxvals /predT /=.
+    rewrite /valid_kpidx /valid_tidx /l' ?expr_gt0 //=. 
+    by rewrite /valid_widxvalslp; smt(val_w ge2_len Top.ge1_d).
+  qed.
   
-  op ES.adrs_len <- adrs_len,
-  op ES.valid_idxvals <- valid_idxvals,
-  op ES.valid_adrsidxs <- valid_adrsidxs,
-  op ES.valid_xidxvalsgp <- predT,
-  
-  theory ES.HA <= HA,
-  theory ES.Index <= Index,
-  theory ES.WTW.DigestBlock <= DigestBlock,
-  theory ES.WTW.DigestBlockFT <= DigestBlockFT
-(*  
-  theory ES.DBHPL <= DBHPL,
-  theory ES.SAPDL <= SAPDL,
-*)
-  proof *. ge1_n val_log2w, ge1_hp, ge1_d, dist_adrstypes, ES.ge6_adrslen, ES.ge6_adrslen,
-        ES.valid_xidxvals_idxvals, 
-   
-import ES DBHPL SAPDL.
-import WTW DBLL EmsgWOTS WAddress.
+import DBHPL SAPDL.
+import WTWES DBLL EmsgWOTS WAddress.
 
   
 (* -- Setters -- *)

@@ -87,13 +87,13 @@ clone import Subtype as Index with
 
 type index = Index.sT.
 
-(* Seed for message compression key generation function *)
+(* Seeds for message compression key generation function *)
 type mseed.
 
 (* Randomness for non-deterministic signature generation *)
 type rm.
   
-(* Randomness for message compression *)
+(* Keys for message compression *)
 type mkey.
 
 (* Secret seeds *)

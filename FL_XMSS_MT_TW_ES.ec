@@ -22,6 +22,7 @@ const adrs_len : { int | 6 <= adrs_len} as ge6_adrslen.
 *)
 const n : { int | 1 <= n } as ge1_n.
 
+
 (* -- WOTS-TW -- *)
 (* Base 2 logarithm of the Winternitz parameter w *)
 const log2_w : { int | log2_w = 2 \/ log2_w = 4 \/ log2_w = 8 } as val_log2w.
@@ -39,7 +40,7 @@ const len2 : int = floor (log2 ((len1 * (w - 1))%r) / log2 w%r) + 1.
 const len : int = len1 + len2.
 
 
-(* FL-XMSS(-MT)-TW *)
+(* -- FL-XMSS(-MT)-TW -- *)
 (* Height of a single inner (XMSS) tree  *)
 const h' : { int | 0 <= h' } as ge0_hp. 
 
@@ -59,7 +60,9 @@ const h : int = h' * d.
   (i.e., total number of leaves of all inner trees on bottom layer)
 *)
 const l : int = 2 ^ h.
- 
+
+
+(* -- Address types -- *) 
 (* Address type for chaining (used in tweakable hash function calls of WOTS-TW chains) *)
 const chtype : int.
 
@@ -95,8 +98,8 @@ proof.  by rewrite /l -add0r -ltzE expr_gt0. qed.
 (* -- General -- *)
 (* Index *)
 clone import Subtype as Index with
-  type T <- int,
-    op P i <- 0 <= i < l
+  type T <= int,
+    op P i <= 0 <= i < l
     
   proof *.
   realize inhabited by exists 0; smt(ge2_l).

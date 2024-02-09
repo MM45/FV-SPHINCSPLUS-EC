@@ -13,7 +13,8 @@ require (*--*) FORS_TW_ES FL_XMSS_MT_TW_ES.
 
 
 (* - Parameters - *)
-(* Size of integer list associated with each address *)
+(* -- General -- *)
+(* Length of (integer list corresponding to) addresses used in tweakable hash functions *)
 const adrs_len = 6.
 
 (* 
@@ -22,6 +23,19 @@ const adrs_len = 6.
 *)
 const n : { int | 1 <= n } as ge1_n.
 
+
+(* -- FORS-TW -- *)
+(* Number of trees in a FORS-TW instance *)
+const k : { int | 1 <= k } as ge1_k.
+
+(* Height of each FORS-TW tree *)
+const a : { int | 1 <= a } as ge1_a.
+
+(* Number of leaves of each FORS-TW tree *)
+const t : int = 2 ^ a.
+
+
+(* -- WOTS-TW -- *)
 (* Base 2 logarithm of the Winternitz parameter w *)
 const log2_w : { int | log2_w = 2 \/ log2_w = 4 \/ log2_w = 8 } as val_log2w.
 
@@ -37,8 +51,10 @@ const len2 : int = floor (log2 ((len1 * (w - 1))%r) / log2 w%r) + 1.
 (* Number of elements (of length n) in private keys, public keys, and signatures *)
 const len : int = len1 + len2.
 
+
+(* -- FL-XMSS(-MT)-TW -- *)
 (* Height of a single inner tree *)
-const h' : { int | 1 <= h' } as ge1_hp. 
+const h' : { int | 0 <= h' } as ge0_hp. 
 
 (* Number of WOTS-TW/FORS-TW instances of a single inner tree (i.e., number of leaves) *)
 const l' = 2 ^ h'.
@@ -59,16 +75,8 @@ const h : int = h' * d.
 *)
 const l : int = 2 ^ h.
 
-(* Number of trees in a FORS-TW instance *)
-const k : { int | 1 <= k } as ge1_k.
 
-(* Height of each FORS-TW tree *)
-const a : { int | 1 <= a } as ge1_a.
-
-(* Number of leaves of each FORS-TW tree *)
-const t : int = 2 ^ a.
-
-
+(* -- Address types -- *) 
 (* Address type for chaining (used in tweakable hash function calls of WOTS-TW chains) *)
 const chtype : int.
 
@@ -101,17 +109,18 @@ const trcotype : int.
 (* The different address types are distinct *)
 axiom dist_adrstypes : uniq [chtype; pkcotype; trhxtype; trhftype; trcotype].
 
-(* l' is greater than or equal to 2 *)
-lemma ge2_lp : 2 <= l'.
-proof. by rewrite /l' ler_eexpr; smt(ge1_hp). qed.
+(* l is greater than or equal to 1 *)
+lemma ge1_l : 1 <= l.
+proof. by rewrite /l -add0r -ltzE expr_gt0. qed.
 
-(* h is greater than or equal to 1 *)
-lemma ge1_h : 1 <= h.
-proof. by rewrite /h mulr_ege1 1:ge1_hp ge1_d. qed.
+(*
+(* l' is greater than or equal to 1 *)
+lemma ge1_lp : 1 <= l'.
+proof. by rewrite /l' -add0r -ltzE expr_gt0. qed.
 
-(* l is greater than or equal to 2 *)
-lemma ge2_l : 2 <= l.
-proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
+(* h is greater than or equal to 0 *)
+lemma ge0_h : 0 <= h.
+proof. rewrite /h mulr_ge0 1:ge0_hp; smt(ge1_d). qed.
 
 (* Number of leaves of a FORS-TW tree is greater than or equal to 2 *)
 lemma ge2_t : 2 <= t.
@@ -160,14 +169,86 @@ qed.
 (* len is greater than or equal to 2 *)
 lemma ge2_len : 2 <= len.
 proof. smt(ge1_len1 ge1_len2). qed.
+*)
 
+(* - Types - *)
+(* -- General -- *)
+(* Index *)
+clone import Subtype as Index with
+  type T <= int,
+    op P i <= 0 <= i < l
+    
+  proof *.
+  realize inhabited by exists 0; smt(ge1_l).
 
+type index = Index.sT.
+
+(* Seeds for message compression key generation function *)
+type mseed.
+
+(* Randomness for non-deterministic signature generation *)
+type rm.
+
+(* Keys for message compression *) 
+type mkey.
+
+(* Secret seeds *)
+type sseed.
+
+(* Public seeds *)
+type pseed.
+
+(* Messages *)
+type msg.
+
+(* 
+  Digests, i.e., outputs of (tweakable) hash functions.
+  In fact, also input of (tweakable) hash functions in this case.
+*)
+type dgst = bool list.
+
+(* Digests with length 1 (block of 8 * n bits) *)
+clone import Subtype as DigestBlock with
+  type T   <- dgst,
+    op P x <- size x = 8 * n
+    
+  proof *.
+  realize inhabited by exists (nseq (8 * n) witness); smt(size_nseq ge1_n).
+  
+type dgstblock = DigestBlock.sT.
+
+(* Finiteness of dgstblock *)
+clone import FinType as DigestBlockFT with
+  type t <= dgstblock,
+  
+    op enum <= map DigestBlock.insubd (map (int2bs (8 * n)) (range 0 (2 ^ (8 * n))))
+    
+  proof *.
+  realize enum_spec.
+    move=> m; rewrite count_uniq_mem 1:map_inj_in_uniq => [x y | |].
+    + rewrite 2!mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) i)) 1:size_int2bs; 1: smt(ge1_n).
+      rewrite -(DigestBlock.insubdK (int2bs (8 * n) j)) 1:size_int2bs; 1: smt(ge1_n). 
+      by rewrite eqins. 
+    + rewrite map_inj_in_uniq => [x y /mem_range rng_x /mem_range rng_y|].
+      rewrite -{2}(int2bsK (8 * n) x) 3:-{2}(int2bsK (8 * n) y) //; 1,2: smt(ge1_n).
+      by move=> ->. 
+    + by rewrite range_uniq.
+    rewrite -b2i1; congr; rewrite eqT mapP. 
+    exists (DigestBlock.val m).
+    rewrite DigestBlock.valKd mapP /=. 
+    exists (bs2int (DigestBlock.val m)).
+    rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
+    by rewrite bs2intK bs2int_le2Xs.
+  qed.
+
+  
 (* - Operators - *)
 (* -- Auxiliary -- *)
 (* Number of nodes in a XMSS binary tree (of total height h') at a particular height h'' *)
 op nr_nodesx (h'' : int) = 2 ^ (h' - h'').
 
-(* Number of nodes in a FORS-TW binary tree (of total height a) at a particular height a' *)
+(* Number of nodes in a FORS binary tree (of total height a) at a particular height a' *)
 op nr_nodesf (a' : int) = 2 ^ (a - a').
 
 (* 
@@ -180,6 +261,7 @@ op nr_nodesf (a' : int) = 2 ^ (a - a').
 *)
 op nr_trees (d' : int) = 2 ^ (h' * (d - d' - 1)).
 
+(*
 (* 
   Number of nodes in "flattened" hypertree (with d layers and inner trees of height h') at
   a particular layer d' and (inner) height h''.
@@ -196,7 +278,7 @@ move=> gtdp_d dehpp_hp.
 rewrite /nr_nodes_ht /nr_trees /nr_nodes /h -exprD_nneg; 2: smt().
 + by rewrite mulr_ge0; smt(ge1_hp).
 by congr; ring.
-qed. 
+qed.
 
 (* 
   Number of nodes in "flattened" hypertree at a particular layer d' 
@@ -210,6 +292,7 @@ move => -[gt0_dp ltd_dp].
 rewrite /nr_trees nrnodesht_h //= /h; 1: smt(ge1_hp). 
 by congr; ring.
 qed.
+*)
 
 (* -- Validity checks for (indices corresponding to) SPHINCS+ addresses -- *)
 (* Layer index validity check (note: regards hypertree) *)
@@ -310,65 +393,6 @@ op valid_idxvals (adidxs : int list) : bool =
 op valid_adrsidxs (adidxs : int list) : bool =
   size adidxs = adrs_len /\ valid_idxvals adidxs.
 
-(* - Types - *)
-(* Index *)
-clone import Subtype as Index with
-  type T <= int,
-    op P i <= 0 <= i < l
-    
-  proof *.
-  realize inhabited by exists 0; smt(ge2_l).
-
-type index = Index.sT.
-
-type mseed.
-
-type mkey.
-
-type sseed.
-
-type pseed.
-
-type msg.
-
-type dgst = bool list.
-
-
-(* Digests with length 1 (block of 8 * n bits) *)
-clone import Subtype as DigestBlock with
-  type T   <- dgst,
-    op P x <- size x = 8 * n
-    
-  proof *.
-  realize inhabited by exists (nseq (8 * n) witness); smt(size_nseq ge1_n).
-  
-type dgstblock = DigestBlock.sT.
-
-(* Finiteness of dgstblock *)
-clone import FinType as DigestBlockFT with
-  type t <= dgstblock,
-  
-    op enum <= map DigestBlock.insubd (map (int2bs (8 * n)) (range 0 (2 ^ (8 * n))))
-    
-  proof *.
-  realize enum_spec.
-    move=> m; rewrite count_uniq_mem 1:map_inj_in_uniq => [x y | |].
-    + rewrite 2!mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
-      rewrite -(DigestBlock.insubdK (int2bs (8 * n) i)) 1:size_int2bs; 1: smt(ge1_n).
-      rewrite -(DigestBlock.insubdK (int2bs (8 * n) j)) 1:size_int2bs; 1: smt(ge1_n). 
-      by rewrite eqins. 
-    + rewrite map_inj_in_uniq => [x y /mem_range rng_x /mem_range rng_y|].
-      rewrite -{2}(int2bsK (8 * n) x) 3:-{2}(int2bsK (8 * n) y) //; 1,2: smt(ge1_n).
-      by move=> ->. 
-    + by rewrite range_uniq.
-    rewrite -b2i1; congr; rewrite eqT mapP. 
-    exists (DigestBlock.val m).
-    rewrite DigestBlock.valKd mapP /=. 
-    exists (bs2int (DigestBlock.val m)).
-    rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
-    by rewrite bs2intK bs2int_le2Xs.
-  qed.
-
 (*  
 (* Lists of length a containing digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DBAL with
@@ -435,6 +459,27 @@ type sigFLXMSSTWDL = SAPDL.sT.
 type sigFLXMSSMTTW = index * sigFLXMSSTWDL.
 *)
 
+
+
+(* - Distributions - *)  
+(* Proper distribution over seeds for message compression key generation function *)
+op [lossless] dmseed : mseed distr.
+
+(* Proper distribution over randomness for message compression *)
+op [lossless] dmkey : mkey distr.
+
+(* Proper distribution over public seeds *)
+op [lossless] dpseed : pseed distr.
+
+(* Proper distribution over secret seeds *)
+op [lossless] dsseed : sseed distr.
+
+(* Proper distribution over digests of length 1 (block of 8 * n bits) *)
+op [lossless] ddgstblock : dgstblock distr.
+
+
+
+(* - Types (2/3) - *)
 (* Addresses *)
 clone import HashAddresses as HA with
   type index <= int,
@@ -450,6 +495,86 @@ import Adrs.
 type adrs = HA.adrs.
 
 
+(* - Operators (2/2) - *)
+(* -- Setters -- *)
+op set_lidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 5 i.
+
+
+(* -- Keyed hash functions -- *)
+(* Secret key element generation function *)
+op skg : sseed -> (pseed * adrs) -> dgstblock.
+
+clone KeyedHashFunctions as SKG with
+  type key_t <- sseed,
+  type in_t <- pseed * adrs,
+  type out_t <- dgstblock,
+  
+    op f <- skg
+    
+  proof *.
+
+clone import SKG.PRF as SKG_PRF with
+  op dkey <- dsseed,
+  op doutm d <- ddgstblock
+  
+  proof *.
+  realize dkey_ll by exact: dsseed_ll.
+  realize doutm_ll by move => d; apply ddgstblock_ll. 
+
+(* Message compression key generation function *)
+op mkg : mseed -> (rm * msg) -> mkey.
+
+clone KeyedHashFunctions as MKG with
+  type key_t <- mseed,
+  type in_t <- rm * msg,
+  type out_t <- mkey,
+  
+    op f <- mkg
+    
+  proof *.
+
+clone import MKG.PRF as MKG_PRF with
+    op dkey <- dmseed,
+    op doutm x <- dmkey 
+  
+  proof *.
+  realize dkey_ll by exact: dmseed_ll.
+  realize doutm_ll by move=> ?; apply dmkey_ll.
+
+
+(* -- Tweakable Hash Functions -- *)
+(* 
+  Tweakable hash function collection that contains all tweakable hash functions
+  used in FORS-TW, SPHINCS+ 
+*)
+op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
+
+(* 
+  Tweakable hash function used to produce leaves from secret key values.
+  (Same function as used in chains for WOTS-TW)
+
+op f : pseed -> adrs -> dgst -> dgstblock.
+*)
+op f : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n).
+
+(* Tweakable hash function used to construct Merkle trees from leaves
+op trh : pseed -> adrs -> dgst -> dgstblock.
+*)
+op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
+
+(* Tweakable hash function used to compress WOTS public keys
+op prco : pseed -> adrs -> dgst -> dgstblock.
+*)
+op pkco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * len).
+
+(* Tweakable hash function used to compress Merkle tree roots
+op trco : pseed -> adrs -> dgst -> dgstblock.
+*)
+op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
+
+
+
 (* - Clones and Imports - *)
 (* FORS-TW *)
 clone import FORS_TW as FTW with
@@ -462,6 +587,7 @@ clone import FORS_TW as FTW with
     op d <- l,
     
   type mseed <- mseed,
+  type rm <- rm,
   type mkey <- mkey,
   type sseed <- sseed,
   type pseed <- pseed,

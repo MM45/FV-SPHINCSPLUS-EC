@@ -623,11 +623,11 @@ clone import Subtype as SAPDL with
   proof *.
   realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
 
-type sigFLXMSSDL = SAPDL.sT.
-type sigFLXMSSTWDL = sigFLXMSSDL.
+type sigFLXMSSMTNI = SAPDL.sT.
+type sigFLXMSSMTTWNI = sigFLXMSSMTNI.
 
 (* Signatures *)
-type sigFLXMSSMT = index * sigFLXMSSDL.
+type sigFLXMSSMT = index * sigFLXMSSMTNI.
 type sigFLXMSSMTTW = sigFLXMSSMT.
 
 
@@ -746,11 +746,10 @@ module FL_XMSS_MT_TW_ES = {
     return leaves;
   }
   
-  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSMTTW * skFLXMSSMTTW = {
+  (* Generate root of hypertree from secret seed, public seed, and address *)
+  proc gen_root(ss : sseed, ps : pseed, ad : adrs) : dgstblock = {
     var root : dgstblock;
     var leaves : dgstblock list;
-    var pk : pkFLXMSSMTTW;
-    var sk : skFLXMSSMTTW;
     
     (* Compute list of leaves *)
     leaves <@ leaves_from_sspsad(ss, ps, set_tidx (set_lidx ad (d - 1)) 0);
@@ -760,6 +759,17 @@ module FL_XMSS_MT_TW_ES = {
       given address (after setting the type to tree hashing)
     *)
     root <- val_bt_trh ps (set_typeidx (set_tidx (set_lidx ad (d - 1)) 0) trhtype) (list2tree leaves) h' 0;
+
+    return root;
+  }
+  
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSMTTW * skFLXMSSMTTW = {
+    var root : dgstblock;
+    var leaves : dgstblock list;
+    var pk : pkFLXMSSMTTW;
+    var sk : skFLXMSSMTTW;
+    
+    root <@ gen_root(ss, ps, ad);
     
     pk <- (root, ps, ad);
     sk <- (insubd 0, ss, ps, ad);
@@ -767,7 +777,13 @@ module FL_XMSS_MT_TW_ES = {
     return (pk, sk); 
   }
   
-  proc sign(sk : skFLXMSSMTTW, m : msgFLXMSSMTTW) : sigFLXMSSMTTW * skFLXMSSMTTW = {
+  (* 
+    Signing procedure.
+    Note that, in contrast to the signing procedure of XMSS-MT as a standalone, 
+    this signing procedure does not update the secret key itself.
+    This is assumed to be taken care of by the encompassing structure.
+  *)
+  proc sign(sk : skFLXMSSMTTW, m : msgFLXMSSMTTW) : sigFLXMSSMTTW = {
     var idx : index;
     var ss : sseed;
     var ps : pseed;
@@ -805,52 +821,58 @@ module FL_XMSS_MT_TW_ES = {
     }
     
     sig <- (idx, insubd sapl);
-    sk <- (insubd (val idx + 1), ss, ps, ad);
     
-    return (sig, sk);
+    return sig;
   }
   
-  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
-    var root, root' : dgstblock;
-    var ps : pseed;
-    var ad : adrs;
+  proc root_from_sigFLXMSSMTTW(m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW, ps : pseed, ad : adrs) : dgstblock = {
+    var root : dgstblock;
     var idx : index;
-    var sapdl : sigFLXMSSTWDL;
+    var signi : sigFLXMSSMTNI;
     var tidx, kpidx : int;
     var i : int;
     var sigWOTS : sigWOTS;
     var ap : apFLXMSSTW;
     var pkWOTS : pkWOTS;
     var leaf : dgstblock;
-     
-    (* Extract root (hash) value, public seed, and address from the public key *)
-    (root, ps, ad) <- pk;
     
-    (* Extract index, WOTS-TW signature, and authentication path from the signature *)
-    (idx, sapdl) <- sig;
+    (idx, signi) <- sig;
     
     (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
     i <- 0;
-    root' <- m;
+    root <- m;
     (tidx, kpidx) <- edivz (val idx) l';
     while (i < d) {
       (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
-      (sigWOTS, ap) <- nth witness (val sapdl) i;
+      (sigWOTS, ap) <- nth witness (val signi) i;
       
       (* Compute WOTS-TW public key *)
-      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root, sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
     
       (* Compute leaf from the computed WOTS-TW public key *)
       leaf <- pkco ps (set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
     
       (* Compute root from computed leaf (and extracted authentication path) *)
-      root' <- val_ap_trh ap idx leaf ps (set_typeidx (set_tidx (set_lidx ad i) tidx) trhtype);
+      root <- val_ap_trh ap idx leaf ps (set_typeidx (set_tidx (set_lidx ad i) tidx) trhtype);
       
       (* Compute next tree and key pair indices and increase loop counter *)
       (tidx, kpidx) <- edivz tidx l';
       i <- i + 1;
     }
     
+    return root;    
+  }
+  
+  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
+    var root, root' : dgstblock;
+    var ps : pseed;
+    var ad : adrs;
+     
+    (* Extract root (hash) value, public seed, and address from the public key *)
+    (root, ps, ad) <- pk;
+    
+    root' <@ root_from_sigFLXMSSMTTW(m, sig, ps, ad);
+      
     return root' = root;
   }
 }.
@@ -947,8 +969,13 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     return (pk, sk); 
   }
   
-  
-  proc sign(sk : index * skWOTS list list list * pseed * adrs, m : msgFLXMSSMTTW) : sigFLXMSSMTTW * (index * skWOTS list list list * pseed * adrs) = {
+  (* 
+    Signing procedure.
+    Note that, in contrast to the signing procedure of XMSS-MT as a standalone, 
+    this signing procedure does not update the secret key itself.
+    This is assumed to be taken care of by the encompassing structure.
+  *)
+  proc sign(sk : index * skWOTS list list list * pseed * adrs, m : msgFLXMSSMTTW) : sigFLXMSSMTTW = {
     var idx : index;
     var ps : pseed;
     var ad : adrs;
@@ -998,17 +1025,18 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     }
     
     sig <- (idx, insubd sapl);
-    sk <- (insubd (val idx + 1), skWOTSld, ps, ad);
     
-    return (sig, sk);
+    return sig;
   }
   
+  proc verify = FL_XMSS_MT_TW_ES.verify
+(*  
   proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
     var root, root' : dgstblock;
     var ps : pseed;
     var ad : adrs;
     var idx : index;
-    var sapdl : sigFLXMSSTWDL;
+    var signi : sigFLXMSSMTNI;
     var tidx, kpidx : int;
     var i : int;
     var sigWOTS : sigWOTS;
@@ -1020,7 +1048,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     (root, ps, ad) <- pk;
     
     (* Extract index, WOTS-TW signature, and authentication path from the signature *)
-    (idx, sapdl) <- sig;
+    (idx, signi) <- sig;
     
     (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
     i <- 0;
@@ -1028,7 +1056,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     (tidx, kpidx) <- edivz (val idx) l';
     while (i < d) {
       (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
-      (sigWOTS, ap) <- nth witness (val sapdl) i;
+      (sigWOTS, ap) <- nth witness (val signi) i;
       
       (* Compute WOTS-TW public key *)
       pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
@@ -1046,6 +1074,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     
     return root' = root;
   }
+*)
 }.
 
 
@@ -1081,8 +1110,11 @@ module EUF_NACMA_FLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) = {
     while (size sigl < min (size ml) l) {
       m <- nth witness ml (size sigl);
 
-      (sig, sk) <@ FL_XMSS_MT_TW_ES_NPRF.sign(sk, m);
+      sig <@ FL_XMSS_MT_TW_ES_NPRF.sign(sk, m);
 
+      (* Update secret key *)
+      sk <- (insubd (val sk.`1 + 1), sk.`2, sk.`3, sk.`4);
+      
       sigl <- rcons sigl sig;
     }
     

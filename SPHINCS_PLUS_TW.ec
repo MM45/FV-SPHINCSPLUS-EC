@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr RealExp StdOrder FinType BitEncoding.
+require import AllCore List Distr IntDiv RealExp StdOrder FinType BitEncoding.
 (*---*) import IntOrder.
 (*---*) import BS2Int.
 
@@ -515,6 +515,15 @@ type adrs = HA.adrs.
 op set_lidx (ad : adrs) (i : int) : adrs =
   set_idx ad 5 i.
 
+op set_tidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 4 i.
+
+op set_typeidx (ad : adrs) (i : int) : adrs =
+  insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
+  
+op set_kpidx (ad : adrs) (i : int) : adrs =
+  set_idx ad 2 i.
+
 
 (* -- Keyed hash functions -- *)
 (* Secret key element generation function *)
@@ -590,7 +599,7 @@ op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
 
 
 
-(* - Clones and Imports - *)
+(* - Underlying schemes - *)
 (* FORS-TW *)
 clone import FORS_TW_ES as FTWES with
     op adrs_len <- adrs_len,
@@ -622,6 +631,10 @@ clone import FORS_TW_ES as FTWES with
     op valid_adrsidxs <- valid_adrsidxs,
     op valid_fidxvalsgp adidxs <- nth witness adidxs 0 = 0,
   
+    op set_tidx <- set_tidx,
+    op set_typeidx <- set_typeidx,
+    op set_kpidx <- set_kpidx,
+    
     op skg <- skg,
     op mkg <- mkg,
     
@@ -702,7 +715,12 @@ clone import FL_XMSS_MT_TW_ES as FXMTWES with
     op valid_idxvals <- valid_idxvals,
     op valid_adrsidxs <- valid_adrsidxs,
     op valid_xidxvalsgp <- predT,
-        
+    
+    op set_lidx <- set_lidx,
+    op set_tidx <- set_tidx,
+    op set_typeidx <- set_typeidx,
+    op set_kpidx <- set_kpidx,
+    
     op thfc <- thfc,
     op trh <- trh,
     op pkco <- pkco,
@@ -748,5 +766,140 @@ clone import FL_XMSS_MT_TW_ES as FXMTWES with
 import DBHPL SAPDL.
 import WTWES DBLL EmsgWOTS WAddress.
 
+
+
+(* - Types (3/3) - *)
+(* -- SPHINCS+-TW specific -- *)
+(* Public keys *)
+type pkSPHINCSPLUSTW = dgstblock * pseed.
+
+(* Secret keys *)
+type skSPHINCSPLUSTW = mseed * sseed * pseed.
+
+(* Signatures *)
+type sigSPHINCSPLUSTW = mkey * sigFORS * sigFLXMSSMTNI. 
+
+
+
+(* - Definitions and security models for digital signatures  - *)
+clone import DigitalSignatures as DSS with
+  type pk_t <- pkSPHINCSPLUSTW,
+  type sk_t <- skSPHINCSPLUSTW,
+  type msg_t <- msg,
+  type sig_t <- sigSPHINCSPLUSTW
   
-(* -- Setters -- *)
+  proof *.
+
+import DSS.Stateless.
+
+
+
+(* - Specification - *)
+module SPHINCS_PLUS_TW : Scheme = {
+  proc keygen() : pkSPHINCSPLUSTW * skSPHINCSPLUSTW = {
+    var ad : adrs;
+    var ms : mseed;
+    var ss : sseed;
+    var ps : pseed;
+    var root : dgstblock;
+    var pk : pkSPHINCSPLUSTW;
+    var sk : skSPHINCSPLUSTW;
+    
+    ad <- witness;
+    
+    ms <$ dmseed;
+    ss <$ dsseed;
+    
+    ps <$ dpseed;
+    root <@ FL_XMSS_MT_TW_ES.gen_root(ss, ps, ad);
+    
+    pk <- (root, ps);
+    sk <- (ms, ss, ps);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : skSPHINCSPLUSTW, m : msg) : sigSPHINCSPLUSTW = {
+    var ms : mseed;
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var sigFORS : sigFORS;
+    var cm : msgFORS;
+    var idx : index;
+    var tidx, kpidx : int;
+    var pkFORS : pkFORS;
+    var sigFLXMSSMTNI : sigFLXMSSMTNI;
+    var sig : sigSPHINCSPLUSTW;
+        
+    (ms, ss, ps) <- sk;
+    
+    ad <- witness;
+    
+    (mk, sigFORS) <@ M_FORS_TW_ES.sign((ms, ss, ps, set_lidx ad 0), m);
+    
+    (cm, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) l';
+    
+    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    
+    (idx, sigFLXMSSMTNI) <@ FL_XMSS_MT_TW_ES.sign((idx, ss, ps, ad), pkFORS);
+    
+    return (mk, sigFORS, sigFLXMSSMTNI);
+  }
+  
+  proc verify(pk : pkSPHINCSPLUSTW, m : msg, sig : sigSPHINCSPLUSTW) : bool = {
+    var root, root' : dgstblock;
+    var ps : pseed;
+    var mk : mkey;
+    var sigFORS : sigFORS;
+    var sigFLXMSSMTNI : sigFLXMSSMTNI;
+    var ad : adrs;
+    var cm : msgFORS;
+    var idx : index;
+    var tidx, kpidx : int;
+    var pkFORS : pkFORS;
+    
+    (root, ps) <- pk;
+    (mk, sigFORS, sigFLXMSSMTNI) <- sig;
+    
+    ad <- witness;
+    
+    (cm, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) l';
+    
+    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORS(sigFORS, cm, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    
+    root' <@ FL_XMSS_MT_TW_ES.root_from_sigFLXMSSMTTW(pkFORS, (idx, sigFLXMSSMTNI), ps, ad);
+    
+    return root' = root;
+  }
+}.
+
+
+
+(* - Proof - *)
+(* -- Reduction adversaries -- *)
+module R_MFORSTWESEUFCMA_EUFCMA (A : Adv_EUFCMA) = {
+
+}.
+
+module R_FLXMSSMTTWESEUFNACMA_EUFCMA (A : Adv_EUFCMA) = {
+
+}.
+
+
+section Proof_SPHINCS_PLUS_TW_EUFCMA.
+
+declare module A <: Adv_EUFCMA {}.
+
+lemma EUFCMA_SPHINCS_PLUS_TW &m :
+  Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
+  <= 
+  witness.
+proof. admit. qed.
+    
+end section Proof_SPHINCS_PLUS_TW_EUFCMA.

@@ -944,7 +944,7 @@ module M_FORS_TW_ES = {
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
-    var r : rm; 
+    var rm : rm; 
     var mk : mkey;
     var cm : msgFORS;
     var idx : index;
@@ -953,9 +953,9 @@ module M_FORS_TW_ES = {
     
     (ms, ss, ps, ad) <- sk;
     
-    r <$ drm;
+    rm <$ drm;
     
-    mk <- mkg ms (r, m);
+    mk <- mkg ms (rm, m);
     
     (cm, idx) <- mco mk m;
     
@@ -1076,6 +1076,8 @@ module FL_FORS_TW_ES_NPRF = {
     return insubd sig;
   }
   
+  proc verify = FL_FORS_TW_ES.verify
+(*  
   proc pkFORS_from_sigFORS(sig : sigFORS, m : msgFORS, ps : pseed, ad : adrs) : pkFORS = {
     var skFORS_ele : dgstblock;
     var ap : apFORS;
@@ -1111,7 +1113,8 @@ module FL_FORS_TW_ES_NPRF = {
     pkFORS' <@ pkFORS_from_sigFORS(sig, m, ps, ad);
     
     return pkFORS' = pkFORS;
-  } 
+  }
+*) 
 }.
 
 (* 
@@ -1190,6 +1193,8 @@ module M_FORS_TW_ES_NPRF = {
     return (mk, sig);
   }
   
+  proc verify = M_FORS_TW_ES.verify
+(*  
   proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORS) : bool = {
     var pkFORS : pkFORS;
     var pkFORSs : pkFORS list list;
@@ -1214,7 +1219,8 @@ module M_FORS_TW_ES_NPRF = {
     is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
     
     return is_valid;
-  } 
+  }
+*) 
 }.
 
 

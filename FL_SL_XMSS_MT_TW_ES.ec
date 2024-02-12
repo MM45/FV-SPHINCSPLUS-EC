@@ -40,7 +40,7 @@ const len2 : int = floor (log2 ((len1 * (w - 1))%r) / log2 w%r) + 1.
 const len : int = len1 + len2.
 
 
-(* -- FL-XMSS(-MT)-TW -- *)
+(* -- FL-SL-XMSS(-MT)-TW -- *)
 (* Height of a single inner (XMSS) tree  *)
 const h' : { int | 0 <= h' } as ge0_hp. 
 
@@ -298,7 +298,7 @@ op valid_adrsidxs (adidxs : int list) =
 
 (* 
   Validity check for the values of the global/context part of the list of integers 
-  corresponding to FL-XMSS-MT-TW addresses used in the
+  corresponding to FL-SL-XMSS-MT-TW addresses used in the
   encompassing structure. This global/context part is the part that is to be defined
   by this unknown structure and, therefore, this validity check is left abstract.
 *)
@@ -306,7 +306,7 @@ op valid_xidxvalsgp : int list -> bool.
 
 (* 
   Validity check for the values of the list of integers corresponding to 
-  FL-XMSS-MT-TW addresses used in the encompassing structure.
+  FL-SL-XMSS-MT-TW addresses used in the encompassing structure.
   This includes the local part that we defined, and the abstract global/context part
   defined by the unknown structure.  
 *) 
@@ -315,23 +315,23 @@ op valid_xidxvals (adidxs : int list) =
 
 (*
   Overall validity check for the list of integers corresponding to 
-  FL-XMSS-MT-TW addresses used in the encompassing structure.
+  FL-SL-XMSS-MT-TW addresses used in the encompassing structure.
   This checks for the correct length and valid values.
 *)
 op valid_xadrsidxs (adidxs : int list) =
   size adidxs = adrs_len /\ valid_xidxvals adidxs.
 
 (*
-  The list of integers that correspond to FL-XMSS-MT-TW addresses are a subset of
+  The list of integers that correspond to FL-SL-XMSS-MT-TW addresses are a subset of
   the list of integers that correspond to valid addresses. (In other words,
-  the FL-XMSS-MT-TW addresses are a subset of the complete set of valid addresses
+  the FL-SL-XMSS-MT-TW addresses are a subset of the complete set of valid addresses
   used in the encompassing structure.)
 *)
 axiom valid_xidxvals_idxvals : 
   valid_xidxvals <= valid_idxvals.
 
 (*
-  The FL-XMSS-MT-TW addresses are a subset of the complete set of valid addresses
+  The FL-SL-XMSS-MT-TW addresses are a subset of the complete set of valid addresses
   used in the encompassing structure. 
 *)  
 lemma valid_xadrsidxs_adrsidxs :
@@ -354,7 +354,7 @@ op [lossless] ddgstblock : dgstblock distr.
 
 (* - Types (2/3) - *)
 (* 
-  Addresses used in encompassing structure (complete set, including FL-XMSS-MT-TW addresses)
+  Addresses used in encompassing structure (complete set, including FL-SL-XMSS-MT-TW addresses)
 *)
 clone import HashAddresses as HA with
   type index <= int,
@@ -374,7 +374,7 @@ type adrs = HA.adrs.
 (* -- Tweakable hash functions -- *)
 (* 
   Tweakable hash function collection that contains all tweakable hash functions
-  used in FORS-TW, FL-XMSS-MT-TW, SPHINCS+ 
+  used in FORS-TW, FL-SL-XMSS-MT-TW, SPHINCS+ 
 *)
 op thfc : int -> pseed -> adrs -> dgst -> dgstblock.
 
@@ -505,6 +505,9 @@ op set_lidx (ad : adrs) (i : int) : adrs =
 op set_tidx (ad : adrs) (i : int) : adrs =
   set_idx ad 4 i.
 
+op set_ltidx (ad : adrs) (i j : int) : adrs =
+  insubd (put (put (val ad) 4 j) 5 i).
+
 op set_typeidx (ad : adrs) (i : int) : adrs =
   insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
 
@@ -588,17 +591,19 @@ qed.
 *)
 
 (* - Types (3/3) - *)
-(* -- FL-XMSS(-MT)-TW specific -- *)
+(* -- FL-SL-XMSS(-MT)-TW specific -- *)
 (* Public keys *)
-type pkFLXMSSMT = dgstblock.
-type pkFLXMSSMTTW = pkFLXMSSMT * pseed * adrs.
+type pkFLXMSSMTTW = dgstblock * pseed * adrs.
+type pkFLSLXMSSMTTW = pkFLXMSSMTTW.
 
-(* Secret keys *)
+(* Secret keys 
 type skFLXMSSMTTW = index * sseed * pseed * adrs.
+*)
+type skFLSLXMSSMTTW = sseed * pseed * adrs.
 
 (* Messages *)
-type msgFLXMSSMT = msgWOTS.
-type msgFLXMSSMTTW = msgFLXMSSMT.
+type msgFLXMSSMTTW = msgWOTS.
+type msgFLSLXMSSMTTW = msgFLXMSSMTTW.
 
 (* Lists of length h' of which the entries are digest of length 1 (block of 8 * n bits) *)
 clone import Subtype as DBHPL with
@@ -609,42 +614,39 @@ clone import Subtype as DBHPL with
   realize inhabited by exists (nseq h' witness); rewrite size_nseq; smt(ge0_hp).
       
 (* Authentication paths in inner (XMSS) tree *)
-type apFLXMSS = DBHPL.sT.
-type apFLXMSSTW = apFLXMSS.
+type apFLXMSSTW = DBHPL.sT.
 
 (* 
   Lists of length d of which the entries are sigWOTS/authentication path pairs 
-  (i.e., FL-XMSS signatures) 
+  (i.e., FL-SL-XMSS signatures) 
 *)
 clone import Subtype as SAPDL with
-  type T <= (sigWOTS * apFLXMSS) list,
+  type T <= (sigWOTS * apFLXMSSTW) list,
     op P ls <= size ls = d
     
   proof *.
   realize inhabited by exists (nseq d witness); rewrite size_nseq; smt(ge1_d).
 
-type sigFLXMSSMTNI = SAPDL.sT.
-type sigFLXMSSMTTWNI = sigFLXMSSMTNI.
+type sigFLSLXMSSMTTW = SAPDL.sT.
 
-(* Signatures *)
+(* Signatures
 type sigFLXMSSMT = index * sigFLXMSSMTNI.
 type sigFLXMSSMTTW = sigFLXMSSMT.
-
+*)
 
 
 (* - Distributions (2/2) - *)
-(* Proper distribution over messages considered for FL-XMSS-MT *)
-op [lossless] dmsgFLXMSSMT : msgFLXMSSMT distr.
-op dmsgFLXMSSMTTW : msgFLXMSSMTTW distr = dmsgFLXMSSMT.
+(* Proper distribution over messages considered for FL-SL-XMSS-MT *)
+op [lossless] dmsgFLSLXMSSMTTW : msgFLSLXMSSMTTW distr.
 
 (*
 (*
-  Proper distribution over (full) secret keys of FL-XMSS, 
+  Proper distribution over (full) secret keys of FL-SL-XMSS, 
   i.e., a list of length l' containing (full) WOTS secret keys.
 *)
 op dskWOTSlp : skWOTS list distr = dlist dskWOTS l'.
 
-(* Properness of distribution over full FL-XMSS secret keyes*)
+(* Properness of distribution over full FL-SL-XMSS secret keyes*)
 lemma dskWOTSlp_ll : is_lossless dskWOTSlp.
 proof. by rewrite dlist_ll dskWOTS_ll. qed.
 *)
@@ -718,10 +720,23 @@ op extract_coll_bt_ap_trh (ps : pseed)
    extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
 
 
+(* - Types (3/3) - *)
+(* 
+  FL-SL-XMSS-MT-TW addresses
+  Only used to select arbitrary valid FL-SL-XMSS-MT-TW 
+  address in security notion/reductions
+ *)
+clone import Subtype as XHA with
+  type T <= adrs,
+    op P ad <= valid_xadrs ad. 
+  
+type xadrs = XHA.sT.
+
+
 
 (* - Specifications - *)
-(* Fixed-Length XMSS-MT-TW in Encompassing Structure *)
-module FL_XMSS_MT_TW_ES = {
+(* Fixed-Length, StateLess XMSS-MT-TW in Encompassing Structure *)
+module FL_SL_XMSS_MT_TW_ES = {
   (* Compute list of (inner tree) leaves from a secret seed, public seed, and address *) 
   proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
@@ -752,27 +767,27 @@ module FL_XMSS_MT_TW_ES = {
     var leaves : dgstblock list;
     
     (* Compute list of leaves *)
-    leaves <@ leaves_from_sspsad(ss, ps, set_tidx (set_lidx ad (d - 1)) 0);
+    leaves <@ leaves_from_sspsad(ss, ps, set_ltidx ad (d - 1) 0);
     
     (* 
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_typeidx (set_tidx (set_lidx ad (d - 1)) 0) trhtype) (list2tree leaves) h' 0;
+    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhtype) (list2tree leaves) h' 0;
 
     return root;
   }
   
-  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLXMSSMTTW * skFLXMSSMTTW = {
+  proc keygen(ss : sseed, ps : pseed, ad : adrs) : pkFLSLXMSSMTTW * skFLSLXMSSMTTW = {
     var root : dgstblock;
     var leaves : dgstblock list;
-    var pk : pkFLXMSSMTTW;
-    var sk : skFLXMSSMTTW;
+    var pk : pkFLSLXMSSMTTW;
+    var sk : skFLSLXMSSMTTW;
     
     root <@ gen_root(ss, ps, ad);
     
     pk <- (root, ps, ad);
-    sk <- (insubd 0, ss, ps, ad);
+    sk <- (ss, ps, ad);
     
     return (pk, sk); 
   }
@@ -783,8 +798,7 @@ module FL_XMSS_MT_TW_ES = {
     this signing procedure does not update the secret key itself.
     This is assumed to be taken care of by the encompassing structure.
   *)
-  proc sign(sk : skFLXMSSMTTW, m : msgFLXMSSMTTW) : sigFLXMSSMTTW = {
-    var idx : index;
+  proc sign(sk : skFLSLXMSSMTTW, m : msgFLSLXMSSMTTW, idx : index) : sigFLSLXMSSMTTW = {
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
@@ -795,23 +809,23 @@ module FL_XMSS_MT_TW_ES = {
     var leaves : dgstblock list;
     var ap : apFLXMSSTW;
     var sapl : (sigWOTS * apFLXMSSTW) list;
-    var sig : sigFLXMSSMTTW;
+    var sig : sigFLSLXMSSMTTW;
     
-    (* Extract index, secret seed, public seed, and address from the secret key *)
-    (idx, ss, ps, ad) <- sk;
+    (* Extract secret seed, public seed, and address from the secret key *)
+    (ss, ps, ad) <- sk;
     
     (* Initialize signature list, tree index, and key pair index *)
     sapl <- [];
     (tidx, kpidx) <- edivz (val idx) l';
     while (size sapl < d) {
       (* Compute the WOTS-TW signature on the given message *)
-      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) chtype) kpidx), m);
+      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_ltidx ad (size sapl) tidx) chtype) kpidx), m);
 
       (* Compute the list of leaves *)
-      leaves <@ leaves_from_sspsad(ss, ps, (set_tidx (set_lidx ad (size sapl)) tidx));
+      leaves <@ leaves_from_sspsad(ss, ps, (set_ltidx ad (size sapl) tidx));
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) trhtype);
+      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
@@ -820,15 +834,13 @@ module FL_XMSS_MT_TW_ES = {
       (tidx, kpidx) <- edivz tidx l';
     }
     
-    sig <- (idx, insubd sapl);
+    sig <- insubd sapl;
     
     return sig;
   }
   
-  proc root_from_sigFLXMSSMTTW(m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW, ps : pseed, ad : adrs) : dgstblock = {
+  proc root_from_sigFLSLXMSSMTTW(m : msgFLSLXMSSMTTW, sig : sigFLSLXMSSMTTW, idx : index, ps : pseed, ad : adrs) : dgstblock = {
     var root : dgstblock;
-    var idx : index;
-    var signi : sigFLXMSSMTNI;
     var tidx, kpidx : int;
     var i : int;
     var sigWOTS : sigWOTS;
@@ -836,24 +848,22 @@ module FL_XMSS_MT_TW_ES = {
     var pkWOTS : pkWOTS;
     var leaf : dgstblock;
     
-    (idx, signi) <- sig;
-    
     (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
     i <- 0;
     root <- m;
     (tidx, kpidx) <- edivz (val idx) l';
     while (i < d) {
       (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
-      (sigWOTS, ap) <- nth witness (val signi) i;
+      (sigWOTS, ap) <- nth witness (val sig) i;
       
       (* Compute WOTS-TW public key *)
-      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root, sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root, sigWOTS, ps, set_kpidx (set_typeidx (set_ltidx ad i tidx) chtype) kpidx);
     
       (* Compute leaf from the computed WOTS-TW public key *)
-      leaf <- pkco ps (set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
+      leaf <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad i tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
     
       (* Compute root from computed leaf (and extracted authentication path) *)
-      root <- val_ap_trh ap idx leaf ps (set_typeidx (set_tidx (set_lidx ad i) tidx) trhtype);
+      root <- val_ap_trh ap idx leaf ps (set_typeidx (set_ltidx ad i tidx) trhtype);
       
       (* Compute next tree and key pair indices and increase loop counter *)
       (tidx, kpidx) <- edivz tidx l';
@@ -863,7 +873,7 @@ module FL_XMSS_MT_TW_ES = {
     return root;    
   }
   
-  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
+  proc verify(pk : pkFLSLXMSSMTTW, m : msgFLSLXMSSMTTW, sig : sigFLSLXMSSMTTW, idx : index) : bool = {
     var root, root' : dgstblock;
     var ps : pseed;
     var ad : adrs;
@@ -871,14 +881,14 @@ module FL_XMSS_MT_TW_ES = {
     (* Extract root (hash) value, public seed, and address from the public key *)
     (root, ps, ad) <- pk;
     
-    root' <@ root_from_sigFLXMSSMTTW(m, sig, ps, ad);
+    root' <@ root_from_sigFLSLXMSSMTTW(m, sig, idx, ps, ad);
       
     return root' = root;
   }
 }.
 
-(* Fixed-Length FL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
-module FL_XMSS_MT_TW_ES_NPRF = {
+(* Fixed-Length StateLess FL-SL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
+module FL_SL_XMSS_MT_TW_ES_NPRF = {
   (* Compute list of (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
   proc leaves_from_sklpsad(skWOTSl : skWOTS list, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
@@ -903,7 +913,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     return leaves;
   }
   
-  proc keygen(ps : pseed, ad : adrs) : pkFLXMSSMTTW * (index * skWOTS list list list * pseed * adrs) = {
+  proc keygen(ps : pseed, ad : adrs) : pkFLSLXMSSMTTW * (skWOTS list list list * pseed * adrs) = {
     var root : dgstblock;
     var skWOTS_ele : dgstblock;
     var skWOTS : dgstblock list;
@@ -911,8 +921,8 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     var skWOTSsl : skWOTS list list;
     var skWOTSal : skWOTS list list list;
     var leaves : dgstblock list;
-    var pk : pkFLXMSSMTTW;
-    var sk : (index * skWOTS list list list * pseed * adrs);
+    var pk : pkFLSLXMSSMTTW;
+    var sk : skWOTS list list list * pseed * adrs;
     
     (*
       For each layer in the hypertree (starting from layer 0, i.e., the bottom layer),
@@ -955,16 +965,16 @@ module FL_XMSS_MT_TW_ES_NPRF = {
       and compute the corresponding leaves.
     *)
     skWOTSit <- nth witness (nth witness skWOTSal (d - 1)) 0;
-    leaves <@ leaves_from_sklpsad(skWOTSit, ps, set_tidx (set_lidx ad (d - 1)) 0);
+    leaves <@ leaves_from_sklpsad(skWOTSit, ps, set_ltidx ad (d - 1) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_typeidx (set_tidx (set_lidx ad (d - 1)) 0) trhtype) (list2tree leaves) h' 0;
+    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhtype) (list2tree leaves) h' 0;
     
     pk <- (root, ps, ad);
-    sk <- (insubd 0, skWOTSal, ps, ad);
+    sk <- (skWOTSal, ps, ad);
     
     return (pk, sk); 
   }
@@ -975,8 +985,7 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     this signing procedure does not update the secret key itself.
     This is assumed to be taken care of by the encompassing structure.
   *)
-  proc sign(sk : index * skWOTS list list list * pseed * adrs, m : msgFLXMSSMTTW) : sigFLXMSSMTTW = {
-    var idx : index;
+  proc sign(sk : skWOTS list list list * pseed * adrs, m : msgFLSLXMSSMTTW, idx : index) : sigFLSLXMSSMTTW = {
     var ps : pseed;
     var ad : adrs;
     var tidx, kpidx : int;
@@ -987,17 +996,17 @@ module FL_XMSS_MT_TW_ES_NPRF = {
     var leaves : dgstblock list;
     var ap : apFLXMSSTW;
     var sapl : (sigWOTS * apFLXMSSTW) list;
-    var sig : sigFLXMSSMTTW;
+    var sig : sigFLSLXMSSMTTW;
     
     (* Extract index, secret key, public seed, and address from the secret key *)
-    (idx, skWOTSld, ps, ad) <- sk;
+    (skWOTSld, ps, ad) <- sk;
     
     (* Initialize signature list, tree index, and key pair index *)
     sapl <- [];
     (tidx, kpidx) <- edivz (val idx) l';
     while (size sapl < d) {
       (* 
-        Extract FL-XMSS-TW secret key in considered layer (size sapl), and corresponding to
+        Extract FL-SL-XMSS-TW secret key in considered layer (size sapl), and corresponding to
         considered inner tree in this layer (tidx).
       *)
       skWOTSlp <- nth witness (nth witness skWOTSld (size sapl)) tidx;
@@ -1009,13 +1018,13 @@ module FL_XMSS_MT_TW_ES_NPRF = {
       skWOTS <- nth witness skWOTSlp kpidx;
       
       (* Compute the WOTS-TW signature on the given message *)
-      sigWOTS <@ WOTS_TW_ES_NPRF.sign((skWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) chtype) kpidx), m);
+      sigWOTS <@ WOTS_TW_ES_NPRF.sign((skWOTS, ps, set_kpidx (set_typeidx (set_ltidx ad (size sapl) tidx) chtype) kpidx), m);
 
       (* Compute the list of leaves *)
-      leaves <@ leaves_from_sklpsad(skWOTSlp, ps, (set_tidx (set_lidx ad (size sapl)) tidx));
+      leaves <@ leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (size sapl) tidx);
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_tidx (set_lidx ad (size sapl)) tidx) trhtype);
+      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
@@ -1024,14 +1033,14 @@ module FL_XMSS_MT_TW_ES_NPRF = {
       (tidx, kpidx) <- edivz tidx l';
     }
     
-    sig <- (idx, insubd sapl);
+    sig <- insubd sapl;
     
     return sig;
   }
   
-  proc verify = FL_XMSS_MT_TW_ES.verify
+  proc verify = FL_SL_XMSS_MT_TW_ES.verify
 (*  
-  proc verify(pk : pkFLXMSSMTTW, m : msgFLXMSSMTTW, sig : sigFLXMSSMTTW) : bool = {
+  proc verify(pk : pkFLSLXMSSMTTW, m : msgFLSLXMSSMTTW, sig : sigFLSLXMSSMTTW) : bool = {
     var root, root' : dgstblock;
     var ps : pseed;
     var ad : adrs;
@@ -1059,13 +1068,13 @@ module FL_XMSS_MT_TW_ES_NPRF = {
       (sigWOTS, ap) <- nth witness (val signi) i;
       
       (* Compute WOTS-TW public key *)
-      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) chtype) kpidx);
+      pkWOTS <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(root', sigWOTS, ps, set_kpidx (set_typeidx (set_ltidx ad i) tidx) chtype) kpidx);
     
       (* Compute leaf from the computed WOTS-TW public key *)
-      leaf <- pkco ps (set_kpidx (set_typeidx (set_tidx (set_lidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
+      leaf <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad i) tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
     
       (* Compute root from computed leaf (and extracted authentication path) *)
-      root' <- val_ap_trh ap idx leaf ps (set_typeidx (set_tidx (set_lidx ad i) tidx) trhtype);
+      root' <- val_ap_trh ap idx leaf ps (set_typeidx (set_ltidx ad i) tidx) trhtype);
       
       (* Compute next tree and key pair indices and increase loop counter *)
       (tidx, kpidx) <- edivz tidx l';
@@ -1080,29 +1089,30 @@ module FL_XMSS_MT_TW_ES_NPRF = {
 
 (* - Proof - *)
 (* -- Adversary classes -- *)
-module type Adv_EUFNACMA_FLXMSSMTTWESNPRF = {
-  proc choose(pk : pkFLXMSSMTTW) : msgFLXMSSMTTW list
-  proc forge(sigl : sigFLXMSSMTTW list) : msgFLXMSSMTTW * sigFLXMSSMTTW
+module type Adv_EUFNACMA_FLSLXMSSMTTWESNPRF = {
+  proc choose(pk : pkFLSLXMSSMTTW) : msgFLSLXMSSMTTW list
+  proc forge(sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index
 }.
 
   
 (* -- Security notions -- *)
-module EUF_NACMA_FLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) = {
+module EUF_NACMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) = {
   proc main() : bool = {
     var ad : adrs;
     var ps : pseed;
-    var pk : pkFLXMSSMTTW;
-    var sk : index * skWOTS list list list * pseed * adrs;
-    var ml : msgFLXMSSMTTW list;
-    var sigl : sigFLXMSSMTTW list;
-    var m, m' : msgFLXMSSMTTW;
-    var sig, sig' : sigFLXMSSMTTW;
+    var pk : pkFLSLXMSSMTTW;
+    var sk : skWOTS list list list * pseed * adrs;
+    var ml : msgFLSLXMSSMTTW list;
+    var sigl : sigFLSLXMSSMTTW list;
+    var m, m' : msgFLSLXMSSMTTW;
+    var sig, sig' : sigFLSLXMSSMTTW;
+    var idx' : index;
     var is_valid, is_fresh : bool;
     
-    ad <- witness;
+    ad <- val (witness<:xadrs>);
     ps <$ dpseed;
     
-    (pk, sk) <@ FL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
 
     ml <@ A.choose(pk);
     
@@ -1110,17 +1120,14 @@ module EUF_NACMA_FLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) = {
     while (size sigl < min (size ml) l) {
       m <- nth witness ml (size sigl);
 
-      sig <@ FL_XMSS_MT_TW_ES_NPRF.sign(sk, m);
-
-      (* Update secret key *)
-      sk <- (insubd (val sk.`1 + 1), sk.`2, sk.`3, sk.`4);
+      sig <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign(sk, m, insubd (size sigl));
       
       sigl <- rcons sigl sig;
     }
     
-    (m', sig') <@ A.forge(sigl);
+    (m', sig', idx') <@ A.forge(sigl);
 
-    is_valid <@ FL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig');
+    is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
 
     is_fresh <- ! m' \in take (size sigl) ml;
 
@@ -1130,7 +1137,7 @@ module EUF_NACMA_FLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) = {
 
 
 (* -- Reduction adversaries -- *)
-module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWES_NPRF) (O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
+module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWES_NPRF) (O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
   proc choose() : unit = {
   
   }
@@ -1141,7 +1148,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : Ad
 }.
 
 
-module (R_SMDTTCRCPKCO_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
+module (R_SMDTTCRCPKCO_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
   proc pick() : unit = {
   
   }
@@ -1151,7 +1158,7 @@ module (R_SMDTTCRCPKCO_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : PKCOC_TCR.
   }
 }.
 
-module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
+module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   proc pick() : unit = {
   
   }
@@ -1164,11 +1171,11 @@ module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLXMSSMTTWESNPRF) : TRHC_TCR.Ad
 
 section Proof_EUF_NACMA_FL_XMSS_MT_TW_ES_NPRF.
 
-declare module A <: Adv_EUFNACMA_FLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWES_NPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNACMA, -R_SMDTTCRCPKCO_EUFNACMA, -R_SMDTTCRCTRH_EUFNACMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
+declare module A <: Adv_EUFNACMA_FLSLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWES_NPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNACMA, -R_SMDTTCRCPKCO_EUFNACMA, -R_SMDTTCRCTRH_EUFNACMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
 
 
-local lemma EUFNACMA_FLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
-  Pr[EUF_NACMA_FLXMSSMTTWESNPRF(A).main() @ &m : res]
+local lemma EUFNACMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
+  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(A).main() @ &m : res]
   <=
   Pr[M_EUF_GCMA_WOTSTWES_NPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A), O_MEUFGCMA_WOTSTWES_NPRF, FC.O_THFC_Default).main() @ &m : res]
   +
@@ -1178,8 +1185,8 @@ local lemma EUFNACMA_FLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
 proof. admit. qed.
 
 
-lemma EUFNACMA_FLXMSSMTTWESNPRF &m :
-  Pr[EUF_NACMA_FLXMSSMTTWESNPRF(A).main() @ &m : res]
+lemma EUFNACMA_FLSLXMSSMTTWESNPRF &m :
+  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(A).main() @ &m : res]
   <=
   (w - 2)%r
     * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
@@ -1194,7 +1201,7 @@ lemma EUFNACMA_FLXMSSMTTWESNPRF &m :
   Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNACMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 move: (MEUFGCMA_WOTSTWES_NPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)) _ _ &m) 
-      (EUFNACMA_FLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
+      (EUFNACMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
 + admit. 
 admit. 
 qed.

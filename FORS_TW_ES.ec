@@ -75,7 +75,7 @@ proof. by rewrite dval StdOrder.IntOrder.mulr_ege1 1:ge1_s ge1_l. qed.
 
 
 
-(* - Types (1/2) - *)
+(* - Types (1/3) - *)
 (* -- General -- *)
 (* Instance index *)
 clone import Subtype as Index with
@@ -182,7 +182,7 @@ clone import Subtype as BLKAL with
   proof *.
   realize inhabited by exists (nseq (k * a) witness); smt(size_nseq ge1_k ge1_a).
 
-type msgFORS = BLKAL.sT.
+type msgFORSTW = BLKAL.sT.
 
 (* Lists of length a containing digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DBAL with
@@ -193,18 +193,18 @@ clone import Subtype as DBAL with
   realize inhabited by exists (nseq a witness); smt(size_nseq ge1_a).
    
 (* Authentication paths in Merkle trees *)
-type apFORS = DBAL.sT.
+type apFORSTW = DBAL.sT.
 
 (* Lists of length k containing skFORSTW (single element)/apFORSTW pairs *)
 clone import Subtype as DBAPKL with
-  type T   <- (dgstblock * apFORS) list,
+  type T   <- (dgstblock * apFORSTW) list,
     op P ls <- size ls = k
     
   proof *.
   realize inhabited by exists (nseq k witness); smt(size_nseq ge1_k).
 
 (* Signatures *)
-type sigFORS = DBAPKL.sT.
+type sigFORSTW = DBAPKL.sT.
 
 
 
@@ -358,7 +358,7 @@ proof. by rewrite dmap_ll 2!dlist_ll ddgstblock_ll. qed.
 
 
 
-(* - Types (2/2) - *)
+(* - Types (2/3) - *)
 (* -- General -- *)
 (* Addresses used in tweakable hash functions *)
 clone import HashAddresses as HA with
@@ -372,6 +372,7 @@ clone import HashAddresses as HA with
 import Adrs.
 
 type adrs = HA.adrs.
+
 
 
 (* -- FORS/FORS-TW specific -- *)
@@ -465,7 +466,7 @@ clone import MKG.PRF as MKG_PRF with
 *)
 
 (* Message compression function *)
-op mco : mkey -> msg -> msgFORS * index.
+op mco : mkey -> msg -> msgFORSTW * index.
 
 (* 
   Function mapping output of message compression function to a list
@@ -474,7 +475,7 @@ op mco : mkey -> msg -> msgFORS * index.
   - The index of a secret value set (i.e., pointer to Merkle tree in FORS-TW instance indicated by first value of tuple). 
   - The index of a secret value (i.e., pointer to a leaf of the Merkle tree indicated by second value of tuple). 
 *)
-op g (mi : msgFORS * index) : (int * int * int) list =
+op g (mi : msgFORSTW * index) : (int * int * int) list =
   let cmsg = chunk a (val mi.`1) in
   let idx = val mi.`2 in
     mkseq (fun (i : int) => (idx, i, bs2int (rev (nth witness cmsg i)))) k.
@@ -482,7 +483,7 @@ op g (mi : msgFORS * index) : (int * int * int) list =
 clone KeyedHashFunctions as MCO with
   type key_t <- mkey,
   type in_t <- msg,
-  type out_t <- msgFORS * index,
+  type out_t <- msgFORSTW * index,
   
     op f <- mco
     
@@ -723,7 +724,7 @@ op cons_ap_trh_gen (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (bs : bool 
 op cons_ap_trh (bt : dgstblock bintree) (idx : int) (ps : pseed) (ad : adrs) (bidx : int) : apFORSTW =
   DBAL.insubd (cons_ap_trh_gen bt (rev (int2bs a idx)) ps ad a bidx).
 *)
-op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) (bidx : int) : apFORS =
+op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) (bidx : int) : apFORSTW =
   DBAL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs a idx)) a bidx).
 
   
@@ -754,11 +755,11 @@ op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list
   and bidx should be a valid breadth index for root nodes of the Merkle trees in a FORS-TW 
   instance (i.e., in [0, k - 1]).
 *)
-op val_ap_trh (ap : apFORSTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : adrs) (bidx : int) : dgstblock = 
+op val_ap_trh (ap : apFORSTWTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : adrs) (bidx : int) : dgstblock = 
   val_ap_trh_gen (val ap) (rev (int2bs a idx)) leaf ps ad a bidx.
 *)
 
-op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFORS) (idx : int) (leaf : dgstblock) (bidx : int) : dgstblock =
+op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFORSTW) (idx : int) (leaf : dgstblock) (bidx : int) : dgstblock =
   val_ap_trh_gen ps ad (val ap) (rev (int2bs a idx)) leaf a bidx. 
 
 (* 
@@ -773,6 +774,19 @@ op extract_collision_bt_ap_trh (ps : pseed)
                                (leaf : dgstblock) 
                                (bidx : int) =
   extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (a, bidx).
+
+
+
+(* - Types (3/3) - *)
+(* 
+  FORS-TW addresses 
+  Only used to select arbitrary valid FORS-TW in security notion/reductions 
+*)
+clone import Subtype as FHA with
+  type T <= adrs,
+    op P ad <= valid_fadrs ad. 
+  
+type fadrs = FHA.sT.
 
 
 
@@ -831,7 +845,7 @@ module FL_FORS_TW_ES = {
     return (pk, sk);
   }
   
-  proc sign(sk : skFORSTW, m : msgFORS) : sigFORS = {
+  proc sign(sk : skFORSTW, m : msgFORSTW) : sigFORSTW = {
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
@@ -839,8 +853,8 @@ module FL_FORS_TW_ES = {
     var idx : int;
     var skFORS_ele : dgstblock;
     var leaves : dgstblock list;
-    var ap : apFORS;
-    var sig : (dgstblock * apFORS) list;
+    var ap : apFORSTW;
+    var sig : (dgstblock * apFORSTW) list;
     
     (ss, ps, ad) <- sk;
     
@@ -857,9 +871,9 @@ module FL_FORS_TW_ES = {
     return insubd sig;
   }
   
-  proc pkFORS_from_sigFORS(sig : sigFORS, m : msgFORS, ps : pseed, ad : adrs) : pkFORS = {
+  proc pkFORS_from_sigFORSTW(sig : sigFORSTW, m : msgFORSTW, ps : pseed, ad : adrs) : pkFORS = {
     var skFORS_ele : dgstblock;
-    var ap : apFORS;
+    var ap : apFORSTW;
     var leaf : dgstblock;
     var bsidx : bool list;
     var idx : int;
@@ -882,14 +896,14 @@ module FL_FORS_TW_ES = {
     return pkFORS;
   }
   
-  proc verify(pk : pkFORSTW, m : msgFORS, sig : sigFORS) : bool = {
+  proc verify(pk : pkFORSTW, m : msgFORSTW, sig : sigFORSTW) : bool = {
     var ps : pseed;
     var ad : adrs;
     var pkFORS, pkFORS' : pkFORS;
     
     (pkFORS, ps, ad) <- pk;
     
-    pkFORS' <@ pkFORS_from_sigFORS(sig, m, ps, ad);
+    pkFORS' <@ pkFORS_from_sigFORSTW(sig, m, ps, ad);
     
     return pkFORS' = pkFORS;
   } 
@@ -939,17 +953,17 @@ module M_FORS_TW_ES = {
     return (pk, sk);
   }
   
-  proc sign(sk : mseed * sseed * pseed * adrs, m : msg) : mkey * sigFORS = {
+  proc sign(sk : mseed * sseed * pseed * adrs, m : msg) : mkey * sigFORSTW = {
     var ms : mseed;
     var ss : sseed;
     var ps : pseed;
     var ad : adrs;
     var rm : rm; 
     var mk : mkey;
-    var cm : msgFORS;
+    var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
-    var sig : sigFORS;
+    var sig : sigFORSTW;
     
     (ms, ss, ps, ad) <- sk;
     
@@ -966,20 +980,20 @@ module M_FORS_TW_ES = {
     return (mk, sig);
   }
   
-  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORS) : bool = {
+  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORSTW) : bool = {
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var sigFORS : sigFORS;
-    var cm : msgFORS;
+    var sigFORSTW : sigFORSTW;
+    var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
     var is_valid : bool; 
         
     (pkFORSl, ps, ad) <- pk;
-    (mk, sigFORS) <- sig;
+    (mk, sigFORSTW) <- sig;
     
     (cm, idx) <- mco mk m;
     
@@ -987,7 +1001,7 @@ module M_FORS_TW_ES = {
     
     pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
     
-    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORS);
+    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
     
     return is_valid;
   } 
@@ -1050,7 +1064,7 @@ module FL_FORS_TW_ES_NPRF = {
     return (pk, sk);
   }
   
-  proc sign(sk : skFORS * pseed * adrs, m : msgFORS) : sigFORS = {
+  proc sign(sk : skFORS * pseed * adrs, m : msgFORSTW) : sigFORSTW = {
     var skFORS : skFORS;
     var ps : pseed;
     var ad : adrs;
@@ -1058,8 +1072,8 @@ module FL_FORS_TW_ES_NPRF = {
     var idx : int;
     var skFORS_ele : dgstblock;
     var leaves : dgstblock list;
-    var ap : apFORS;
-    var sig : (dgstblock * apFORS) list;
+    var ap : apFORSTW;
+    var sig : (dgstblock * apFORSTW) list;
     
     (skFORS, ps, ad) <- sk;
     
@@ -1078,9 +1092,9 @@ module FL_FORS_TW_ES_NPRF = {
   
   proc verify = FL_FORS_TW_ES.verify
 (*  
-  proc pkFORS_from_sigFORS(sig : sigFORS, m : msgFORS, ps : pseed, ad : adrs) : pkFORS = {
+  proc pkFORS_from_sigFORSTW(sig : sigFORSTW, m : msgFORSTW, ps : pseed, ad : adrs) : pkFORS = {
     var skFORS_ele : dgstblock;
-    var ap : apFORS;
+    var ap : apFORSTW;
     var leaf : dgstblock;
     var bsidx : bool list;
     var idx : int;
@@ -1103,14 +1117,14 @@ module FL_FORS_TW_ES_NPRF = {
     return pkFORS;
   }
   
-  proc verify(pk : pkFORSTW, m : msgFORS, sig : sigFORS) : bool = {
+  proc verify(pk : pkFORSTW, m : msgFORSTW, sig : sigFORSTW) : bool = {
     var ps : pseed;
     var ad : adrs;
     var pkFORS, pkFORS' : pkFORS;
     
     (pkFORS, ps, ad) <- pk;
     
-    pkFORS' <@ pkFORS_from_sigFORS(sig, m, ps, ad);
+    pkFORS' <@ pkFORS_from_sigFORSTW(sig, m, ps, ad);
     
     return pkFORS' = pkFORS;
   }
@@ -1167,16 +1181,16 @@ module M_FORS_TW_ES_NPRF = {
     return (pk, sk);
   }
   
-  proc sign(sk : skFORS list list * pseed * adrs, m : msg) : mkey * sigFORS = {
+  proc sign(sk : skFORS list list * pseed * adrs, m : msg) : mkey * sigFORSTW = {
     var skFORS : skFORS;
     var skFORSs : skFORS list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var cm : msgFORS;
+    var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
-    var sig : sigFORS;
+    var sig : sigFORSTW;
     
     (skFORSs, ps, ad) <- sk;
     
@@ -1195,20 +1209,20 @@ module M_FORS_TW_ES_NPRF = {
   
   proc verify = M_FORS_TW_ES.verify
 (*  
-  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORS) : bool = {
+  proc verify(pk : pkFORS list list * pseed * adrs, m : msg, sig : mkey * sigFORSTW) : bool = {
     var pkFORS : pkFORS;
     var pkFORSs : pkFORS list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var sigFORSTW : sigFORS;
-    var cm : msgFORS;
+    var sigFORSTWTW : sigFORSTW;
+    var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
     var is_valid : bool; 
         
     (pkFORSs, ps, ad) <- pk;
-    (mk, sigFORSTW) <- sig;
+    (mk, sigFORSTWTW) <- sig;
     
     (cm, idx) <- mco mk m;
     
@@ -1216,7 +1230,7 @@ module M_FORS_TW_ES_NPRF = {
     
     pkFORS <- nth witness (nth witness pkFORSs tidx) kpidx;
     
-    is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
+    is_valid <@ FL_FORS_TW_ES_NPRF.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTWTW);
     
     return is_valid;
   }
@@ -1233,7 +1247,7 @@ clone import DigitalSignatures as DSS_MFORSTWESNPRF with
   type pk_t <- pkFORS list list * pseed * adrs,
   type sk_t <- skFORS list list * pseed * adrs,
   type msg_t <- msg,
-  type sig_t <- mkey * sigFORSTW
+  type sig_t <- mkey * sigFORSTWTW
   
   proof *.
 
@@ -1254,21 +1268,21 @@ module O_CMA_MFORSTWESNPRF_AV = {
     lidxs <- [];
   }
   
-  proc sign(m : msg) : mkey * sigFORSTW = {
+  proc sign(m : msg) : mkey * sigFORSTWTW = {
     var mk : mkey;
-    var sigFORSTW : sigFORSTW;
+    var sigFORSTWTW : sigFORSTWTW;
     
-    (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
+    (mk, sigFORSTWTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
     
     lidxs <- lidxs ++ g (mco mk m);
     
-    return (mk, sigFORSTW);  
+    return (mk, sigFORSTWTW);  
   }
 }. 
 *)
 module type Oracle_CMA_MFORSTWESNPRF = {
   proc init(sk_init : skFORS list list * pseed * adrs) : unit
-  proc sign(m : msg) : mkey * sigFORS
+  proc sign(m : msg) : mkey * sigFORSTW
   proc fresh(m : msg) : bool
   proc nr_queries() : int
 }.
@@ -1281,7 +1295,7 @@ module type SOracle_CMA_MFORSTWESNPRF = {
 
 (* -- Adversary classes -- *)
 module type Adv_EUFCMA_MFORSTWESNPRF (O : SOracle_CMA_MFORSTWESNPRF) = {
-  proc forge(pk : pkFORS list list * pseed * adrs) : msg * (mkey * sigFORS)
+  proc forge(pk : pkFORS list list * pseed * adrs) : msg * (mkey * sigFORSTW)
 }.
 
 
@@ -1293,10 +1307,10 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
     var pk : pkFORS list list * pseed * adrs;
     var sk : skFORS list list * pseed * adrs;
     var m : msg;
-    var sig : mkey * sigFORS;
+    var sig : mkey * sigFORSTW;
     var is_valid, is_fresh : bool;
 
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     ps <$ dpseed;
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
@@ -1325,8 +1339,8 @@ module O_CMA_MFORSTWESNPRF : Oracle_CMA_MFORSTWESNPRF = {
     qs <- [];
   }
 
-  proc sign(m : msg) : mkey * sigFORS = {
-    var sig : mkey * sigFORS;
+  proc sign(m : msg) : mkey * sigFORSTW = {
+    var sig : mkey * sigFORSTW;
 
     sig <@ M_FORS_TW_ES_NPRF.sign(sk, m);
 
@@ -1358,15 +1372,15 @@ module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
     lidxs <- [];
   }
 
-  proc sign(m : msg) : mkey * sigFORS = {
+  proc sign(m : msg) : mkey * sigFORSTW = {
     var mk : mkey;
-    var sigFORS : sigFORS;
+    var sigFORSTW : sigFORSTW;
 
-    (mk, sigFORS) <@ O_CMA_MFORSTWESNPRF.sign(m);
+    (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
 
     lidxs <- lidxs ++ g (mco mk m);
 
-    return (mk, sigFORS);
+    return (mk, sigFORSTW);
   }
 }.
 
@@ -1378,13 +1392,13 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
   var skFORSs : skFORS list list
 
   module O_CMA_R_EUFCMA_ITSR : SOracle_CMA_MFORSTWESNPRF = {    
-    proc sign(m : msg) : mkey * sigFORS = {
+    proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
-      var cm : msgFORS;
+      var cm : msgFORSTW;
       var idx : index;
       var tidx, kpidx : int;
       var skFORS : skFORS;
-      var sigFORS : sigFORS;
+      var sigFORSTW : sigFORSTW;
        
       mk <@ O.query(m);
       
@@ -1394,9 +1408,9 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
 
       skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
 
-      sigFORS <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
+      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
-      return (mk, sigFORS);
+      return (mk, sigFORSTW);
     }
   }
   
@@ -1405,9 +1419,9 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
     var sk : skFORS list list * pseed * adrs;
     var mk' : mkey;
     var m' : msg;
-    var sig' : mkey * sigFORS;
+    var sig' : mkey * sigFORSTW;
     
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     ps <$ dpseed;
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);    
@@ -1443,16 +1457,16 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
   
   module O_CMA_R_EUFCMA_FSMDTOpenPREC : SOracle_CMA_MFORSTWESNPRF = {
     (* Signing as with FORS-TW (No PRF), but obtain secret key elements from OpenPRE oracle *)
-    proc sign(m : msg) : mkey * sigFORS = {
+    proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
-      var cm : msgFORS;
+      var cm : msgFORSTW;
       var idx : index;
       var tidx, kpidx, lidx : int;
       var bslidx : bool list;
-      var sigFORS : (dgstblock * apFORS) list;
+      var sigFORSTW : (dgstblock * apFORSTW) list;
       var leaves : dgstblock list;
       var skFORS_ele : dgst;
-      var ap : apFORS;
+      var ap : apFORSTW;
       
       mk <$ dmkey;
 
@@ -1460,19 +1474,19 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
 
       (tidx, kpidx) <- edivz (val idx) l;
 
-      sigFORS <- [];
-      while (size sigFORS < k) {
-        bslidx <- take a (drop (a * (size sigFORS)) (val cm));  
+      sigFORSTW <- [];
+      while (size sigFORSTW < k) {
+        bslidx <- take a (drop (a * (size sigFORSTW)) (val cm));  
         lidx <- bs2int (rev bslidx);
-        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORS * t + lidx);
-        leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORS);
-        ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORS);
-        sigFORS <- rcons sigFORS (DigestBlock.insubd skFORS_ele, ap);
+        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORSTW * t + lidx);
+        leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORSTW);
+        ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORSTW);
+        sigFORSTW <- rcons sigFORSTW (DigestBlock.insubd skFORS_ele, ap);
       }
       
       lidxs <- lidxs ++ g (cm, idx);
       
-      return (mk, insubd sigFORS);
+      return (mk, insubd sigFORSTW);
     }
   }
 
@@ -1483,7 +1497,7 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     var leavesl : dgstblock list list list;
     
     (* Pick address *)
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     
     (* 
       Sample FORS-TW secret keys, specify each secret key element as target 
@@ -1521,14 +1535,14 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     var leaves : dgstblock list;
     var m' : msg;
     var mk' : mkey;
-    var sigFORS' : sigFORS;
-    var mksigFORS' : mkey * sigFORS;
+    var sigFORSTW' : sigFORSTW;
+    var mksigFORSTW' : mkey * sigFORSTW;
     var lidxs' : (int * int * int) list;
     var tidx, kpidx, dfidx, cidx : int;
-    var cm' : msgFORS;
+    var cm' : msgFORSTW;
     var idx' : index;
     var x' : dgstblock;
-    var ap' : apFORS;
+    var ap' : apFORSTW;
     
     (* Initialize module variables (for oracle use) *)
     ps <- ps_init;
@@ -1553,10 +1567,10 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     }
 
     (* Ask adversary to forge *)
-    (m', mksigFORS') <@ A(O_CMA_R_EUFCMA_FSMDTOpenPREC).forge((pkFORSs, ps, ad));
+    (m', mksigFORSTW') <@ A(O_CMA_R_EUFCMA_FSMDTOpenPREC).forge((pkFORSs, ps, ad));
     
     (* Compress message and extract instance index *)
-    (mk', sigFORS') <- mksigFORS';
+    (mk', sigFORSTW') <- mksigFORSTW';
     (cm', idx') <- mco mk' m';
     
     (* 
@@ -1575,7 +1589,7 @@ module (R_EUFCMA_FSMDTOpenPREC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     dfidx <- (nth witness lidxs' (find (fun i => ! i \in lidxs) lidxs')).`2;
     
     (* Get element from forged signature containing the non-matching secret key element  *)
-    (x', ap') <- nth witness (val sigFORS') dfidx;
+    (x', ap') <- nth witness (val sigFORSTW') dfidx;
 
     (* Compute (outer) tree and keypair index from instance index *)
     (tidx, kpidx) <- edivz (val idx') l;
@@ -1606,7 +1620,7 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     var leavesl : dgstblock list list list;
     
     (* Pick address *)
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     
     (* 
       Sample FORS-TW secret keys, specify each secret key element as target 
@@ -1652,13 +1666,13 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     var roots : dgstblock list;
     var m' : msg;
     var mk' : mkey;
-    var sigFORS' : sigFORS;
-    var mksigFORS' : mkey * sigFORS;
+    var sigFORSTW' : sigFORSTW;
+    var mksigFORSTW' : mkey * sigFORSTW;
     var tidx, kpidx, dfidx, cidx : int;
-    var cm' : msgFORS;
+    var cm' : msgFORSTW;
     var idx' : index;
     var x' : dgstblock;
-    var ap' : apFORS;
+    var ap' : apFORSTW;
     var lidxs' : (int * int * int) list;
     
     (* Initialize CMA oracle *)
@@ -1683,10 +1697,10 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     }
 
     (* Ask adversary to forge *)
-    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF_AV).forge((pkFORSs, ps, ad));
+    (m', mksigFORSTW') <@ A(O_CMA_MFORSTWESNPRF_AV).forge((pkFORSs, ps, ad));
     
     (* Compress message and extract instance index *)
-    (mk', sigFORS') <- mksigFORS';
+    (mk', sigFORSTW') <- mksigFORSTW';
     (cm', idx') <- mco mk' m';
     
     (* 
@@ -1705,7 +1719,7 @@ module (R_EUFCMA_FSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     dfidx <- (nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs')).`2;
     
     (* Get element from forged signature containing the non-matching secret key element (pointed to by dfidx) *)
-    (x', ap') <- nth witness (val sigFORS') dfidx;
+    (x', ap') <- nth witness (val sigFORSTW') dfidx;
 
     (* Compute (outer) tree and keypair index from instance index *)
     (tidx, kpidx) <- edivz (val idx') l;
@@ -1739,7 +1753,7 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
     var nodesl : dgstblock list list list list;
     
     (* Pick address *)
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     
     (* Sample FORS-TW secret keys and compute corresponding leaves *)
     skFORSs <- [];
@@ -1835,13 +1849,13 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
     var roots : dgstblock list;
     var m' : msg;
     var mk' : mkey;
-    var sigFORS' : sigFORS;
-    var mksigFORS' : mkey * sigFORS;
+    var sigFORSTW' : sigFORSTW;
+    var mksigFORSTW' : mkey * sigFORSTW;
     var tidx, kpidx, hidx, bidx, dfidx, cidx : int;
-    var cm' : msgFORS;
+    var cm' : msgFORSTW;
     var idx' : index;
     var x' : dgstblock;
-    var ap' : apFORS;
+    var ap' : apFORSTW;
     var leavesk : dgstblock list list;
     var leaf' : dgstblock;
     var bs' : bool list;
@@ -1866,10 +1880,10 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
     }
 
     (* Ask adversary to forge *)
-    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
+    (m', mksigFORSTW') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
     
     (* Compress message and extract instance index *)
-    (mk', sigFORS') <- mksigFORS';
+    (mk', sigFORSTW') <- mksigFORSTW';
     (cm', idx') <- mco mk' m';
     
     (* 
@@ -1892,7 +1906,7 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
 
     (* Construct non-matching leaf from non-matching secret key value in forgery (pointed to by dfidx) *) 
     leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dfidx * t + (bs2int (rev (take a (drop (a * dfidx) (val cm')))))))
-               (val (nth witness (unzip1 (val sigFORS')) dfidx));
+               (val (nth witness (unzip1 (val sigFORSTW')) dfidx));
 
     (* Get (original) leaves of tree pointed to by dfidx in instance pointed to by kpidx in set pointed to by tidx *)
     leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) dfidx;
@@ -1901,7 +1915,7 @@ module (R_EUFCMA_TRHSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
       Get element from forged signature containing non-matching secret key element 
       that maps to non-matching leaf  
     *)
-    (x', ap') <- nth witness (val sigFORS') dfidx;
+    (x', ap') <- nth witness (val sigFORSTW') dfidx;
     
     (* Extract colliding values from the original tree and the non-matching leaf/authentication path *)
     cr <- extract_collision_bt_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 
@@ -1947,7 +1961,7 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
     var pkFORSl : pkFORS list;
     
     (* Pick address *)
-    ad <- witness;
+    ad <- val (witness<:fadrs>);
     
     (* Sample FORS-TW secret keys and compute corresponding leaves *)
     skFORSs <- [];
@@ -2046,10 +2060,10 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
     var roots : dgstblock list;
     var m' : msg;
     var mk' : mkey;
-    var sigFORS' : sigFORS;
-    var mksigFORS' : mkey * sigFORS;
+    var sigFORSTW' : sigFORSTW;
+    var mksigFORSTW' : mkey * sigFORSTW;
     var tidx, kpidx, cidx : int;
-    var cm' : msgFORS;
+    var cm' : msgFORSTW;
     var idx' : index;
     var skFORSels : dgstblock list;
     var roots' : dgstblock list;
@@ -2059,10 +2073,10 @@ module (R_EUFCMA_TRCOSMDTTCRC (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
     O_CMA_MFORSTWESNPRF.init((skFORSs, ps, ad));
         
     (* Ask adversary to forge *)
-    (m', mksigFORS') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
+    (m', mksigFORSTW') <@ A(O_CMA_MFORSTWESNPRF).forge((pkFORSs, ps, ad));
     
     (* Compress message and extract instance index *)
-    (mk', sigFORS') <- mksigFORS';
+    (mk', sigFORSTW') <- mksigFORSTW';
     (cm', idx') <- mco mk' m';
     
     (* Compute (outer) tree and keypair index from instance index *)
@@ -2099,10 +2113,10 @@ declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Defa
 
 
 
-local lemma EUFCMA_MFORSTWESNPRF_OpenPRE &m:
+local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
-  Pr[ITSR(R_EUFCMA_ITSR(A), O_ITSR_Default).main() @ &m : res]
+  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
   Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_EUFCMA_FSMDTOpenPREC(A), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
   +

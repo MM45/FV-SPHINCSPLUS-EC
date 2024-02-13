@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr IntDiv RealExp StdOrder FinType BitEncoding.
+require import AllCore List Distr SmtMap IntDiv RealExp StdOrder FinType BitEncoding.
 (*---*) import IntOrder.
 (*---*) import BS2Int.
 
@@ -186,8 +186,9 @@ type index = Index.sT.
 (* Seeds for message compression key generation function *)
 type mseed.
 
-(* Randomness for non-deterministic signature generation *)
+(* Randomness for non-deterministic signature generation
 type rm.
+*)
 
 (* Keys for message compression *) 
 type mkey.
@@ -552,12 +553,31 @@ clone import SKG.PRF as SKG_PRF with
   realize dkey_ll by exact: dsseed_ll.
   realize doutm_ll by move => d; apply ddgstblock_ll. 
 
-(* Message compression key generation function *)
+(* Message compression key generation function
 op mkg : mseed -> (rm * msg) -> mkey.
 
 clone KeyedHashFunctions as MKG with
   type key_t <- mseed,
   type in_t <- rm * msg,
+  type out_t <- mkey,
+  
+    op f <- mkg
+    
+  proof *.
+
+clone import MKG.PRF as MKG_PRF with
+    op dkey <- dmseed,
+    op doutm x <- dmkey 
+  
+  proof *.
+  realize dkey_ll by exact: dmseed_ll.
+  realize doutm_ll by move=> ?; apply dmkey_ll.
+*)
+op mkg : mseed -> msg -> mkey.
+
+clone KeyedHashFunctions as MKG with
+  type key_t <- mseed,
+  type in_t <- msg,
   type out_t <- mkey,
   
     op f <- mkg
@@ -618,7 +638,7 @@ clone import FORS_TW_ES as FTWES with
     op d <- l,
     
   type mseed <- mseed,
-  type rm <- rm,
+  (* type rm <- rm, *)
   type mkey <- mkey,
   type sseed <- sseed,
   type pseed <- pseed,
@@ -853,7 +873,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     
     (tidx, kpidx) <- edivz (val idx) l';
     
-    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
     
@@ -881,7 +901,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     
     (tidx, kpidx) <- edivz (val idx) l';
     
-    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS, sigFLSLXMSSMTTW, idx, ps, ad);
     
@@ -925,8 +945,9 @@ module R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNACMA_FLSLX
 
 section Proof_SPHINCS_PLUS_TW_EUFCMA.
 
-local module SPHINCS_PLUS_TW_Aux = {
-  proc keygen_prf() : pkSPHINCSPLUSTW * (skFORS list list * skWOTS list list list * pseed) = {
+
+local module SPHINCS_PLUS_TW_FS = {
+  proc keygen_prf() : pkSPHINCSPLUSTW * (mseed * skFORS list list * skWOTS list list list * pseed) = {
     var ad : adrs;
     var ms : mseed;
     var ss : sseed;
@@ -944,7 +965,7 @@ local module SPHINCS_PLUS_TW_Aux = {
     var leaves : dgstblock list;
     var root : dgstblock;
     var pk : pkSPHINCSPLUSTW;
-    var sk : skFORS list list * skWOTS list list list * pseed;
+    var sk : mseed * skFORS list list * skWOTS list list list * pseed;
     
     ad <- insubd [0; 0; chtype; 0; 0; 0];
     
@@ -952,7 +973,6 @@ local module SPHINCS_PLUS_TW_Aux = {
     ss <$ dsseed;
     
     ps <$ dpseed;
-    
     
     skFORSnt <- [];
     while (size skFORSnt < nr_trees 0) {
@@ -1009,12 +1029,12 @@ local module SPHINCS_PLUS_TW_Aux = {
     root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
     
     pk <- (root, ps);
-    sk <- (skFORSnt, skWOTStd, ps);
+    sk <- (ms, skFORSnt, skWOTStd, ps);
 
     return (pk, sk);
   }
 
-  proc keygen_nprf() : pkSPHINCSPLUSTW * (skFORS list list * skWOTS list list list * pseed) = {
+  proc keygen_nprf() : pkSPHINCSPLUSTW * (mseed * skFORS list list * skWOTS list list list * pseed) = {
     var ad : adrs;
     var ms : mseed;
     var ss : sseed;
@@ -1032,7 +1052,7 @@ local module SPHINCS_PLUS_TW_Aux = {
     var leaves : dgstblock list;
     var root : dgstblock;
     var pk : pkSPHINCSPLUSTW;
-    var sk : skFORS list list * skWOTS list list list * pseed;
+    var sk : mseed * skFORS list list * skWOTS list list list * pseed;
     
     ad <- insubd [0; 0; chtype; 0; 0; 0];
     
@@ -1040,7 +1060,6 @@ local module SPHINCS_PLUS_TW_Aux = {
     ss <$ dsseed;
     
     ps <$ dpseed;
-    
     
     skFORSnt <- [];
     while (size skFORSnt < nr_trees 0) {
@@ -1097,68 +1116,127 @@ local module SPHINCS_PLUS_TW_Aux = {
     root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
     
     pk <- (root, ps);
-    sk <- (skFORSnt, skWOTStd, ps);
+    sk <- (ms, skFORSnt, skWOTStd, ps);
 
     return (pk, sk);
   }
-    
-  proc sign(sk : skSPHINCSPLUSTW, m : msg) : sigSPHINCSPLUSTW = {
+}.
+
+local module O_CMA_SPHINCSPLUSTW_FS_PRF : SOracle_CMA = {
+  var sk : mseed * skFORS list list * skWOTS list list list * pseed
+  var qs : msg list
+  
+  proc init(sk_init : mseed * skFORS list list * skWOTS list list list * pseed) : unit = {
+    sk <- sk_init;
+    qs <- [];
+  }
+  
+  proc sign(m : msg) : sigSPHINCSPLUSTW = {
     var ms : mseed;
-    var ss : sseed;
+    var skFORS : skFORS;
+    var pkFORS : pkFORS;
+    var skFORSnt : skFORS list list;
+    var skWOTS : skWOTS;
+    var skWOTStd : skWOTS list list list;
     var ps : pseed;
     var ad : adrs;
     var mk : mkey;
-    var sigFORSTW : sigFORSTW;
     var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
-    var pkFORS : pkFORS;
+    var sigFORSTW : sigFORSTW;
     var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
-    var sig : sigSPHINCSPLUSTW;
-        
-    (ms, ss, ps) <- sk;
     
-    ad <- witness;
+    (ms, skFORSnt, skWOTStd, ps) <- sk;
     
-    (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, set_lidx ad 0), m);
+    ad <- insubd [0; 0; chtype; 0; 0; 0];
     
+    (* rm <$ drm;
+       mk <- mkg ms (rm, m); *)
+    mk <- mkg ms m;
+         
     (cm, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) l';
+    (tidx, kpidx) <- edivz (val idx) l;
     
-    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
+     
+    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
     
-    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
+    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+    
+    qs <- rcons qs m;
     
     return (mk, sigFORSTW, sigFLSLXMSSMTTW);
   }
   
-  proc verify(pk : pkSPHINCSPLUSTW, m : msg, sig : sigSPHINCSPLUSTW) : bool = {
-    var root, root' : dgstblock;
+  proc fresh(m : msg) : bool = {
+    return ! (m \in O_Base_Default.qs);
+  }
+  
+  proc nr_queries() : int = {
+    return size O_Base_Default.qs;
+  }
+}.
+
+
+local module O_CMA_SPHINCSPLUSTW_FS_NPRF : SOracle_CMA = {
+  include var O_CMA_SPHINCSPLUSTW_FS_PRF [-init, sign]
+  (* var rmmap : (rm * msg, mkey) fmap *)
+  var mmap : (msg, mkey) fmap
+  
+  proc init(sk_init : mseed * skFORS list list * skWOTS list list list * pseed) : unit = {
+    sk <- sk_init;
+    qs <- [];
+    mmap <- empty;
+  }
+
+  proc sign(m : msg) : sigSPHINCSPLUSTW = {
+    var ms : mseed;
+    var skFORS : skFORS;
+    var pkFORS : pkFORS;
+    var skFORSnt : skFORS list list;
+    var skWOTS : skWOTS;
+    var skWOTStd : skWOTS list list list;
     var ps : pseed;
-    var mk : mkey;
-    var sigFORSTW : sigFORSTW;
-    var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
     var ad : adrs;
+    var mk : mkey;
     var cm : msgFORSTW;
     var idx : index;
     var tidx, kpidx : int;
-    var pkFORS : pkFORS;
+    var sigFORSTW : sigFORSTW;
+    var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
     
-    (root, ps) <- pk;
-    (mk, sigFORSTW, sigFLSLXMSSMTTW) <- sig;
+    (ms, skFORSnt, skWOTStd, ps) <- sk;
     
-    ad <- witness;
+    ad <- insubd [0; 0; chtype; 0; 0; 0];
     
+    (* rm <$ drm; *)
+    
+    if (m \notin mmap) { 
+      mk <$ dmkey;
+      mmap.[m] <- mk;
+    } else {
+      mk <- oget mmap.[m];
+    }
+      
     (cm, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) l';
+    (tidx, kpidx) <- edivz (val idx) l;
     
-    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx (set_lidx ad 0) trhftype) tidx) kpidx);
+    skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
+     
+    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
     
-    root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS, sigFLSLXMSSMTTW, idx, ps, ad);
+    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
-    return root' = root;
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+    
+    qs <- rcons qs m;
+
+    return (mk, sigFORSTW, sigFLSLXMSSMTTW);
   }
 }.
 
@@ -1204,13 +1282,13 @@ lemma EUFCMA_SPHINCS_PLUS_TW &m :
   +
   Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
-  Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_EUFCMA_FSMDTOpenPREC(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_FSMDTOpenPREC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[FC_TCR.SM_DT_TCR_C(R_EUFCMA_FSMDTTCRC(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
   + 
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_EUFCMA_TRHSMDTTCRC(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[TRCOC_TCR.SM_DT_TCR_C(R_EUFCMA_TRCOSMDTTCRC(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res]  
+  Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res]  
   +
   (w - 2)%r
     * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]

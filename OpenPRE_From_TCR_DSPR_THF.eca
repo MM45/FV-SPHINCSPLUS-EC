@@ -20,13 +20,15 @@ type out_t.
 
 op f : pp_t -> tw_t -> in_t -> out_t.
 
+(*
 op gd : in_t -> df_t.
 
 op fc : df_t -> pp_t -> tw_t -> in_t -> out_t.
 axiom in_collection: exists (df : df_t), fc df = f.
+*)
 
 op [lossless] dpp : pp_t distr.
-op [lossless full uniform] dinput : in_t distr.
+op [lossless full uniform] din : in_t distr.
 
 const t : { int | 0 <= t } as ge0_t.
 
@@ -43,6 +45,7 @@ clone import TweakableHashFunctions as F with
   proof *.
   realize dpp_ll by exact: dpp_ll.
 
+(*
 clone import F.Collection as FC with
   type diff_t <- df_t,
   
@@ -72,9 +75,30 @@ clone import FC.SMDTDSPRC as FC_DSPR with
   
   proof *.
   realize ge0_tsmdtdspr by exact: ge0_t.  
+*)
 
+clone import F.SMDTOpenPRE as F_OpenPRE with
+  op t_smdtopenpre <- t,
+  
+  op din <- din
+  
+  proof *.
+  realize ge0_tsmdtopenpre by exact: ge0_t.
+  realize din_ll by exact: din_ll.
 
+clone import F.SMDTTCR as F_TCR with
+  op t_smdttcr <- t
+  
+  proof *.
+  realize ge0_tsmdttcr by exact: ge0_t.
 
+clone import F.SMDTDSPR as F_DSPR with
+  op t_smdtdspr <- t
+  
+  proof *.
+  realize ge0_tsmdtdspr by exact: ge0_t.  
+
+(*
 module (R_TCRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTTCRC) (O : Oracle_SMDTTCR, OC : Oracle_THFC) = {
   module O_R_TCRC_OpenPREC : Oracle_SMDTOpenPRE = {
     include O_SMDTOpenPRE_Default [-query]
@@ -104,7 +128,39 @@ module (R_TCRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTTCRC) (O : Oracle_SMDTT
     return (i, x');
   }
 }.
+*)
 
+module (R_TCR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTTCR) (O : Oracle_SMDTTCR) = {
+  module O_SMDTOpenPRE : Oracle_SMDTOpenPRE = {
+    include O_SMDTOpenPRE_Default [-query]
+        
+    proc query(tw : tw_t) : out_t = {
+      var x : in_t;
+      var y : out_t;
+      
+      x <$ din;
+      
+      y <@ O.query(tw, x);
+      
+      return y;
+    }
+  }
+    
+  proc pick() : unit = {
+    A(O_SMDTOpenPRE).pick();
+  }
+  
+  proc find(pp : pp_t) : int * in_t = {
+    var i : int;
+    var x' : in_t;
+    
+    (i, x') <@ A(O_SMDTOpenPRE).find(pp);
+    
+    return (i, x');
+  }
+}.
+
+(*
 module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMDTDSPR, OC : Oracle_THFC) = {
   module O_R_DSPRC_OpenPREC : Oracle_SMDTOpenPRE = {
     include var O_SMDTOpenPRE_Default [-init, query]
@@ -181,9 +237,64 @@ module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMD
     return (i, b);
   }
 }.
+*)
+
+module (R_DSPR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTDSPR) (O : Oracle_SMDTDSPR) = {
+  module O_SMDTOpenPRE : Oracle_SMDTOpenPRE = {
+    include var O_SMDTOpenPRE_Default [-init, query]
+    
+    proc init(pp : pp_t) : unit = {
+      ts <- [];
+      xs <- [];
+      os <- [];
+    }
+    
+    proc query(tw : tw_t) : out_t = {
+      var x : in_t;
+      var y : out_t;
+      
+      x <$ din;
+      
+      y <@ O.query(tw, x);
+      
+      xs <- rcons xs x;
+      ts <- rcons ts (tw, y);
+      
+      return y;
+    }
+  }
+
+  proc pick() : unit = {
+    O_SMDTOpenPRE.init(witness);
+    
+    A(O_SMDTOpenPRE).pick();
+  }
+  
+  proc guess(pp : pp_t) : int * bool = {
+    var i : int;
+    var x, x' : in_t;
+    var nrts : int;
+    var opened, dist, b : bool;
+    var twsO : tw_t list;
+    
+    (i, x') <@ A(O_SMDTOpenPRE).find(pp);
+    
+    nrts <@ O_SMDTOpenPRE.nr_targets();
+    opened <@ O_SMDTOpenPRE.opened(i);
+    dist <@ O_SMDTOpenPRE.dist_tweaks();
+    
+    twsO <@ O_SMDTOpenPRE.get_tweaks();
+        
+    x <- nth witness O_SMDTOpenPRE_Default.xs i; (* <@ O_SMDTOpenPRE.open(i); *)
+    
+    b <- x <> x' \/ ! (0 <= nrts <= t /\ !opened /\ dist);
+    
+    return (i, b);
+  }
+}.
 
 
-section Proof_OpenPREC_From_DSPRC_TCRC.
+section Proof_OpenPRE_From_DSPR_TCR.
 
 local lemma mem_size_ge1 (s : 'a list) (x : 'a) :
   x \in s => 1 <= size s.
@@ -262,7 +373,7 @@ local lemma eqv_prefl_mem (pp : pp_t) (tw : tw_t) (x x' : in_t) :
   pre_f_l pp tw (f pp tw x) = pre_f_l pp tw (f pp tw x').
 proof. by rewrite -eqv_img_mem eqv_img_prefl. qed.
 
-
+(*
 declare module A <: Adv_SMDTOpenPREC {-O_SMDTOpenPRE_Default, -O_SMDTDSPR_Default, -O_THFC_Default}.
 
 declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) : 
@@ -270,8 +381,16 @@ declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) 
 
 declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) : 
   islossless O.open => islossless A(O, OC).find.
+*)
+declare module A <: Adv_SMDTOpenPRE {-O_SMDTOpenPRE_Default, -O_SMDTDSPR_Default}.
 
+declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) : 
+  islossless O.query => islossless A(O).pick.
 
+declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) : 
+  islossless O.open => islossless A(O).find.
+
+(*
 local module Si = {
   var x, x' : in_t
   
@@ -337,6 +456,71 @@ local module Fi = {
     return size (pre_f_l pp tw y) = i /\ ! (0 <= nrts <= t /\ !opened /\ dist /\ disj_lists twsO twsOC /\ f pp tw x' = y);
   }
 }.
+*)
+
+local module Si = {
+  var x, x' : in_t
+  
+  proc main(i : int) : bool = {
+    var pp : pp_t;
+    var tw : tw_t;
+    var y : out_t;
+    var nrts : int;
+    var opened, dist : bool;
+    var twsO : tw_t list;
+    
+    pp <$ dpp;
+    
+    O_SMDTOpenPRE_Default.init(pp);
+    
+    A(O_SMDTOpenPRE_Default).pick();
+    
+    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp);
+    
+    (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
+    
+    nrts <@ O_SMDTOpenPRE_Default.nr_targets();
+    opened <@ O_SMDTOpenPRE_Default.opened(i);
+    dist <@ O_SMDTOpenPRE_Default.dist_tweaks();
+    
+    twsO <@ O_SMDTOpenPRE_Default.get_tweaks();
+    
+    x <- nth witness O_SMDTOpenPRE_Default.xs i;
+    
+    return size (pre_f_l pp tw y) = i /\ (0 <= nrts <= t /\ !opened /\ dist /\ f pp tw x' = y);
+  }
+}.
+
+local module Fi = {
+  proc main(i : int) : bool = {
+    var pp : pp_t;
+    var tw : tw_t;
+    var y : out_t;
+    var nrts : int;
+    var opened, dist : bool;    
+    var x, x' : in_t;
+    var twsO : tw_t list;
+    
+    pp <$ dpp;
+    
+    O_SMDTOpenPRE_Default.init(pp);
+    
+    A(O_SMDTOpenPRE_Default).pick();
+    
+    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp);
+    
+    (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
+    nrts <@ O_SMDTOpenPRE_Default.nr_targets();
+    opened <@ O_SMDTOpenPRE_Default.opened(i);
+    dist <@ O_SMDTOpenPRE_Default.dist_tweaks();
+    
+    twsO <@ O_SMDTOpenPRE_Default.get_tweaks();
+    
+    x <- nth witness O_SMDTOpenPRE_Default.xs i;
+    
+    return size (pre_f_l pp tw y) = i /\ ! (0 <= nrts <= t /\ !opened /\ dist /\ f pp tw x' = y);
+  }
+}.
 
     
 local lemma pr_cond_neqxxp_Si (j : int) &m:
@@ -345,7 +529,7 @@ local lemma pr_cond_neqxxp_Si (j : int) &m:
   (j%r - 1%r) / j%r * Pr[Si.main(j) @ &m : res].
 proof. admit. qed.
 
-
+(*
 local lemma pr_OpenPREC_bigSi &m :
   Pr[SM_DT_OpenPRE_C(A, O_SMDTOpenPRE_Default, O_THFC_Default).main() @ &m : res]
   =
@@ -353,7 +537,16 @@ local lemma pr_OpenPREC_bigSi &m :
   +
   bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 2 (card + 1).
 proof. admit. qed.
+*)
+local lemma pr_OpenPRE_bigSi &m :
+  Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res]
+  =
+  Pr[Si.main(1) @ &m : res]
+  +
+  bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 2 (card + 1).
+proof. admit. qed.
 
+(*
 local lemma pr_DSPRC_bigSiFi &m :
   Pr[SM_DT_DSPR_C(R_DSPRC_OpenPREC(A), O_SMDTDSPR_Default, O_THFC_Default).main() @ &m : res]
   =
@@ -363,7 +556,18 @@ local lemma pr_DSPRC_bigSiFi &m :
   +
   bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
 proof. admit. qed.
+*)
+local lemma pr_DSPR_bigSiFi &m :
+  Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+  =
+  Pr[Si.main(1) @ &m : res] 
+  +
+  bigi predT (fun (i : int) => (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1)
+  +
+  bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
+proof. admit. qed.
 
+(*
 local lemma pr_SPprobC_bigSi &m: 
   Pr[SM_DT_SPprob_C(R_DSPRC_OpenPREC(A), O_SMDTDSPR_Default, O_THFC_Default).main() @ &m : res]
   =
@@ -371,7 +575,16 @@ local lemma pr_SPprobC_bigSi &m:
   +
   bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
 proof. admit. qed.
+*)
+local lemma pr_SPprob_bigSi &m: 
+  Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+  =
+  bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 2 (card + 1)
+  +
+  bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
+proof. admit. qed.
 
+(*
 local lemma pr_DSPRCSPprobC_bigSi &m :
   Pr[SM_DT_DSPR_C(R_DSPRC_OpenPREC(A), O_SMDTDSPR_Default, O_THFC_Default).main() @ &m : res]
   -
@@ -386,13 +599,36 @@ field; rewrite -big_split /= subr_eq0 &(eq_big_seq) => i /mem_range rng_i /=.
 rewrite -mulrDl -{1}mul1r -mulrDl (: 1%r + (i%r - 1%r) = i%r) 1:/#.
 by rewrite mulrC mulrA mulVf 1:/#.
 qed.
+*)
+local lemma pr_DSPRSPprob_bigSi &m :
+  Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+  -
+  Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+  =
+  Pr[Si.main(1) @ &m : res] 
+  -
+  bigi predT (fun (i : int) => 1%r / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
+proof.
+rewrite pr_DSPR_bigSiFi pr_SPprob_bigSi.
+field; rewrite -big_split /= subr_eq0 &(eq_big_seq) => i /mem_range rng_i /=.
+rewrite -mulrDl -{1}mul1r -mulrDl (: 1%r + (i%r - 1%r) = i%r) 1:/#.
+by rewrite mulrC mulrA mulVf 1:/#.
+qed.
 
+(*
 local lemma pr_TCRC_bigSi &m :
   Pr[SM_DT_TCR_C(R_TCRC_OpenPREC(A), O_SMDTTCR_Default, O_THFC_Default).main() @ &m : res]
   =
   bigi predT (fun (i : int) => (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
 proof. admit. qed.
+*)
+local lemma pr_TCR_bigSi &m :
+  Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res]
+  =
+  bigi predT (fun (i : int) => (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
+proof. admit. qed.
 
+(*
 lemma OpenPREC_From_DSPRC_TCRC &m :
   Pr[SM_DT_OpenPRE_C(A, O_SMDTOpenPRE_Default, O_THFC_Default).main() @ &m : res]
   <= 
@@ -417,5 +653,30 @@ rewrite mulrC 2!mulrA mulrDr /= divrr 1:/# /=.
 rewrite mulrAC mulrDl /= 2!mulNr /= mulrC -mulrBr.
 by rewrite &(ler_pemulr) 1:Pr[mu_ge0] // /#.
 qed.
+*)
+lemma OpenPRE_From_DSPR_TCR &m :
+  Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res]
+  <= 
+  maxr 0%r 
+       (Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+        -
+        Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res])
+  +
+  3%r * Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res].
+proof.
+apply (ler_trans 
+        (Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
+         -
+         Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res] 
+         +
+         3%r * Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res])); last first.
++ by apply ler_add; 1: rewrite maxrr.
+rewrite pr_OpenPRE_bigSi pr_DSPRSPprob_bigSi pr_TCR_bigSi.
+rewrite -addrA &(ler_add) 1:// addrC mulrC mulr_suml sumrB /=.
+apply ler_sum_seq => i /mem_range rng_i _ /=.
+rewrite mulrC 2!mulrA mulrDr /= divrr 1:/# /=.
+rewrite mulrAC mulrDl /= 2!mulNr /= mulrC -mulrBr.
+by rewrite &(ler_pemulr) 1:Pr[mu_ge0] // /#.
+qed.
 
-end section Proof_OpenPREC_From_DSPRC_TCRC.
+end section Proof_OpenPRE_From_DSPR_TCR.

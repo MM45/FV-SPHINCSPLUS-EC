@@ -564,6 +564,14 @@ clone import F.SMDTTCR as F_TCR with
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
 *)
+clone import F.SMDTOpenPRE as F_OpenPRE with
+  op t_smdtopenpre <- d * k * t,
+  
+  op din <- ddgstblocklift
+    
+  proof *.
+  realize ge0_tsmdtopenpre by smt(ge1_d ge1_k ge2_t).
+  realize din_ll by exact: ddgstblocklift_ll.
 
 clone import F.Collection as FC with
   type diff_t <- int,
@@ -574,7 +582,7 @@ clone import F.Collection as FC with
     
   proof *.
   realize in_collection by exists (8 * n).
-
+(*
 clone import FC.SMDTOpenPREC as FC_OpenPRE with
   op t_smdtopenpre <- d * k * t,
   
@@ -583,7 +591,7 @@ clone import FC.SMDTOpenPREC as FC_OpenPRE with
   proof *.
   realize ge0_tsmdtopenpre by smt(ge1_d ge1_k ge2_t).
   realize din_ll by exact: ddgstblocklift_ll.
-    
+*)    
 clone import FC.SMDTTCRC as FC_TCR with
   op t_smdttcr <- d * k * t
   
@@ -756,7 +764,7 @@ op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list
 (* 
   Computes value corresponding to an authentication path, leaf, and a path represented 
   by the big-endian binary representation of an index  w.r.t. a certain public seed, address, 
-  height index a, and breadth index bidx. Here, idx should be a valid leaf index (i.e., in [0, 2 ^ a -1])
+  height index a, and breadth index bidx. Here, idx should be a valid leaf index (i.e., in [0, 2 ^ a - 1])
   and bidx should be a valid breadth index for root nodes of the Merkle trees in a FORS-TW 
   instance (i.e., in [0, k - 1]).
 *)
@@ -1034,6 +1042,24 @@ module FL_FORS_TW_ES_NPRF = {
     return leaves;
   }
   
+  proc gen_skFORS() : skFORS = {
+    var skFORS_ele : dgstblock;
+    var skFORSt : dgstblock list;
+    var skFORS : dgstblock list list;
+    
+    skFORS <- [];
+    while (size skFORS < k) {
+      skFORSt <- [];
+      while (size skFORSt < t) {
+        skFORS_ele <$ ddgstblock;
+        skFORSt <- rcons skFORSt skFORS_ele;
+      }
+      skFORS <- rcons skFORS skFORSt;  
+    }
+    
+    return insubd skFORS;
+  }
+  
   proc gen_pkFORS(skFORS : skFORS, ps : pseed, ad : adrs) : pkFORS = {
     var pkFORS : dgstblock;
     var leaves : dgstblock list;
@@ -1058,7 +1084,7 @@ module FL_FORS_TW_ES_NPRF = {
     var pk : pkFORSTW;
     var sk : skFORS * pseed * adrs;
     
-    skFORS <$ dskFORS;
+    skFORS <@ gen_skFORS();
     
     pkFORS <@ gen_pkFORS(skFORS, ps, ad);
     
@@ -1169,7 +1195,7 @@ module M_FORS_TW_ES_NPRF = {
       skFORSl <- [];
       pkFORSl <- [];
       while (size skFORSl < l) {
-        skFORS <$ dskFORS;
+        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
         pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx ad (size skFORSs)) (size skFORSl));
         skFORSl <- rcons skFORSl skFORS;
         pkFORSl <- rcons pkFORSl pkFORS; 
@@ -1310,8 +1336,8 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
     var ps : pseed;
     var pk : pkFORS list list * pseed * adrs;
     var sk : skFORS list list * pseed * adrs;
-    var m : msg;
-    var sig : mkey * sigFORSTW;
+    var m' : msg;
+    var sig' : mkey * sigFORSTW;
     var is_valid, is_fresh : bool;
 
     ad <- val (witness<:fadrs>);
@@ -1321,11 +1347,11 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
 
     O.init(sk);
 
-    (m, sig) <@ A(O).forge(pk);
+    (m', sig') <@ A(O).forge(pk);
 
-    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m, sig);
+    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m', sig');
 
-    is_fresh <@ O.fresh(m);
+    is_fresh <@ O.fresh(m');
 
     return is_valid /\ is_fresh; 
   }
@@ -1480,7 +1506,6 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
   challenges). So, we need to reduce to TopenPRE, which in turn reduces
   to DSPR + TCR (see DSPR/SPHINCS+ paper); might be able to directly reduce (i.e., not go via TopenPRE)
   In the second case, we can reduce to SMDTTCR.
-*)
 module (R_FSMDTOpenPREC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_SMDTOpenPREC) (O : FC_OpenPRE.Oracle_SMDTOpenPRE, OC : FC.Oracle_THFC) = {
   var ps : pseed
   var ad : adrs
@@ -1647,6 +1672,176 @@ module (R_FSMDTOpenPREC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     return (cidx, val x');
   }
 }.
+*)
+
+
+module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMDTOpenPRE) (O : F_OpenPRE.Oracle_SMDTOpenPRE) = {
+  var ps : pseed
+  var ad : adrs
+  var leavess : dgstblock list list list list
+  var lidxs : (int * int * int) list
+  (* var rmmap : (rm * msg, mkey) fmap *)
+  var mmap : (msg, mkey) fmap
+  
+  module O_CMA : SOracle_CMA_MFORSTWESNPRF = {
+    (* Signing as with FORS-TW (No PRF), but obtain secret key elements from OpenPRE oracle *)
+    proc sign(m : msg) : mkey * sigFORSTW = {
+      var mk : mkey;
+      var cm : msgFORSTW;
+      var idx : index;
+      var tidx, kpidx, lidx : int;
+      var bslidx : bool list;
+      var sigFORSTW : (dgstblock * apFORSTW) list;
+      var leaves : dgstblock list;
+      var skFORS_ele : dgst;
+      var ap : apFORSTW;
+      
+      (* rm <$ drm; *)
+    
+      if (m \notin mmap) { 
+        mk <$ dmkey;
+        mmap.[m] <- mk;
+      } else {
+        mk <- oget mmap.[m];
+      }
+
+      (cm, idx) <- mco mk m;
+
+      (tidx, kpidx) <- edivz (val idx) l;
+
+      sigFORSTW <- [];
+      while (size sigFORSTW < k) {
+        bslidx <- take a (drop (a * (size sigFORSTW)) (val cm));  
+        lidx <- bs2int (rev bslidx);
+        skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORSTW * t + lidx);
+        leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORSTW);
+        ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORSTW);
+        sigFORSTW <- rcons sigFORSTW (DigestBlock.insubd skFORS_ele, ap);
+      }
+      
+      lidxs <- lidxs ++ g (cm, idx);
+      
+      return (mk, insubd sigFORSTW);
+    }
+  }
+
+  proc pick() : unit = {
+    var leaf : dgstblock;
+    var leavest : dgstblock list;
+    var leavesk : dgstblock list list;
+    var leavesl : dgstblock list list list;
+    
+    (* Pick address *)
+    ad <- val (witness<:fadrs>);
+    
+    (* 
+      Sample FORS-TW secret keys, specify each secret key element as target 
+      and obtain corresponding leaves
+    *)
+    leavess <- [];
+    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
+    while (size leavess < s) {
+      leavesl <- [];
+      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
+      while (size leavesl < l) {
+        leavesk <- [];
+        (* For each tree in a FORS-TW instance... *)
+        while (size leavesk < k)  {
+          leavest <- [];
+          (* Obtain the leaves by querying challenge oracle *)
+          while (size leavest < t) {
+            leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size leavess)) (size leavesl)) 0 (size leavesk * t + size leavest));
+            leavest <- rcons leavest leaf;
+          }
+          leavesk <- rcons leavesk leavest;
+        }
+        leavesl <- rcons leavesl leavesk;
+      }
+      leavess <- rcons leavess leavesl;
+    }
+  }
+  
+  proc find(ps_init : pseed) : int * dgst = {
+    var pkFORSs : pkFORS list list;
+    var pkFORSl : pkFORS list;
+    var pkFORS : pkFORS;
+    var roots : dgstblock list;
+    var root : dgstblock;
+    var leaves : dgstblock list;
+    var m' : msg;
+    var mk' : mkey;
+    var sigFORSTW' : sigFORSTW;
+    var mksigFORSTW' : mkey * sigFORSTW;
+    var lidxs' : (int * int * int) list;
+    var tidx, kpidx, dfidx, cidx : int;
+    var cm' : msgFORSTW;
+    var idx' : index;
+    var x' : dgstblock;
+    var ap' : apFORSTW;
+    
+    (* Initialize module variables (for oracle use) *)
+    ps <- ps_init;
+    lidxs <- [];
+    mmap <- empty;
+    
+    (* Compute public keys corresponding to previously computed secret keys/leaves *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        roots <- [];
+        while (size roots < k) {
+          leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
+          roots <- rcons roots root;
+        }
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
+        
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+
+    (* Ask adversary to forge *)
+    (m', mksigFORSTW') <@ A(O_CMA).forge((pkFORSs, ps, ad));
+    
+    (* Compress message and extract instance index *)
+    (mk', sigFORSTW') <- mksigFORSTW';
+    (cm', idx') <- mco mk' m';
+    
+    (* 
+      Compute (instance index, inner tree index, leaf index) tuples from 
+      the compressed message and instance index 
+    *)
+    lidxs' <- g (cm', idx');
+    
+    (* 
+      Find the (instance index, inner tree index, leaf index) tuple computed from
+      the forgery message that did not yet occur in the tuples computed from 
+      the messages in the oracle queries. From this tuple, extract the inner tree
+      index (which is also the index of the element in the forged signature
+      that we want to extract)
+    *)
+    dfidx <- (nth witness lidxs' (find (fun i => ! i \in lidxs) lidxs')).`2;
+    
+    (* Get element from forged signature containing the non-matching secret key element  *)
+    (x', ap') <- nth witness (val sigFORSTW') dfidx;
+
+    (* Compute (outer) tree and keypair index from instance index *)
+    (tidx, kpidx) <- edivz (val idx') l;
+    
+    (* 
+      Compute index in the target list of the OpenPRE oracle for which x' is a collision.
+      Since we queried the targets in order, starting from the left, this index is exactly
+      the index of the secret key/leaf (for which x' is a collision) if you were to
+      flatten the complete structure.
+    *)
+    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (take a (drop (a * dfidx) (val cm'))));
+
+    return (cidx, val x');
+  }
+}.
+
 
 module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
@@ -1676,7 +1871,7 @@ module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
       leavesl <- [];
       (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <$ dskFORS;
+        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         
@@ -1806,7 +2001,7 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
       leavesl <- [];
       (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <$ dskFORS;
+        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         
@@ -2014,7 +2209,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
       leavesl <- [];
       (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <$ dskFORS;
+        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         
@@ -2144,7 +2339,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 
 section Proof_EUFCMA_M_FORS_TW_ES.
 
-declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_FSMDTOpenPREC_EUFCMA, -R_FSMDTTCRC_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_FSMDTOpenPRE_EUFCMA, -R_FSMDTTCRC_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
 
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
@@ -2154,13 +2349,29 @@ declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Defa
 *)
 
 
-
+(*
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
   Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
   Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_FSMDTOpenPREC_EUFCMA(A), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  +
+  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+  + 
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
+  +
+  Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
+proof.
+admit.
+qed.
+*)
+local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
+  Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
+  <= 
+  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
+  +
+  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
   +
   Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
   + 
@@ -2179,6 +2390,9 @@ qed.
   Effectively, f has input type ddgstblock (because it is used on dgst elements that are of length 8 * n and
   hence satisfy the condition of ddgstblock), which is indeed finite...
 *)
+local op f' : pseed -> adrs -> dgstblock -> dgstblock.
+
+print FC_OpenPRE.
 (*
 local clone import OpenPRE_From_TCR_DSPR_THF as OPRETCRDSPR with
 *)

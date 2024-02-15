@@ -340,8 +340,8 @@ op [lossless] dpseed : pseed distr.
 op [lossless] dsseed : sseed distr.
 *)
 
-(* Proper distribution over digests of length 1 (block of 8 * n bits) *)
-op [lossless] ddgstblock : dgstblock distr.
+(* Proper, full, and uniform distribution over digests of length 1 (block of 8 * n bits) *)
+op [lossless full uniform] ddgstblock : dgstblock distr.
 
 (* Proper distribution over digests of length 1 (block of 8 * n bits), lifted to dgst type *)
 op ddgstblocklift : dgst distr = dmap ddgstblock DigestBlock.val.
@@ -1493,7 +1493,7 @@ module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
     return (mk', m');
   }
 }.
-
+    
 (* 
   One of the cases for forgery of FORS-TW is that one of the private key elements
   in the signature was not included in the responses to the adversary's queries, but it does
@@ -1674,7 +1674,6 @@ module (R_FSMDTOpenPREC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
 }.
 *)
 
-
 module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMDTOpenPRE) (O : F_OpenPRE.Oracle_SMDTOpenPRE) = {
   var ps : pseed
   var ad : adrs
@@ -1725,14 +1724,12 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     }
   }
 
-  proc pick() : unit = {
+  proc pick() : adrs list = {
+    (*
     var leaf : dgstblock;
     var leavest : dgstblock list;
     var leavesk : dgstblock list list;
     var leavesl : dgstblock list list list;
-    
-    (* Pick address *)
-    ad <- val (witness<:fadrs>);
     
     (* 
       Sample FORS-TW secret keys, specify each secret key element as target 
@@ -1759,9 +1756,33 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
       }
       leavess <- rcons leavess leavesl;
     }
+    *)
+    var ad : adrs;
+    var adl : adrs list;
+    var tidx, kpidx, tbidx : int;
+    
+    (* Pick address *)
+    ad <- val (witness<:fadrs>);
+    
+    adl <- [];
+    tidx <- 0;
+    while (tidx < s) {
+      kpidx <- 0;
+      while (kpidx < l) {
+        tbidx <- 0;
+        while (tbidx < k * t) {
+          adl <- rcons adl (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 tbidx);
+          tbidx <- tbidx + 1;
+        }
+        kpidx <- kpidx + 1;
+      }
+      tidx <- tidx + 1;
+    }
+    
+    return adl;  
   }
   
-  proc find(ps_init : pseed) : int * dgst = {
+  proc find(ps_init : pseed, leavess : dgstblock list) : int * dgst = {
     var pkFORSs : pkFORS list list;
     var pkFORSl : pkFORS list;
     var pkFORS : pkFORS;
@@ -1783,7 +1804,8 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     ps <- ps_init;
     lidxs <- [];
     mmap <- empty;
-    
+
+    (*
     (* Compute public keys corresponding to previously computed secret keys/leaves *)
     pkFORSs <- [];
     while (size pkFORSs < s) {
@@ -1792,6 +1814,25 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
         roots <- [];
         while (size roots < k) {
           leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots);
+          root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
+          roots <- rcons roots root;
+        }
+        pkFORS <- trco ps (set_kpidx (set_tidx (set_typeidx ad trcotype) (size pkFORSs)) (size pkFORSl)) (flatten (map DigestBlock.val roots));
+        
+        pkFORSl <- rcons pkFORSl pkFORS;
+      }
+      pkFORSs <- rcons pkFORSs pkFORSl;
+    }
+    *)
+    
+    (* Compute public keys corresponding to previously computed secret keys/leaves *)
+    pkFORSs <- [];
+    while (size pkFORSs < s) {
+      pkFORSl <- [];
+      while (size pkFORSl < l) {
+        roots <- [];
+        while (size roots < k) {
+          leaves <- take t (drop (size pkFORSs * l * k * t + size pkFORSl * k * t + size roots * k) leavess); 
           root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
           roots <- rcons roots root;
         }
@@ -1841,7 +1882,6 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     return (cidx, val x');
   }
 }.
-
 
 module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
@@ -2382,6 +2422,54 @@ proof.
 admit.
 qed.
 
+print SM_DT_OpenPRE.
+local module SM_DT_OpenPRE_R = {
+  
+  proc main() : bool = {
+    var pp : pseed;
+    var tw : adrs;
+    var tws : adrs list;
+    var x : dgst;
+    var y : dgstblock;
+    var ys : dgstblock list;
+    var i : int;
+    var nrts : int;
+    var opened : bool;
+    var dist : bool;
+    
+    pp <$ dpseed;
+    tws <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE_Default).pick();
+    ys <@ O_SMDTOpenPRE_Default.init(pp, tws);
+    (i, x) <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE_Default).find(pp, ys);
+    (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
+    nrts <@ O_SMDTOpenPRE_Default.nr_targets();
+    opened <@ O_SMDTOpenPRE_Default.opened(i);
+    dist <@ O_SMDTOpenPRE_Default.dist_tweaks();
+    
+    return (0 <= nrts && nrts <= d * k * t) /\ !opened /\ dist /\ f pp tw x = y /\ size x = 8 * n;
+  }
+}.
+
+local lemma test &m :
+  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
+  =
+  Pr[SM_DT_OpenPRE_R.main() @ &m : res].
+proof.
+byequiv => //.
+proc.
+conseq (: ={glob A, R_FSMDTOpenPRE_EUFCMA.ad, R_FSMDTOpenPRE_EUFCMA.leavess} ==> ={nrts, opened, dist, pp, tw, x, y})
+       _
+       (: true ==> size x = 8 * n). 
+       smt().
+smt().
+seq 4 : (size x = 8 * n).
+inline 4. wp 18. conseq (: true ==> true). 
+move=> ? _ ? _. by rewrite valP.
+trivial.
+conseq />. trivial.
+by sim.
+qed.
+
 (* 
   TODO: 
   Need finiteness and uniform distribution over input type.
@@ -2390,9 +2478,83 @@ qed.
   Effectively, f has input type ddgstblock (because it is used on dgst elements that are of length 8 * n and
   hence satisfy the condition of ddgstblock), which is indeed finite...
 *)
-local op f' : pseed -> adrs -> dgstblock -> dgstblock.
+local op f' (ps : pseed) (ad : adrs) (x : dgstblock) : dgstblock = 
+  f ps ad (val x).
+(*
+local lemma ge0_dkt :
+ 0 <= d * k * t.
+*)
+local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSCPR with
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgstblock,
+  type out_t <- dgstblock,
+      
+    op f <- f',
+    
+    op t <- d * k * t,
+    
+    op dpp <- dpseed,
+    op din <- ddgstblock,
+    
+  theory InFT <= DigestBlockFT
+  
+  rename [theory] "F_OpenPRE" as "FP_OpenPRE" 
+  
+  proof *.
+  realize dpp_ll by exact: dpseed_ll.
+  realize din_ll by exact: ddgstblock_ll.
+  realize din_fu by exact: ddgstblock_fu.
+  realize din_uni by exact: ddgstblock_uni.
+  realize ge0_t by smt(ge2_t ge1_k ge1_d).
 
-print FC_OpenPRE.
+local module (R : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE) = {
+  module O_SMDTOpenPRE : F_OpenPRE.Oracle_SMDTOpenPRE = {
+    include var F_OpenPRE.O_SMDTOpenPRE_Default [-open]     
+    
+    proc open(i : int) : dgst ={
+      var x : dgstblock;
+      
+      x <@ O.open(i);
+      
+      return val x;
+    }
+  }
+  
+  proc pick() : adrs list = {
+    var adl : adrs list;
+    
+    adl <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).pick();
+    
+    return witness;
+  }
+  
+  proc find(ps : pseed, ys : dgstblock list) : int * dgstblock = {
+    var i : int;
+    var x : dgst;
+    
+    (i, x) <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).find(ps, ys);
+    
+    return (i, DigestBlock.insubd x);
+  }
+}.
+
+local lemma test2 &m :
+  Pr[SM_DT_OpenPRE_R.main() @ &m : res]
+  =
+  Pr[FP_OpenPRE.SM_DT_OpenPRE(R, FP_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res].
+proof.
+byequiv => //.
+proc.
+conseq (: ={glob A, R_FSMDTOpenPRE_EUFCMA.ad, R_FSMDTOpenPRE_EUFCMA.leavess} ==> ={nrts, opened, dist, pp, tw, y} /\ x{1} = val x{2}). smt. smt.
+seq 4 4 : (   ={pp, i} 
+           /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
+           /\ x{1} = val x{2}).
+inline{1} 4. inline{2} 4. inline{2} 6.  wp 18 20.  conseq (: true ==> ={pp, cidx, x'} /\  ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)). progress. by rewrite valKd.
+admit.
+conseq />. by sim.
+qed.
+
 (*
 local clone import OpenPRE_From_TCR_DSPR_THF as OPRETCRDSPR with
 *)

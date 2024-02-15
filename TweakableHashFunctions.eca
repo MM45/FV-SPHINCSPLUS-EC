@@ -138,11 +138,6 @@ end SMDTPRE.
 
 
 (* - Single-function, Multi-target, Distinct-Tweak Open PREimage resistance (SM_DT_OpenPRE) - *)
-(* 
-  Note/Todo: 
-  This is in an adaptive style to match the other properties, but non-adaptive is probably
-  already sufficient and might be easier to use in proofs.
-*)
 abstract theory SMDTOpenPRE.
   (* Number of functions/targets for SM_DT_PRE *)
   const t_smdtopenpre : { int | 0 <= t_smdtopenpre } as ge0_tsmdtopenpre.
@@ -151,8 +146,7 @@ abstract theory SMDTOpenPRE.
   op [lossless] din : in_t distr.
 
   module type Oracle_SMDTOpenPRE = {
-    proc init(pp_init : pp_t) : unit
-    proc query(tw : tw_t) : out_t
+    proc init(pp_init : pp_t, tws_init : tw_t list) : out_t list
     proc open(i : int) : in_t
     proc get(i : int) : tw_t * out_t
     proc get_tweaks() : tw_t list
@@ -162,8 +156,8 @@ abstract theory SMDTOpenPRE.
   }.
 
   module type Adv_SMDTOpenPRE(O : Oracle_SMDTOpenPRE) = {
-    proc pick() : unit { O.query }
-    proc find(pp : pp_t) : int * in_t { O.open }
+    proc pick() : tw_t list {}
+    proc find(pp : pp_t, ys : out_t list) : int * in_t { O.open }
   }.
 
   module O_SMDTOpenPRE_Default : Oracle_SMDTOpenPRE = {
@@ -172,27 +166,32 @@ abstract theory SMDTOpenPRE.
     var xs : in_t list
     var os : int list
     
-    proc init(pp_init : pp_t) : unit = {
+    proc init(pp_init : pp_t, tws_init : tw_t list) : out_t list = {
+      var x : in_t;
+      var y : out_t;
+      var ys : out_t list;
+      var tw : tw_t;
+      var twy : tw_t * out_t;
+      
       pp <- pp_init;
       ts <- [];
       xs <- [];
       os <- [];
-    }
-
-    proc query(tw : tw_t) : out_t = {
-      var x : in_t;
-      var y : out_t;
-      var twy : tw_t * out_t;
-
-      x <$ din;
-      y <- f pp tw x;
-
-      twy <- (tw, y);
       
-      xs <- rcons xs x;
-      ts <- rcons ts twy;
-
-      return y;
+      ys <- [];
+      while (size ts < min (size tws_init) t_smdtopenpre) {
+        tw <- nth witness tws_init (size ts);
+        x <$ din;
+        y <- f pp tw x;
+        
+        twy <- (tw, y);
+        
+        xs <- rcons xs x;
+        ys <- rcons ys y;
+        ts <- rcons ts twy;
+      }
+      
+      return ys;
     }
   
     proc open(i : int) : in_t = {
@@ -228,17 +227,19 @@ abstract theory SMDTOpenPRE.
     proc main() : bool = {
       var pp : pp_t;
       var tw : tw_t;
+      var tws : tw_t list;
       var x : in_t;
       var y : out_t;
+      var ys : out_t list;
       var i : int;
       var nrts : int;
       var opened, dist : bool;
 
       pp <$ dpp;
-      O.init(pp);
-
-      A.pick();
-      (i, x) <@ A.find(pp);
+      tws <@ A.pick();
+      ys <@ O.init(pp, tws);
+      
+      (i, x) <@ A.find(pp, ys);
       
       (tw, y) <@ O.get(i);
 
@@ -657,8 +658,8 @@ abstract theory Collection.
     clone include SMDTOpenPRE.
         
     module type Adv_SMDTOpenPREC(O : Oracle_SMDTOpenPRE, OC : Oracle_THFC) = {
-      proc pick() : unit { O.query, OC.query }
-      proc find(pp : pp_t) : int * in_t { O.open }
+      proc pick() : tw_t list { OC.query }
+      proc find(pp : pp_t, ys : out_t list) : int * in_t { O.open }
     }.
 
     module SM_DT_OpenPRE_C(A : Adv_SMDTOpenPREC, O : Oracle_SMDTOpenPRE, OC : Oracle_THFC) = {
@@ -667,8 +668,10 @@ abstract theory Collection.
       proc main() : bool = {
         var pp : pp_t;
         var tw : tw_t;
+        var tws : tw_t list;
         var x : in_t;
         var y : out_t;
+        var ys : out_t list;
         var i : int;
         var nrts : int;
         var opened, dist : bool;
@@ -676,10 +679,12 @@ abstract theory Collection.
 
         pp <$ dpp;
         OC.init(pp);
-        O.init(pp);
+        
+        tws <@ A.pick();
+        
+        ys <@ O.init(pp, tws);
 
-        A.pick();
-        (i, x) <@ A.find(pp);
+        (i, x) <@ A.find(pp, ys);
 
         (tw, y) <@ O.get(i);
 

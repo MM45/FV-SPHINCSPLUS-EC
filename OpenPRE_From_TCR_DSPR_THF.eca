@@ -7,7 +7,9 @@ import RField.
 
 require TweakableHashFunctions.
 
+(*
 type df_t.
+*)
 
 type pp_t.
 type tw_t.
@@ -131,30 +133,54 @@ module (R_TCRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTTCRC) (O : Oracle_SMDTT
 *)
 
 module (R_TCR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTTCR) (O : Oracle_SMDTTCR) = {
+  var ys : out_t list
+  
   module O_SMDTOpenPRE : Oracle_SMDTOpenPRE = {
-    include O_SMDTOpenPRE_Default [-query]
-        
-    proc query(tw : tw_t) : out_t = {
+    include var O_SMDTOpenPRE_Default [-init]
+    
+    proc init(pp_init : pp_t, tws_init : tw_t list) : out_t list = {
       var x : in_t;
       var y : out_t;
+      var ys : out_t list;
+      var tw : tw_t;
+      var twy : tw_t * out_t;
       
-      x <$ din;
+      (* pp <- pp_init; (Don't need pp, we use given oracle) *)
+      ts <- [];
+      xs <- [];
+      os <- [];
       
-      y <@ O.query(tw, x);
+      ys <- [];
+      while (size ts < min (size tws_init) t) {
+        tw <- nth witness tws_init (size ts);
+        x <$ din;
+        
+        y <@ O.query(tw, x);
+        
+        twy <- (tw, y);
+        
+        xs <- rcons xs x;
+        ys <- rcons ys y;
+        ts <- rcons ts twy;
+      }
       
-      return y;
+      return ys;
     }
   }
-    
+      
   proc pick() : unit = {
-    A(O_SMDTOpenPRE).pick();
+    var tws : tw_t list;
+    
+    tws <@ A(O_SMDTOpenPRE).pick();
+    
+    ys <@ O_SMDTOpenPRE.init(witness, tws);
   }
   
   proc find(pp : pp_t) : int * in_t = {
     var i : int;
     var x' : in_t;
     
-    (i, x') <@ A(O_SMDTOpenPRE).find(pp);
+    (i, x') <@ A(O_SMDTOpenPRE).find(pp, ys);
     
     return (i, x');
   }
@@ -240,34 +266,47 @@ module (R_DSPRC_OpenPREC (A : Adv_SMDTOpenPREC) : Adv_SMDTDSPRC) (O : Oracle_SMD
 *)
 
 module (R_DSPR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTDSPR) (O : Oracle_SMDTDSPR) = {
+  var ys : out_t list
+  
   module O_SMDTOpenPRE : Oracle_SMDTOpenPRE = {
-    include var O_SMDTOpenPRE_Default [-init, query]
+    include var O_SMDTOpenPRE_Default [-init]
     
-    proc init(pp : pp_t) : unit = {
+    proc init(pp_init : pp_t, tws_init : tw_t list) : out_t list = {
+      var x : in_t;
+      var y : out_t;
+      var ys : out_t list;
+      var tw : tw_t;
+      var twy : tw_t * out_t;
+      
+      (* pp <- pp_init; (Don't need pp, we use given oracle) *)
       ts <- [];
       xs <- [];
       os <- [];
-    }
-    
-    proc query(tw : tw_t) : out_t = {
-      var x : in_t;
-      var y : out_t;
       
-      x <$ din;
+      ys <- [];
+      while (size ts < min (size tws_init) t) {
+        tw <- nth witness tws_init (size ts);
+        x <$ din;
+        
+        y <@ O.query(tw, x);
+        
+        twy <- (tw, y);
+        
+        xs <- rcons xs x;
+        ys <- rcons ys y;
+        ts <- rcons ts twy;
+      }
       
-      y <@ O.query(tw, x);
-      
-      xs <- rcons xs x;
-      ts <- rcons ts (tw, y);
-      
-      return y;
+      return ys;
     }
   }
 
   proc pick() : unit = {
-    O_SMDTOpenPRE.init(witness);
+    var tws : tw_t list;
     
-    A(O_SMDTOpenPRE).pick();
+    tws <@ A(O_SMDTOpenPRE).pick();
+    
+    ys <@ O_SMDTOpenPRE.init(witness, tws);
   }
   
   proc guess(pp : pp_t) : int * bool = {
@@ -277,7 +316,7 @@ module (R_DSPR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTDSPR) (O : Oracle_SMDTDSP
     var opened, dist, b : bool;
     var twsO : tw_t list;
     
-    (i, x') <@ A(O_SMDTOpenPRE).find(pp);
+    (i, x') <@ A(O_SMDTOpenPRE).find(pp, ys);
     
     nrts <@ O_SMDTOpenPRE.nr_targets();
     opened <@ O_SMDTOpenPRE.opened(i);
@@ -385,9 +424,9 @@ declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) (OC <: Oracle_THFC {-A}) 
 declare module A <: Adv_SMDTOpenPRE {-O_SMDTOpenPRE_Default, -O_SMDTDSPR_Default}.
 
 declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) : 
-  islossless O.query => islossless A(O).pick.
+  islossless A(O).pick.
 
-declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) : 
+declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) :
   islossless O.open => islossless A(O).find.
 
 (*
@@ -464,18 +503,20 @@ local module Si = {
   proc main(i : int) : bool = {
     var pp : pp_t;
     var tw : tw_t;
+    var tws : tw_t list;
     var y : out_t;
+    var ys : out_t list;
     var nrts : int;
     var opened, dist : bool;
     var twsO : tw_t list;
     
     pp <$ dpp;
     
-    O_SMDTOpenPRE_Default.init(pp);
+    tws <@ A(O_SMDTOpenPRE_Default).pick();
     
-    A(O_SMDTOpenPRE_Default).pick();
+    ys <@ O_SMDTOpenPRE_Default.init(pp, tws);
     
-    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp);
+    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp, ys);
     
     (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
     
@@ -495,7 +536,9 @@ local module Fi = {
   proc main(i : int) : bool = {
     var pp : pp_t;
     var tw : tw_t;
+    var tws : tw_t list;
     var y : out_t;
+    var ys : out_t list;
     var nrts : int;
     var opened, dist : bool;    
     var x, x' : in_t;
@@ -503,11 +546,11 @@ local module Fi = {
     
     pp <$ dpp;
     
-    O_SMDTOpenPRE_Default.init(pp);
+    tws <@ A(O_SMDTOpenPRE_Default).pick();
     
-    A(O_SMDTOpenPRE_Default).pick();
+    ys <@ O_SMDTOpenPRE_Default.init(pp, tws);
     
-    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp);
+    (i, x') <@ A(O_SMDTOpenPRE_Default).find(pp, ys);
     
     (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
     nrts <@ O_SMDTOpenPRE_Default.nr_targets();

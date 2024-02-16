@@ -1,8 +1,8 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding.
+require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder .
 (*---*) import BS2Int BitChunking.
-
+(*---*) import RealOrder.
 
 (* -- Local -- *)
 require import BinaryTrees MerkleTrees.
@@ -1677,8 +1677,8 @@ module (R_FSMDTOpenPREC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
 module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMDTOpenPRE) (O : F_OpenPRE.Oracle_SMDTOpenPRE) = {
   var ps : pseed
   var ad : adrs
-  var leavess : dgstblock list list list list
   var lidxs : (int * int * int) list
+  var leavess : dgstblock list
   (* var rmmap : (rm * msg, mkey) fmap *)
   var mmap : (msg, mkey) fmap
   
@@ -1713,7 +1713,8 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
         bslidx <- take a (drop (a * (size sigFORSTW)) (val cm));  
         lidx <- bs2int (rev bslidx);
         skFORS_ele <@ O.open(tidx * l * k * t + kpidx * k * t + size sigFORSTW * t + lidx);
-        leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORSTW);
+        (* leaves <- nth witness (nth witness (nth witness leavess tidx) kpidx) (size sigFORSTW); *)
+        leaves <- take t (drop (tidx * l * k * t + kpidx * k * t + size sigFORSTW * t) leavess);
         ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORSTW);
         sigFORSTW <- rcons sigFORSTW (DigestBlock.insubd skFORS_ele, ap);
       }
@@ -1725,39 +1726,6 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
   }
 
   proc pick() : adrs list = {
-    (*
-    var leaf : dgstblock;
-    var leavest : dgstblock list;
-    var leavesk : dgstblock list list;
-    var leavesl : dgstblock list list list;
-    
-    (* 
-      Sample FORS-TW secret keys, specify each secret key element as target 
-      and obtain corresponding leaves
-    *)
-    leavess <- [];
-    (* For each set of FORS-TW instances (SPHINCS+: XMSS instance)... *)
-    while (size leavess < s) {
-      leavesl <- [];
-      (* For each FORS-TW instance in a set (SPHINCS+: leaf of XMSS instance)... *)
-      while (size leavesl < l) {
-        leavesk <- [];
-        (* For each tree in a FORS-TW instance... *)
-        while (size leavesk < k)  {
-          leavest <- [];
-          (* Obtain the leaves by querying challenge oracle *)
-          while (size leavest < t) {
-            leaf <@ O.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) (size leavess)) (size leavesl)) 0 (size leavesk * t + size leavest));
-            leavest <- rcons leavest leaf;
-          }
-          leavesk <- rcons leavesk leavest;
-        }
-        leavesl <- rcons leavesl leavesk;
-      }
-      leavess <- rcons leavess leavesl;
-    }
-    *)
-    var ad : adrs;
     var adl : adrs list;
     var tidx, kpidx, tbidx : int;
     
@@ -1782,7 +1750,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     return adl;  
   }
   
-  proc find(ps_init : pseed, leavess : dgstblock list) : int * dgst = {
+  proc find(ps_init : pseed, leavess_init : dgstblock list) : int * dgst = {
     var pkFORSs : pkFORS list list;
     var pkFORSl : pkFORS list;
     var pkFORS : pkFORS;
@@ -1802,6 +1770,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     
     (* Initialize module variables (for oracle use) *)
     ps <- ps_init;
+    leavess <- leavess_init;
     lidxs <- [];
     mmap <- empty;
 
@@ -1832,7 +1801,8 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
       while (size pkFORSl < l) {
         roots <- [];
         while (size roots < k) {
-          leaves <- take t (drop (size pkFORSs * l * k * t + size pkFORSl * k * t + size roots * k) leavess); 
+       (* leaves <- nth witness (nth witness (nth witness leavess (size pkFORSs)) (size pkFORSl)) (size roots); *)
+          leaves <- take t (drop (size pkFORSs * l * k * t + size pkFORSl * k * t + size roots * t) leavess); 
           root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) (size pkFORSs)) (size pkFORSl)) (list2tree leaves) (size roots);
           roots <- rcons roots root;
         }
@@ -2422,69 +2392,11 @@ proof.
 admit.
 qed.
 
-print SM_DT_OpenPRE.
-local module SM_DT_OpenPRE_R = {
-  
-  proc main() : bool = {
-    var pp : pseed;
-    var tw : adrs;
-    var tws : adrs list;
-    var x : dgst;
-    var y : dgstblock;
-    var ys : dgstblock list;
-    var i : int;
-    var nrts : int;
-    var opened : bool;
-    var dist : bool;
-    
-    pp <$ dpseed;
-    tws <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE_Default).pick();
-    ys <@ O_SMDTOpenPRE_Default.init(pp, tws);
-    (i, x) <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE_Default).find(pp, ys);
-    (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
-    nrts <@ O_SMDTOpenPRE_Default.nr_targets();
-    opened <@ O_SMDTOpenPRE_Default.opened(i);
-    dist <@ O_SMDTOpenPRE_Default.dist_tweaks();
-    
-    return (0 <= nrts && nrts <= d * k * t) /\ !opened /\ dist /\ f pp tw x = y /\ size x = 8 * n;
-  }
-}.
 
-local lemma test &m :
-  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
-  =
-  Pr[SM_DT_OpenPRE_R.main() @ &m : res].
-proof.
-byequiv => //.
-proc.
-conseq (: ={glob A, R_FSMDTOpenPRE_EUFCMA.ad, R_FSMDTOpenPRE_EUFCMA.leavess} ==> ={nrts, opened, dist, pp, tw, x, y})
-       _
-       (: true ==> size x = 8 * n). 
-       smt().
-smt().
-seq 4 : (size x = 8 * n).
-inline 4. wp 18. conseq (: true ==> true). 
-move=> ? _ ? _. by rewrite valP.
-trivial.
-conseq />. trivial.
-by sim.
-qed.
-
-(* 
-  TODO: 
-  Need finiteness and uniform distribution over input type.
-  In the case of f, this is dgst, but this is currently equal to bool list, an infinite type.
-  However, this is only the input type for f to model that is part of the colleciton thfc.
-  Effectively, f has input type ddgstblock (because it is used on dgst elements that are of length 8 * n and
-  hence satisfy the condition of ddgstblock), which is indeed finite...
-*)
 local op f' (ps : pseed) (ad : adrs) (x : dgstblock) : dgstblock = 
   f ps ad (val x).
-(*
-local lemma ge0_dkt :
- 0 <= d * k * t.
-*)
-local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSCPR with
+
+local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSPR with
   type pp_t <- pseed,
   type tw_t <- adrs,
   type in_t <- dgstblock,
@@ -2499,7 +2411,10 @@ local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSCPR with
     
   theory InFT <= DigestBlockFT
   
-  rename [theory] "F_OpenPRE" as "FP_OpenPRE" 
+  rename [theory] "F" as "FP"
+  rename [theory] "F_OpenPRE" as "FP_OpenPRE"
+  rename [theory] "F_TCR" as "FP_TCR"
+  rename [theory] "F_DSPR" as "FP_DSPR" 
   
   proof *.
   realize dpp_ll by exact: dpseed_ll.
@@ -2508,7 +2423,7 @@ local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSCPR with
   realize din_uni by exact: ddgstblock_uni.
   realize ge0_t by smt(ge2_t ge1_k ge1_d).
 
-local module (R : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE) = {
+local module (R_FPOpenPRE_FOpenPRE : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE) = {
   module O_SMDTOpenPRE : F_OpenPRE.Oracle_SMDTOpenPRE = {
     include var F_OpenPRE.O_SMDTOpenPRE_Default [-open]     
     
@@ -2526,7 +2441,7 @@ local module (R : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE
     
     adl <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).pick();
     
-    return witness;
+    return adl;
   }
   
   proc find(ps : pseed, ys : dgstblock list) : int * dgstblock = {
@@ -2539,21 +2454,182 @@ local module (R : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE
   }
 }.
 
-local lemma test2 &m :
-  Pr[SM_DT_OpenPRE_R.main() @ &m : res]
+local lemma EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE &m :
+  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
   =
-  Pr[FP_OpenPRE.SM_DT_OpenPRE(R, FP_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res].
+  Pr[FP_OpenPRE.SM_DT_OpenPRE(R_FPOpenPRE_FOpenPRE, FP_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res].
 proof.
 byequiv => //.
 proc.
-conseq (: ={glob A, R_FSMDTOpenPRE_EUFCMA.ad, R_FSMDTOpenPRE_EUFCMA.leavess} ==> ={nrts, opened, dist, pp, tw, y} /\ x{1} = val x{2}). smt. smt.
+conseq (: ={glob A} ==> ={nrts, opened, dist, pp, tw, y} /\ x{1} = val x{2}); 1,2: smt().
 seq 4 4 : (   ={pp, i} 
            /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
            /\ x{1} = val x{2}).
-inline{1} 4. inline{2} 4. inline{2} 6.  wp 18 20.  conseq (: true ==> ={pp, cidx, x'} /\  ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)). progress. by rewrite valKd.
-admit.
-conseq />. by sim.
++ inline{1} 4; inline{2} 4; inline{2} 6.  
+  wp 19 21 => /=.
+  conseq (:  ={glob A} 
+             ==> 
+                ={pp, cidx, x'} 
+             /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)).
+  - by move=> &1 &2; smt(DigestBlock.valKd).
+  wp => /=.
+  call (:    ={glob R_FSMDTOpenPRE_EUFCMA}
+          /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
+          /\ F_OpenPRE.O_SMDTOpenPRE_Default.xs{1} = map DigestBlock.val FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2}
+          /\ size FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2} = d * k * t).
+  - proc; inline *.
+    wp => /=.
+    while (   ={glob R_FSMDTOpenPRE_EUFCMA, sigFORSTW, cm, tidx, kpidx}
+           /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
+           /\ F_OpenPRE.O_SMDTOpenPRE_Default.xs{1} = map DigestBlock.val FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2}
+           /\ 0 <= kpidx{1} < l
+           /\ 0 <= tidx{1} < s
+           /\ size FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2} = d * k * t).
+    * wp; skip => /> &2 ge0_kp ltl_kp ge0_t lts_t eqdkt_szxs ltk_szsig. 
+      rewrite (nth_map witness) 2:size_rcons //= eqdkt_szxs.
+      split => [|_]; 1: by rewrite ?StdOrder.IntOrder.addr_ge0 4:bs2int_ge0; smt(size_ge0 ge1_l ge1_k ge2_t).
+      rewrite dval (: s * l * k * t = (s - 1) * l * k * t + (l - 1) * k * t + (k - 1) * t + t); 1: by ring.
+      rewrite StdOrder.IntOrder.ler_lt_add ?StdOrder.IntOrder.ler_add; 1..3: smt(ge1_l ge1_k ge2_t).
+      pose ls := rev _; rewrite (: t = 2 ^ size ls) 2:bs2int_le2Xs /t /ls.
+      rewrite size_rev size_take 2:size_drop 3:valP 3:lez_maxr; 1,2,3: smt(ge1_a size_ge0). 
+      have: a <= k * a - a * size sigFORSTW{2} by smt(ge1_a size_ge0).
+      by case => [-> | <-].
+    wp; if => //=.
+    * wp; rnd; skip => /> &2 _ mnin mk mkin. 
+      move: (Index.valP (mco mk m{2}).`2) => [ge0_idx ltd_idx].
+      by rewrite modz_ge0 2:divz_ge0 3:ltz_pmod 4:ltz_divLR 5:-dval; 1..4: smt(Top.ge1_l).
+    wp; skip => /> &2 _ _.  
+    move: (Index.valP (mco (oget R_FSMDTOpenPRE_EUFCMA.mmap{2}.[m{2}]) m{2}).`2) => [ge0_idx ltd_idx].
+    by rewrite modz_ge0 2:divz_ge0 3:ltz_pmod 4:ltz_divLR 5:-dval; 1..4: smt(Top.ge1_l).
+  conseq />.
+  seq 9 11 : (   ={glob R_FSMDTOpenPRE_EUFCMA, pp}
+              /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
+              /\ F_OpenPRE.O_SMDTOpenPRE_Default.xs{1} = map DigestBlock.val FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2}
+              /\ size FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2} = d * k * t).
+  - wp => /=.
+    seq 2 2 : (#pre /\ ={pp, tws, R_FSMDTOpenPRE_EUFCMA.ad} /\ size tws{1} = d * k * t).
+    * inline *.
+      wp.
+      while (   ={R_FSMDTOpenPRE_EUFCMA.ad, tidx0}
+             /\ adl{1} = adl0{2}
+             /\ size adl{1} = tidx0{1} * l * k * t
+             /\ 0 <= tidx0{1} <= s).
+      + wp => /=.
+        while (   ={R_FSMDTOpenPRE_EUFCMA.ad, tidx0, kpidx0}
+               /\ adl{1} = adl0{2}
+               /\ size adl{1} = tidx0{1} * l * k * t 
+                                + kpidx0{1} * k * t
+               /\ 0 <= kpidx0{1} <= l).  
+        - wp => /=.
+          while (   ={R_FSMDTOpenPRE_EUFCMA.ad, tidx0, kpidx0, tbidx}
+                 /\ adl{1} = adl0{2}
+                 /\ size adl{1} = tidx0{1} * l * k * t
+                                  + kpidx0{1} * k * t 
+                                  + tbidx{1}
+                 /\ 0 <= tbidx{1} <= k * t).
+          * by wp; skip => />; smt(size_rcons).
+          by wp; skip => />; smt(ge1_k ge2_t). 
+        by wp; skip => />; smt(Top.ge1_l).
+      by wp; rnd; skip => />; smt(ge1_s dval). 
+    inline *.
+    wp.
+    while (   ={tws_init}
+           /\ size tws_init{1} = d * k * t
+           /\ ys0{1} = ys1{2}
+           /\ ={pp, ts}(O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default) /\
+    O_SMDTOpenPRE_Default.xs{1} = map DigestBlock.val FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2}
+           /\ size FP_OpenPRE.O_SMDTOpenPRE_Default.xs{2} = size FP_OpenPRE.O_SMDTOpenPRE_Default.ts{2}
+           /\ size FP_OpenPRE.O_SMDTOpenPRE_Default.ts{2} <= min (size tws_init{2}) (d * k * t)).
+    * wp; rnd DigestBlock.insubd DigestBlock.val.
+      wp; skip => /> &2 eqdkt_sztws. 
+      rewrite eqdkt_sztws lez_minr //= => eqszs _ ltdkt_szts.
+      split => [* |_]; 1: by rewrite valKd.
+      split => [x xin | _ x /supp_dmap [x'] [_ eqvins_x]]. 
+      + rewrite (in_dmap1E_can _ _ DigestBlock.insubd) 1,3:valKd //. 
+        by move=> y _ <-; rewrite valKd.
+      by rewrite eqvins_x valKd /= map_rcons; smt(size_rcons).
+    by wp; skip => />; smt(dval ge1_s Top.ge1_l ge1_k ge2_t).
+  by conseq />; sim.     
+by conseq />; sim.
 qed.
+
+(*
+local clone F.SMDTDSPR as F_DSPR with
+    op t_smdtdspr <- d * k * t
+  
+  proof *.
+  realize ge0_tsmdtdspr by smt(ge1_d ge1_k ge2_t).
+  
+local module (R_FDSPR_FPDSPR (A : FP_DSPR.Adv_SMDTDSPR) : F_DSPR.Adv_SMDTDSPR) (O : F_DSPR.Oracle_SMDTDSPR) = {  
+  module O_SMDTDSPR : FP_DSPR.Oracle_SMDTDSPR = {
+    include var FP_DSPR.O_SMDTDSPR_Default [-query]
+    
+    proc query(ad : adrs, x : dgstblock) : dgstblock = {
+      var y : dgstblock;
+      var adx : adrs * dgstblock;
+      
+      y <@ O.query(ad, val x);
+      
+      adx <- (ad, x);
+      ts <- rcons ts adx;
+      
+      return y;  
+    }
+  }
+  proc pick() : unit = {
+    A(O_SMDTDSPR).pick();
+  }
+  
+  proc guess(ps : pseed) : int * bool = {
+    var i : int;
+    var b : bool;
+    
+    (i, b) <@ A(O_SMDTDSPR).guess(ps);
+    
+    return (i, b);
+  }
+}.
+
+local lemma EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE &m (B <: FP_DSPR.Adv_SMDTDSPR):
+  Pr[FP_DSPR.SM_DT_DSPR(B, FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res]
+  <=
+  Pr[F_DSPR.SM_DT_DSPR(R_FDSPR_FPDSPR(B), F_DSPR.O_SMDTDSPR_Default).main() @ &m : res].
+proof. admit. qed.
+*)
+
+(* 
+  TODO:
+  I cannot prove that the DSPR advantage for f' is equal to the DSPR advantage
+  for f due to the fact it is a distinguishing game.
+  The main reason I cannot prove an equality is that f' is simply a 
+  domain-restricted version of f, meaning that a second preimage for f' always implies
+  a second preimage for f, but not the other way around (because 
+  the second preimage for f could be outside the domain of f').
+  Contrapositively, no second preimage for f always implies no second preimage for
+  f', but not the other way around. So, if the given adversary returns makes the right
+  judgment, i.e., true if there is a second preimage under f' and false if there isn't, 
+  then in the former case the reduction adversary is always right but in the latter case 
+  it might be wrong.  
+*)
+local lemma EUFCMA_MFORSTWESNPRF &m :
+  Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
+  <= 
+  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
+  +
+  (* Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]*)
+  maxr 0%r 
+       (Pr[FP_DSPR.SM_DT_DSPR(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res]
+        -
+        Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
+  +
+  3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
+  +
+  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+  + 
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
+  +
+  Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
+proof. admit. qed.
 
 (*
 local clone import OpenPRE_From_TCR_DSPR_THF as OPRETCRDSPR with

@@ -109,18 +109,6 @@ type msg.
 (* 
   Digests, i.e., outputs of (tweakable) hash functions. 
   In fact, also input of (tweakable) hash functions in this case.
-  TODO: Probably need to assume finiteness of dgst for OpenPRE/DSPR/TCR proof.
-  Perhaps make dgst a subtype of bool list where 
-  P x = (exists a, a <= b /\ size x = 8 * n * a) and introduce additional parameter
-  a. This would need to be propagated throughout the whole structure, so would also 
-  need to adapt WOTS-TW, FL-XMSS-TW, ... :(
-  
-  Solution:
-  Define auxiliary function for f, say fsub, that takes dgstblock as input and prove that it is
-  equivalent to f as long as the input is of the right size (1 block). Then, 
-  prove that the DSPR-related properties with f are equivalent to auxiliary properties that
-  do use fsub instead of f. Then, prove the DSPR stuff with fsub and these auxiliary
-  properties. 
 *)
 type dgst = bool list.
 
@@ -349,6 +337,7 @@ op ddgstblocklift : dgst distr = dmap ddgstblock DigestBlock.val.
 lemma ddgstblocklift_ll : is_lossless ddgstblocklift.
 proof. by rewrite dmap_ll ddgstblock_ll. qed.
 
+(*
 (* 
   Proper distribution that samples a FORS secret key by independently sampling
   each individual secret key element independently from ddgstblock
@@ -357,7 +346,7 @@ op dskFORS : skFORS distr = dmap (dlist (dlist ddgstblock t) k) DBLLKTL.insubd.
 
 lemma dskFORS_ll : is_lossless dskFORS.
 proof. by rewrite dmap_ll 2!dlist_ll ddgstblock_ll. qed.
-
+*)
 
 
 (* - Types (2/3) - *)
@@ -495,15 +484,17 @@ clone KeyedHashFunctions as MCO with
   proof *.
   
 clone import MCO.ITSR as MCO_ITSR with  
+(*
   op ks <- d,
   op svsks <- k,
   op svsvs <- t,
-  
+*)  
   op g <- g,
   
   op dkey <- dmkey
   
   proof *.
+(*
   realize ge1_ks by exact: ge1_d.
   realize ge1_svsks by exact: ge1_k.
   realize ge1_svsvs by smt(ge2_t).
@@ -525,6 +516,7 @@ clone import MCO.ITSR as MCO_ITSR with
     move=> x x' mi @/g /= /mkseqP [i] [rng_i ->] /mkseqP [j] [rng_j ->] /=. 
     by apply contra => ->.
   qed.
+*)  
   realize dkey_ll by exact: dmkey_ll.
 
 
@@ -1423,10 +1415,12 @@ module O_CMA_MFORSTWESNPRF : Oracle_CMA_MFORSTWESNPRF = {
 *) 
 module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
   include var O_CMA_MFORSTWESNPRF [-init, sign]
+  var mks : mkey list
   var lidxs : (int * int * int) list
   
   proc init(sk_init : skFORS list list * pseed * adrs) : unit = {
     O_CMA_MFORSTWESNPRF.init(sk_init);
+    mks <- [];
     lidxs <- [];
   }
 
@@ -1436,6 +1430,7 @@ module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
 
     (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
 
+    mks <- rcons mks mk;
     lidxs <- lidxs ++ g (mco mk m);
 
     return (mk, sigFORSTW);
@@ -1444,7 +1439,7 @@ module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
 
 
 (* -- Reduction adversaries -- *)
-module (R_EUFCMA_ITSR (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITSR) = {  
+module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITSR) = {  
   var ps : pseed
   var ad : adrs
   var skFORSs : skFORS list list
@@ -1853,6 +1848,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
   }
 }.
 
+(*
 module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var skFORSs : skFORS list list
@@ -1981,7 +1977,7 @@ module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     return (cidx, val x');
   }
 }.
-
+*)
 
 module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
@@ -2349,7 +2345,102 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 
 section Proof_EUFCMA_M_FORS_TW_ES.
 
-declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_EUFCMA_ITSR, -R_FSMDTOpenPRE_EUFCMA, -R_FSMDTTCRC_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+
+(* As EUF_CMA_MFORSTWESNPRF, but with additional checks for possibility of breaking considered properties of THFs  *)
+local module EUF_CMA_MFORSTWESNPRF_V = {
+  var valid_ITSR, valid_OpenPRE, valid_TRHTCR : bool
+  
+  proc main() : bool = {    
+    var ad : adrs;
+    var ps : pseed;
+    var pk : pkFORS list list * pseed * adrs;
+    var sk : skFORS list list * pseed * adrs;
+    var m' : msg;
+    var sig' : mkey * sigFORSTW;
+    var is_valid, is_fresh : bool;
+    var skFORSt, leaves : dgstblock list;
+    var skFORS : skFORS;
+    var pkFORSs : pkFORS list list;
+    var skFORSs : skFORS list list; 
+    var mk' : mkey;
+    var sigFORSTW' : sigFORSTW;
+    var lidxs' : (int * int * int) list;
+    var dfidx, dftidx, dflidx, tidx, kpidx : int;
+    var x, x', leaf, leaf', root, root' : dgstblock;
+    var ap' : apFORSTW;
+    
+    ad <- val (witness<:fadrs>);
+    ps <$ dpseed;
+    
+    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+
+    O_CMA_MFORSTWESNPRF_AV.init(sk);
+
+    (m', sig') <@ A(O_CMA_MFORSTWESNPRF_AV).forge(pk);
+
+    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m', sig');
+
+    is_fresh <@ O_CMA_MFORSTWESNPRF_AV.fresh(m');
+    
+    (* Additional checks *)
+    (* 
+      ITSR: 
+      The adversary managed to find a message that, when signed, only uses secret key values that
+      have already been revealed as part of signatures of different, previously signed messages 
+    *)
+    (mk', sigFORSTW') <- sig';
+    lidxs' <- g (mco mk' m');
+    valid_ITSR <-    (forall idx, idx \in lidxs' => idx \in O_CMA_MFORSTWESNPRF_AV.lidxs) 
+                  /\ ! mk' \in O_CMA_MFORSTWESNPRF_AV.mks /\ ! m' \in O_CMA_MFORSTWESNPRF.qs;
+    
+    
+    (*
+      OpenPRE (assuming no ITSR break):
+      Even though the signed message uses a secret key value that was not yet revealed (i.e., no ITSR break),
+      the adversary managed to find a value that maps to the same leaf as this original secret key value.  
+    *)
+    skFORSs <- sk.`1;
+    (dfidx, dftidx, dflidx) <- nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs');
+    (x', ap') <- nth witness (val sigFORSTW') dftidx;
+    (tidx, kpidx) <- edivz dfidx l;
+    skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
+    skFORSt <- nth witness (val skFORS) dftidx; 
+    x <- nth witness skFORSt dflidx;
+    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflidx)) (val x');
+    leaf <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflidx)) (val x);
+    valid_OpenPRE <- leaf' = leaf;  
+    
+    (*
+      Tree-hash TCR (assuming no ITSR and no OpenPRE breaks):
+      Even though there is a leaf (computed from the secret key value) in the forged signature that does not match
+      the corresponding original leaf, the adversary managed to find an authentication path that still results in the
+      same root as the original tree's root (which requires a collision for the tree hash function). 
+    *) 
+    root' <- val_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) ap' dflidx leaf' dftidx; 
+    leaves <- mkseq (fun (i : int) => f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + i)) (val (nth witness skFORSt i))) t;
+    root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) (list2tree leaves) dflidx;
+    valid_TRHTCR <- root' = root;
+    
+    return is_valid /\ is_fresh; 
+  }
+}.
+
+local equiv Eqv_EUF_CMA_MFORSTWESNPRF_Orig_V:
+  EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main ~ EUF_CMA_MFORSTWESNPRF_V.main :
+    ={glob A} ==> ={res}.
+proof.
+proc.
+seq 5 5 : (={sig', pk, m', O_CMA_MFORSTWESNPRF.qs}). 
++ call (: ={glob O_CMA_MFORSTWESNPRF}).
+  - proc; inline *.
+    by sim.
+  conseq />. 
+  inline *.
+  by wp 14 15; sim.
+wp; conseq (: _ ==> ={is_valid, is_fresh}) => //.
+by sim.
+qed.
 
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
@@ -2379,16 +2470,30 @@ qed.
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
-  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
+  Pr[MCO_ITSR.ITSR(R_ITSR_EUFCMA(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
   Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
-  +
+(*
+  +  
   Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+*)
   + 
   Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
 proof.
+have ->:
+  Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res]
+  =
+  Pr[EUF_CMA_MFORSTWESNPRF_V.main() @ &m : res].
++ by byequiv Eqv_EUF_CMA_MFORSTWESNPRF_Orig_V.
+rewrite -!RField.addrA.
+rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_add.
++ admit.
+rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
++ admit.
+rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler_add.
++ admit.
 admit.
 qed.
 
@@ -2614,7 +2719,7 @@ proof. admit. qed.
 local lemma EUFCMA_MFORSTWESNPRF &m :
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
-  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
+  Pr[MCO_ITSR.ITSR(R_ITSR_EUFCMA(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
   (* Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]*)
   maxr 0%r 
@@ -2623,8 +2728,10 @@ local lemma EUFCMA_MFORSTWESNPRF &m :
         Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
   +
   3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
+(*  
   +
   Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+*)
   + 
   Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +

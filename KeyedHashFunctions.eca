@@ -1436,6 +1436,7 @@ end DMUD.
 -- 
 *)
 abstract theory ITSR.
+(*
   (* Number of key sets *)
   const ks : { int | 1 <= ks } as ge1_ks.
 
@@ -1444,19 +1445,21 @@ abstract theory ITSR.
 
   (* Number of secret values in each secret value set *)
   const svsvs : { int | 1 <= svsvs } as ge1_svsvs.
-
+*)
   (* Proper distribution over (indexing) key type *)
   op [lossless] dkey : key_t distr.
 
   (* 
     Map from outputs of hash function to a list of tuples of the form
     (key set index, secret value set index, secret value index).
-    For this list, the following holds.
-    - Its size is equal to the number of secret value sets (i.e., svsks).
-    - Each tuple it contains has the same key set index.
-    - Each tuple it contains has a different secret value set index.
   *) 
   op g : out_t -> (int * int * int) list.
+
+(*
+  For the lists output by g, the following holds.
+  - Its size is equal to the number of secret value sets (i.e., svsks).
+  - Each tuple it contains has the same key set index.
+  - Each tuple it contains has a different secret value set index.
   axiom size_g (y : out_t) : 
     size (g y) = svsks.
   axiom rng_iks (x : int * int * int) (y : out_t) :
@@ -1467,7 +1470,8 @@ abstract theory ITSR.
     x \in g y => x' \in g y => x.`1 = x'.`1.
   axiom neqisvs_g (x x' : int * int * int) (y : out_t) : 
     x \in g y => x' \in g y => x <> x' => x.`2 <> x'.`2.
-    
+*)    
+
   (* Composition of g with f *)
   op h (k : key_t) (x : in_t) : (int * int * int) list = g (f k x).
 

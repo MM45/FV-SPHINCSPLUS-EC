@@ -2059,7 +2059,7 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
               from the previous layer, specifying each of these (concatenations of) nodes as targets
             *)
             nodescl <- [];
-            while (size nodescl < 2 ^ (a - size nodest - 1)) {
+            while (size nodescl < nr_nodes (size nodest + 1)) {
               lnode <- nth witness nodespl (2 * size nodescl);
               rnode <- nth witness nodespl (2 * size nodescl + 1);
               
@@ -2260,7 +2260,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
               from the previous layer, specifying each of these (concatenations of) nodes as targets
             *)
             nodescl <- [];
-            while (size nodescl < 2 ^ (a - size nodest - 1)) {
+            while (size nodescl < nr_nodes (size nodest + 1)) {
               lnode <- nth witness nodespl (2 * size nodescl);
               rnode <- nth witness nodespl (2 * size nodescl + 1);
               
@@ -2500,6 +2500,7 @@ qed.
 
 local op f' (ps : pseed) (ad : adrs) (x : dgstblock) : dgstblock = 
   f ps ad (val x).
+
 
 local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSPR with
   type pp_t <- pseed,

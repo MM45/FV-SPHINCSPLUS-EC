@@ -794,7 +794,7 @@ clone import FL_SL_XMSS_MT_TW_ES as FSXMTWES with
   qed.
   
 import DBHPL SAPDL.
-import WTWES DBLL EmsgWOTS WAddress.
+import WTWES DBLL EmsgWOTS WAddress FC.
 
 
 
@@ -1289,7 +1289,8 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
   }
 }.
 
-module R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF = {
+(*
+module R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF = {
   var skFORSnt : skFORS list list
   var pkFORSnt : pkFORS list list
   var root : dgstblock
@@ -1369,6 +1370,142 @@ module R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNACMA_FLSLX
     var idx' : index;
     var tidx', kpidx' : int;
     var pkFORS' : pkFORS;
+    
+    sigFLSLXMSSMTTWl <- sigl;
+    
+    (* Ask adversary to forge *)
+    (m' , sig') <@ A(O_CMA).forge((root, ps));
+    
+    (mk', sigFORSTW', sigFLSLXMSSMTTW') <- sig';
+    
+    (cm', idx') <- mco mk' m';
+     
+    (tidx', kpidx') <- edivz (val idx') l';
+       
+    pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm', ps, set_kpidx (set_typeidx (set_ltidx ad 0 tidx') trhftype) kpidx');
+   
+    return (pkFORS', sigFLSLXMSSMTTW', idx');
+  }
+}.
+*)
+module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) (OC : Oracle_THFC) = {
+  var skFORSnt : skFORS list list
+  var pkFORSnt : pkFORS list list
+  var root : dgstblock
+  var ps : pseed
+  var ad : adrs
+  var sigFLSLXMSSMTTWl : sigFLSLXMSSMTTW list
+  
+  module O_CMA : SOracle_CMA = {
+    proc sign(m : msg) : sigSPHINCSPLUSTW = {
+      var mk : mkey;
+      var sigFORSTW : sigFORSTW;
+      var cm : msgFORSTW;
+      var idx : index;
+      var tidx, kpidx : int;
+      var skFORS : skFORS;
+      var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
+      
+      mk <$ dmkey;
+      
+      (cm, idx) <- mco mk m; 
+      
+      (tidx, kpidx) <- edivz (val idx) l';
+      
+      skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
+      
+      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_typeidx (set_ltidx ad 0 tidx) trhftype) kpidx), cm); 
+      
+      sigFLSLXMSSMTTW <- nth witness sigFLSLXMSSMTTWl (val idx);
+      
+      return (mk, sigFORSTW, sigFLSLXMSSMTTW);
+    }
+  }
+
+  proc choose() : msgFLSLXMSSMTTW list = {
+    var skFORS_ele : dgstblock;
+    var skFORSet : dgstblock list;
+    var skFORS : dgstblock list list;
+    var skFORSlp : skFORS list; 
+    var pkFORS : pkFORS;
+    var pkFORSlp : pkFORS list;
+    var leaves : dgstblock list;
+    var root : dgstblock;
+    var roots : dgstblock list;
+    var kpidx : int;
+    var leaf : dgstblock;
+    var nodes : dgstblock list list;
+    var nodespl, nodescl : dgstblock list;
+    var lnode, rnode, node : dgstblock;
+    
+    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    
+    skFORSnt <- [];
+    pkFORSnt <- [];
+    while (size skFORSnt < nr_trees 0) {
+      skFORSlp <- [];
+      pkFORSlp <- [];
+      while (size skFORSlp < l') {
+        skFORS <- [];
+        roots <- [];
+        while (size skFORS < k) {
+          skFORSet <- [];
+          leaves <- [];
+          while (size skFORSet < t) {
+            skFORS_ele <$ ddgstblock;
+            leaf <@ OC.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhftype) (size skFORSnt)) (size skFORSlp)) 
+                                         0 (size skFORS * t + size skFORSet), 
+                             (val skFORS_ele));
+            skFORSet <- rcons skFORSet skFORS_ele;
+            leaves <- rcons leaves leaf;
+          }
+          
+          (* root <- val_bt_trh ps ad (list2tree leaves) (size roots); *)
+          nodes <- [];
+          while (size nodes < a) {
+            nodespl <- last leaves nodes;
+            
+            nodescl <- [];
+            while (size nodescl < nr_nodesf (size nodes + 1)) {
+              lnode <- nth witness nodespl (2 * size nodescl);
+              rnode <- nth witness nodespl (2 * size nodescl + 1);
+              
+              node <@ OC.query(set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhftype) (size skFORSnt)) (size skFORSlp)) 
+                                           (size nodes + 1) (size skFORS * nr_nodesf (size nodes + 1) + size nodescl), 
+                               val lnode ++ val rnode);
+              
+              nodescl <- rcons nodescl node;      
+            }
+            nodes <- rcons nodes nodescl;
+          }
+          roots <- rcons roots (nth witness (nth witness nodes (a - 1)) 0);
+        }
+        
+        pkFORS <@ OC.query(set_kpidx (set_tidx (set_typeidx ad trcotype) (size skFORSnt)) (size skFORSlp), 
+                           flatten (map DigestBlock.val roots));
+                           
+        skFORSlp <- rcons skFORSlp (insubd skFORS);
+        pkFORSlp <- rcons pkFORSlp pkFORS;
+      }
+      skFORSnt <- rcons skFORSnt skFORSlp;
+      pkFORSnt <- rcons pkFORSnt pkFORSlp;
+    }
+    
+    return flatten pkFORSnt;
+  }
+  
+  proc forge(pk : pkFLSLXMSSMTTW, sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index = {
+    var m' : msg;
+    var sig' : sigSPHINCSPLUSTW;
+    var mk' : mkey;
+    var sigFORSTW' : sigFORSTW;
+    var sigFLSLXMSSMTTW' : sigFLSLXMSSMTTW;
+    var cm' : msgFORSTW;
+    var idx' : index;
+    var tidx', kpidx' : int;
+    var pkFORS' : pkFORS;
+    
+    (root, ps, ad) <- pk;
     
     sigFLSLXMSSMTTWl <- sigl;
     
@@ -1770,7 +1907,7 @@ qed.
 
 
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF = {
-  var is_valid_MFORSTWESNPRF : bool
+  var valid_MFORSTWESNPRF : bool
   
   proc main() : bool = {
     var pk : pkSPHINCSPLUSTW;
@@ -1816,7 +1953,7 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF = {
     
     pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm', ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx') kpidx');
     
-    is_valid_MFORSTWESNPRF <- pkFORS' = pkFORS;
+    valid_MFORSTWESNPRF <- pkFORS' = pkFORS;
     
     return is_valid /\ is_fresh;
   }
@@ -1828,7 +1965,7 @@ proof. admit. qed.
 
 
 local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFT_MFORSTWESNPRF &m :
-  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.is_valid_MFORSTWESNPRF]
+  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF]
   =
   Pr[EUF_CMA_MFORSTWESNPRF(R_MFORSTWESNPRFEUFCMA_EUFCMA(A), O_CMA_MFORSTWESNPRF).main() @ &m : res].
 proof.
@@ -1837,9 +1974,9 @@ admit.
 qed.
 
 local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF &m :
-  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.is_valid_MFORSTWESNPRF]
+  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF]
   =
-  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A)).main() @ &m : res].
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), O_THFC_Default).main() @ &m : res].
 proof.
 byequiv=> //.
 admit.
@@ -1869,7 +2006,7 @@ local lemma EUFCMA_SPHINCS_PLUS_TW_FX &m :
   +  
   Pr[EUF_CMA_MFORSTWESNPRF(R_MFORSTWESNPRFEUFCMA_EUFCMA(A), O_CMA_MFORSTWESNPRF).main() @ &m : res]
   +
-  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A)).main() @ &m : res].
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), O_THFC_Default).main() @ &m : res].
 proof.
 have ->:
   Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
@@ -1897,7 +2034,7 @@ have ->:
   =
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res].
 + by byequiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.
-rewrite Pr[mu_split EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.is_valid_MFORSTWESNPRF].
+rewrite Pr[mu_split EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF].
 rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFT_MFORSTWESNPRF.
 by rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF.
 qed.
@@ -1913,27 +2050,28 @@ lemma EUFCMA_SPHINCS_PLUS_TW &m :
   `|  Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(false) @ &m : res]
     - Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(true) @ &m : res] |
   +
-  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
+  Pr[MCO_ITSR.ITSR(R_ITSR_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
-  Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_FSMDTOpenPREC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
-  +
+  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
+(*  
   Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
+*)
   + 
   Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res]  
   +
   (w - 2)%r
-    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
-        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
+    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
+        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
   + 
-  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A))), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
+  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A))), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
   + 
-  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A))), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A))), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A)), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
+  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNACMA(R_FLSLXMSSMTTWESNPRFEUFNACMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof. admit. qed.
  
 end section Proof_SPHINCS_PLUS_TW_EUFCMA.

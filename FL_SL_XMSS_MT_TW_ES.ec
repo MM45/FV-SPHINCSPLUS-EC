@@ -517,6 +517,10 @@ op set_kpidx (ad : adrs) (i : int) : adrs =
 op set_thtbidx (ad : adrs) (i j : int) : adrs =
   insubd (put (put (val ad) 0 j) 1 i).
 
+
+(* -- Getters -- *)
+op get_typeidx (ad : adrs) : int =
+  get_idx ad 3.
   
 
 (* - Clones and imports - *)
@@ -544,7 +548,6 @@ clone import WOTS_TW_ES as WTWES with
                                      /\ valid_tidx (nth witness adidxswgp 3) (nth witness adidxswgp 2) 
                                      /\ valid_lidx (nth witness adidxswgp 3)
                                      /\ valid_xidxvalsgp (drop 4 adidxswgp),
-
     
     op thfc <- thfc,
     
@@ -1087,16 +1090,17 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
 }.
 
 
+
 (* - Proof - *)
 (* -- Adversary classes -- *)
-module type Adv_EUFNACMA_FLSLXMSSMTTWESNPRF = {
-  proc choose(pk : pkFLSLXMSSMTTW) : msgFLSLXMSSMTTW list
-  proc forge(sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index
+module type Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF (OC : Oracle_THFC) = {
+  proc choose() : msgFLSLXMSSMTTW list {OC.query}
+  proc forge(pk : pkFLSLXMSSMTTW, sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index {}
 }.
 
   
 (* -- Security notions -- *)
-module EUF_NACMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) = {
+module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC : Oracle_THFC) = {
   proc main() : bool = {
     var ad : adrs;
     var ps : pseed;
@@ -1108,14 +1112,17 @@ module EUF_NACMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) = {
     var sig, sig' : sigFLSLXMSSMTTW;
     var idx' : index;
     var is_valid, is_fresh : bool;
+    var adsOC : adrs list; 
     
     ad <- val (witness<:xadrs>);
     ps <$ dpseed;
-    
+
+    OC.init(ps);
+
+    ml <@ A(OC).choose();
+            
     (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
 
-    ml <@ A.choose(pk);
-    
     sigl <- [];
     while (size sigl < min (size ml) l) {
       m <- nth witness ml (size sigl);
@@ -1125,21 +1132,63 @@ module EUF_NACMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) = {
       sigl <- rcons sigl sig;
     }
     
-    (m', sig', idx') <@ A.forge(sigl);
+    (m', sig', idx') <@ A(OC).forge(pk, sigl);
 
     is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
 
     is_fresh <- ! m' \in take (size sigl) ml;
 
-    return is_valid /\ is_fresh; 
+    adsOC <@ OC.get_tweaks();
+    
+    return is_valid /\ is_fresh /\ 
+           all (fun (ad : adrs) =>   get_typeidx ad <> chtype 
+                                  /\ get_typeidx ad <> pkcotype
+                                  /\ get_typeidx ad <> trhtype) adsOC; 
   }
 }.
 
+print Oracle_THFC.
 
 (* -- Reduction adversaries -- *)
-module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWES_NPRF) (O : Oracle_MEUFGCMA_WOTSTWES_NPRF, OC : Oracle_THFC) = {
-  proc choose() : unit = {
+module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWESNPRF) (O : Oracle_MEUFGCMA_WOTSTWESNPRF, OC : Oracle_THFC) = {
+  var ad : adrs
   
+  module O_THFC : Oracle_THFC = {
+    var ads : adrs list
+    var xs : dgst list 
+    
+    proc init(ps : pseed) : unit = {
+      ads <- [];
+      xs <- [];
+    }
+    
+    proc query(adq : adrs, x : dgst) : dgstblock = {
+      var y : dgstblock;
+      
+      
+      y <@ OC.query(adq, x);
+      
+      ads <- rcons ads adq;
+      xs <- rcons xs x;
+      
+      return y;
+    }
+    
+    proc get_tweaks() : adrs list = {
+      return ads;
+    }
+  }
+  
+  proc choose() : unit = {
+    var ml : msgFLSLXMSSMTTW list;
+    
+    O_THFC.init(witness);
+    
+    ml <@ A(O_THFC).choose();
+    
+    ad <- val (witness<:xadrs>);
+    
+    
   }
   
   proc forge(ps : pseed) : int * msgWOTS * sigWOTS = {
@@ -1148,7 +1197,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : 
 }.
 
 
-module (R_SMDTTCRCPKCO_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
+module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
   proc pick() : unit = {
   
   }
@@ -1158,7 +1207,7 @@ module (R_SMDTTCRCPKCO_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : PKCOC_TC
   }
 }.
 
-module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
+module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   proc pick() : unit = {
   
   }
@@ -1169,41 +1218,41 @@ module (R_SMDTTCRCTRH_EUFNACMA (A : Adv_EUFNACMA_FLSLXMSSMTTWESNPRF) : TRHC_TCR.
 }.
 
 
-section Proof_EUF_NACMA_FL_XMSS_MT_TW_ES_NPRF.
+section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.
 
-declare module A <: Adv_EUFNACMA_FLSLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWES_NPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNACMA, -R_SMDTTCRCPKCO_EUFNACMA, -R_SMDTTCRCTRH_EUFNACMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
+declare module A <: Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWESNPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
 
 
-local lemma EUFNACMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
-  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(A).main() @ &m : res]
+local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
-  Pr[M_EUF_GCMA_WOTSTWES_NPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A), O_MEUFGCMA_WOTSTWES_NPRF, FC.O_THFC_Default).main() @ &m : res]
+  Pr[M_EUF_GCMA_WOTSTWESNPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A), O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNACMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
+  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNAGCMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNACMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof. admit. qed.
 
 
-lemma EUFNACMA_FLSLXMSSMTTWESNPRF &m :
-  Pr[EUF_NACMA_FLSLXMSSMTTWESNPRF(A).main() @ &m : res]
+lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
   (w - 2)%r
-    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
-        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
+    * `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res]
+        - Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
   + 
-  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
+  Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
   + 
-  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
+  Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNACMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
+  Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNAGCMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNACMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
+  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
-move: (MEUFGCMA_WOTSTWES_NPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNACMA(A)) _ _ &m) 
-      (EUFNACMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
+move: (MEUFGCMA_WOTSTWESNPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)) _ _ &m) 
+      (EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
 + admit. 
 admit. 
 qed.
 
-end section Proof_EUF_NACMA_FL_XMSS_MT_TW_ES_NPRF.
+end section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.

@@ -590,6 +590,37 @@ clone import FC.SMDTTCRC as FC_TCR with
   proof *.
   realize ge0_tsmdttcr by smt(ge1_d ge1_k ge2_t).
 
+(* (Explicitly) Domain-restricted version of f; used for DSPR-related proofs  *)
+op f' (ps : pseed) (ad : adrs) (x : dgstblock) : dgstblock = 
+  f ps ad (val x).
+
+clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSPR with
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgstblock,
+  type out_t <- dgstblock,
+      
+    op f <- f',
+    
+    op t <- d * k * t,
+    
+    op dpp <- dpseed,
+    op din <- ddgstblock,
+    
+  theory InFT <= DigestBlockFT
+  
+  rename [theory] "F" as "FP"
+  rename [theory] "F_OpenPRE" as "FP_OpenPRE"
+  rename [theory] "F_TCR" as "FP_TCR"
+  rename [theory] "F_DSPR" as "FP_DSPR" 
+  
+  proof *.
+  realize dpp_ll by exact: dpseed_ll.
+  realize din_ll by exact: ddgstblock_ll.
+  realize din_fu by exact: ddgstblock_fu.
+  realize din_uni by exact: ddgstblock_uni.
+  realize ge0_t by smt(ge2_t ge1_k ge1_d).
+
 (* Tweakable hash function used to construct Merkle trees from leaves
 op trh : pseed -> adrs -> dgst -> dgstblock.
 *)
@@ -1848,6 +1879,37 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
   }
 }.
 
+module (R_FPOpenPRE_FOpenPRE (A :  Adv_EUFCMA_MFORSTWESNPRF) : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE) = {
+  module O_SMDTOpenPRE : F_OpenPRE.Oracle_SMDTOpenPRE = {
+    include var F_OpenPRE.O_SMDTOpenPRE_Default [-open]     
+    
+    proc open(i : int) : dgst ={
+      var x : dgstblock;
+      
+      x <@ O.open(i);
+      
+      return val x;
+    }
+  }
+  
+  proc pick() : adrs list = {
+    var adl : adrs list;
+    
+    adl <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).pick();
+    
+    return adl;
+  }
+  
+  proc find(ps : pseed, ys : dgstblock list) : int * dgstblock = {
+    var i : int;
+    var x : dgst;
+    
+    (i, x) <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).find(ps, ys);
+    
+    return (i, DigestBlock.insubd x);
+  }
+}.
+
 (*
 module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
@@ -2345,7 +2407,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 
 section Proof_EUFCMA_M_FORS_TW_ES.
 
-declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
 
 (* As EUF_CMA_MFORSTWESNPRF, but with additional checks for possibility of breaking considered properties of THFs  *)
 local module EUF_CMA_MFORSTWESNPRF_V = {
@@ -2497,73 +2559,10 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
 admit.
 qed.
 
-
-local op f' (ps : pseed) (ad : adrs) (x : dgstblock) : dgstblock = 
-  f ps ad (val x).
-
-
-local clone import OpenPRE_From_TCR_DSPR_THF as FP_OPRETCRDSPR with
-  type pp_t <- pseed,
-  type tw_t <- adrs,
-  type in_t <- dgstblock,
-  type out_t <- dgstblock,
-      
-    op f <- f',
-    
-    op t <- d * k * t,
-    
-    op dpp <- dpseed,
-    op din <- ddgstblock,
-    
-  theory InFT <= DigestBlockFT
-  
-  rename [theory] "F" as "FP"
-  rename [theory] "F_OpenPRE" as "FP_OpenPRE"
-  rename [theory] "F_TCR" as "FP_TCR"
-  rename [theory] "F_DSPR" as "FP_DSPR" 
-  
-  proof *.
-  realize dpp_ll by exact: dpseed_ll.
-  realize din_ll by exact: ddgstblock_ll.
-  realize din_fu by exact: ddgstblock_fu.
-  realize din_uni by exact: ddgstblock_uni.
-  realize ge0_t by smt(ge2_t ge1_k ge1_d).
-
-local module (R_FPOpenPRE_FOpenPRE : FP_OpenPRE.Adv_SMDTOpenPRE) (O : FP_OpenPRE.Oracle_SMDTOpenPRE) = {
-  module O_SMDTOpenPRE : F_OpenPRE.Oracle_SMDTOpenPRE = {
-    include var F_OpenPRE.O_SMDTOpenPRE_Default [-open]     
-    
-    proc open(i : int) : dgst ={
-      var x : dgstblock;
-      
-      x <@ O.open(i);
-      
-      return val x;
-    }
-  }
-  
-  proc pick() : adrs list = {
-    var adl : adrs list;
-    
-    adl <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).pick();
-    
-    return adl;
-  }
-  
-  proc find(ps : pseed, ys : dgstblock list) : int * dgstblock = {
-    var i : int;
-    var x : dgst;
-    
-    (i, x) <@ R_FSMDTOpenPRE_EUFCMA(A, O_SMDTOpenPRE).find(ps, ys);
-    
-    return (i, DigestBlock.insubd x);
-  }
-}.
-
 local lemma EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE &m :
   Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
   =
-  Pr[FP_OpenPRE.SM_DT_OpenPRE(R_FPOpenPRE_FOpenPRE, FP_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res].
+  Pr[FP_OpenPRE.SM_DT_OpenPRE(R_FPOpenPRE_FOpenPRE(A), FP_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res].
 proof.
 byequiv => //.
 proc.
@@ -2717,18 +2716,18 @@ proof. admit. qed.
   then in the former case the reduction adversary is always right but in the latter case 
   it might be wrong.  
 *)
-local lemma EUFCMA_MFORSTWESNPRF &m :
+lemma EUFCMA_MFORSTWESNPRF &m :
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
   Pr[MCO_ITSR.ITSR(R_ITSR_EUFCMA(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
   (* Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(A), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]*)
   maxr 0%r 
-       (Pr[FP_DSPR.SM_DT_DSPR(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res]
+       (Pr[FP_DSPR.SM_DT_DSPR(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE(A)), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res]
         -
-        Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
+        Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE(A)), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
   +
-  3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
+  3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE(A)), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
 (*  
   +
   Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]

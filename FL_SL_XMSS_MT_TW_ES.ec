@@ -179,7 +179,7 @@ lemma nrnodesht_h (d' h'' : int) :
   => h'' <= h'
   => nr_nodes_ht d' h'' = 2 ^ (h - d' * h' - h'').
 proof.
-move=> gtdp_d dehpp_hp.
+move=> gtdp_d gehpp_hp.
 rewrite /nr_nodes_ht /nr_trees /nr_nodes /h -exprD_nneg; 2: smt().
 + by rewrite mulr_ge0 1:ge0_hp /#.
 by congr; ring.
@@ -368,6 +368,7 @@ clone import HashAddresses as HA with
 import Adrs.
 
 type adrs = HA.adrs.
+
 
 
 (* - Operators (2/3) -- *)
@@ -581,7 +582,7 @@ clone import WOTS_TW_ES as WTWES with
     by rewrite drop_drop //= ?nth_drop //= ?nth_take //= /#.
   qed.
     
-import DBLL WAddress EmsgWOTS.
+import DBLL WAddress EmsgWOTS BaseW.
 
 (*
 lemma eq_valid_xadrsch_wadrs (ad : adrs) :
@@ -696,17 +697,17 @@ op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list
   0. Note that, in case the given binary tree is not of height h',
   this operator does not explicitly fail; instead, witness is returned.
 *)
-op cons_ap_trh (bt : dgstblock bintree) (idx : index) (ps : pseed) (ad : adrs) : apFLXMSSTW =
-  DBHPL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h (val idx))) h' 0).
+op cons_ap_trh (bt : dgstblock bintree) (idx : int) (ps : pseed) (ad : adrs) : apFLXMSSTW =
+  DBHPL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h' idx)) h' 0).
 
 (* 
   Computes value corresponding to an authentication path, leaf, and a path represented 
   by the big-endian binary representation of an index between 0 (including) 
-  and 2 ^ h (including) w.r.t. a certain public seed, address, height index h, 
+  and 2 ^ h' (including) w.r.t. a certain public seed, address, height index h', 
   and breadth index 0. 
 *)
-op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (ad : adrs) : dgstblock = 
-  val_ap_trh_gen ps ad (val ap) (rev (int2bs h (val idx))) leaf h 0.
+op val_ap_trh (ap : apFLXMSSTW) (idx : int) (leaf : dgstblock) (ps : pseed) (ad : adrs) : dgstblock = 
+  val_ap_trh_gen ps ad (val ap) (rev (int2bs h' idx)) leaf h' 0.
   
 (*
   Extracts a collision, height index, and breadth index from a binary tree and 
@@ -721,6 +722,7 @@ op extract_coll_bt_ap_trh (ps : pseed)
                           (leaf : dgstblock) 
                           (hidx bidx : int) =
    extract_collision_bt_ap (trhi ps ad) updhbidx bt ap bs leaf (hidx, bidx).
+
 
 
 (* - Types (3/3) - *)
@@ -828,7 +830,7 @@ module FL_SL_XMSS_MT_TW_ES = {
       leaves <@ leaves_from_sspsad(ss, ps, (set_ltidx ad (size sapl) tidx));
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+      ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
@@ -866,7 +868,7 @@ module FL_SL_XMSS_MT_TW_ES = {
       leaf <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad i tidx) pkcotype) kpidx) (flatten (map DigestBlock.val (val pkWOTS)));
     
       (* Compute root from computed leaf (and extracted authentication path) *)
-      root <- val_ap_trh ap idx leaf ps (set_typeidx (set_ltidx ad i tidx) trhtype);
+      root <- val_ap_trh ap kpidx leaf ps (set_typeidx (set_ltidx ad i tidx) trhtype);
       
       (* Compute next tree and key pair indices and increase loop counter *)
       (tidx, kpidx) <- edivz tidx l';
@@ -1027,7 +1029,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
       leaves <@ leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (size sapl) tidx);
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) idx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+      ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
@@ -1094,7 +1096,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
 (* - Proof - *)
 (* -- Adversary classes -- *)
 module type Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF (OC : Oracle_THFC) = {
-  proc choose() : msgFLSLXMSSMTTW list {OC.query}
+  proc choose() : msgFLSLXMSSMTTW list { OC.query }
   proc forge(pk : pkFLSLXMSSMTTW, sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index {}
 }.
 
@@ -1124,10 +1126,10 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
 
     sigl <- [];
-    while (size sigl < min (size ml) l) {
+    while (size sigl < l) {
       m <- nth witness ml (size sigl);
 
-      sig <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign(sk, m, insubd (size sigl));
+      sig <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign(sk, m, Index.insubd (size sigl));
       
       sigl <- rcons sigl sig;
     }
@@ -1140,19 +1142,27 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
 
     adsOC <@ OC.get_tweaks();
     
-    return is_valid /\ is_fresh /\ 
-           all (fun (ad : adrs) =>   get_typeidx ad <> chtype 
-                                  /\ get_typeidx ad <> pkcotype
-                                  /\ get_typeidx ad <> trhtype) adsOC; 
+    return is_valid /\ is_fresh; 
   }
 }.
 
-print Oracle_THFC.
+(*
+Adversary assumtpions:
+size ml = l /\ 
+all (fun (ad : adrs) =>   get_typeidx ad <> chtype 
+                      /\ get_typeidx ad <> pkcotype
+                      /\ get_typeidx ad <> trhtype) adsOC
+*)
 
 (* -- Reduction adversaries -- *)
 module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : Adv_MEUFGCMA_WOTSTWESNPRF) (O : Oracle_MEUFGCMA_WOTSTWESNPRF, OC : Oracle_THFC) = {
   var ad : adrs
-  
+  var ml : msgFLSLXMSSMTTW list
+  var pkWOTStd : pkWOTS list list list
+  var sigWOTStd : sigWOTS list list list
+  var leavestd : dgstblock list list list
+  var rootstd : dgstblock list list
+    
   module O_THFC : Oracle_THFC = {
     var ads : adrs list
     var xs : dgst list 
@@ -1164,7 +1174,6 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     
     proc query(adq : adrs, x : dgst) : dgstblock = {
       var y : dgstblock;
-      
       
       y <@ OC.query(adq, x);
       
@@ -1180,40 +1189,725 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
   }
   
   proc choose() : unit = {
-    var ml : msgFLSLXMSSMTTW list;
+    var pkWOTS : pkWOTS;
+    var pkWOTSlp : pkWOTS list;
+    var pkWOTSnt, pkWOTSntp : pkWOTS list list;
+    var sigWOTS : sigWOTS;
+    var sigWOTSlp : sigWOTS list;
+    var sigWOTSnt, sigWOTSntp : sigWOTS list list;
+    var leaf : dgstblock;
+    var leaveslp : dgstblock list;
+    var leavesnt, leavesntp : dgstblock list list;
+    var root : dgstblock;
+    var rootsnt, rootsntp : dgstblock list;
+    var lnode, rnode, node : dgstblock;
+    var nodespl, nodescl : dgstblock list;
+    var nodes : dgstblock list list;
     
     O_THFC.init(witness);
     
     ml <@ A(O_THFC).choose();
     
     ad <- val (witness<:xadrs>);
-    
-    
+
+    (* 
+      Using the provided oracles, compute and store all the 
+      WOTS-TW public keys, WOTS-TW signatures, (inner tree) leaves, and (inner tree) roots.
+    *)
+    pkWOTStd <- [];
+    sigWOTStd <- [];
+    leavestd <- [];
+    rootstd <- [];
+    (* For each layer in the hypertree, starting from the bottom-most layer,... *)
+    while (size pkWOTStd < d - 1) {
+      pkWOTSnt <- [];
+      sigWOTSnt <- [];
+      leavesnt <- [];
+      rootsnt <- [];
+      rootsntp <- last ml rootstd;
+      (* For each tree in the current layer, starting from the left-most tree,... *)
+      while (size pkWOTSnt < nr_trees (size pkWOTStd)) {
+        pkWOTSlp <- [];
+        sigWOTSlp <- [];
+        leaveslp <- [];
+        (* For each leaf of the current tree, starting from the left-most leaf,... *)
+        while (size pkWOTSlp < l') {
+          (* Compute the to-be-signed message/root *)
+          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+
+          (* Query the challenge oracle on the computed message/root to obtain a (WOTS-TW) signature and public key *)
+          (pkWOTS, sigWOTS) <@ O.query(WAddress.insubd (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)), 
+                                       root);  
+
+          (* Query the family oracle to compress the obtained WOTS-TW public key to the corresponding leaf  *)
+          leaf <@ OC.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp), 
+                           flatten (map DigestBlock.val (val pkWOTS)));
+
+          pkWOTSlp <- rcons pkWOTSlp pkWOTS;
+          sigWOTSlp <- rcons sigWOTSlp sigWOTS;
+          leaveslp <- rcons leaveslp leaf;
+        }
+
+        
+        nodes <- [];
+        (* For each layer in the current tree, starting from the layer right above the leaves,... *)
+        while (size nodes < h') {
+          nodespl <- last leaveslp nodes;
+
+          nodescl <- [];
+          (* For each (to-be-computed) node in the currently considered layer,... *)
+          while (size nodescl < nr_nodes (size nodes + 1)) {
+            (* Get the left and right children *)
+            lnode <- nth witness nodespl (2 * size nodescl);
+            rnode <- nth witness nodespl (2 * size nodescl + 1);
+
+            (* Query the family oracle on the concatenation of the children to obtain the node *)
+            node <@ OC.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+                                         (size nodes + 1) (size nodescl), 
+                             val lnode ++ val rnode);
+
+            nodescl <- rcons nodescl node;
+          }
+          nodes <- rcons nodes nodescl;
+        }  
+        pkWOTSnt <- rcons pkWOTSnt pkWOTSlp;
+        sigWOTSnt <- rcons sigWOTSnt sigWOTSlp;
+        leavesnt <- rcons leavesnt leaveslp;
+        rootsnt <- rcons rootsnt (nth witness (nth witness nodes (h' - 1)) 0); (* Root of current tree is the last computed/stored node *)
+      }
+      pkWOTStd <- rcons pkWOTStd pkWOTSnt;
+      sigWOTStd <- rcons sigWOTStd sigWOTSnt;
+      leavestd <- rcons leavestd leavesnt;
+      rootstd <- rcons rootstd rootsnt;
+    }
   }
   
   proc forge(ps : pseed) : int * msgWOTS * sigWOTS = {
-    return witness;
+    var m : msgFLSLXMSSMTTW;
+    var pk : pkFLSLXMSSMTTW;
+    var sigWOTS, sigWOTS' : sigWOTS;
+    var pkWOTS, pkWOTS' : pkWOTS;
+    var ap, ap' : apFLXMSSTW;
+    var sapl, sapl' : (sigWOTS * apFLXMSSTW) list;
+    var sig : sigFLSLXMSSMTTW;
+    var sigl : sigFLSLXMSSMTTW list; 
+    var m' : msgFLSLXMSSMTTW;
+    var sig' : sigFLSLXMSSMTTW;
+    var idx' : index;
+    var root, root' : dgstblock;
+    var roots' : dgstblock list;
+    var tidx, kpidx : int;
+    var tkpidxs : (int * int) list;
+    var leaf' : dgstblock;
+    var leaves : dgstblock list;
+    var forgeryfs : bool list; 
+    var ffidx, forgeryidx : int;
+    
+    (* Sign adversary-chosen messages using computed leaves/signatures *)
+    sigl <- [];
+    while (size sigl < l) {
+      m <- nth witness ml (size sigl);
+      
+      sapl <- [];
+      (tidx, kpidx) <- edivz (size sigl) l';
+      while (size sapl < d) {
+        sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
+        
+        leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
+
+        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+
+        sapl <- rcons sapl (sigWOTS, ap);
+
+        (tidx, kpidx) <- edivz tidx l';
+      }
+
+      sig <- insubd sapl;
+      sigl <- rcons sigl sig;
+    }
+    
+    root <- nth witness (nth witness rootstd (d - 1)) 0; (* Root of hypertree is the last computed root *)
+    
+    (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
+    
+    (tidx, kpidx) <- edivz (val idx') l';
+    tkpidxs <- [];
+    root' <- m';
+    roots' <- [];
+    forgeryfs <- [];
+    (* 
+      For each WOTS-TW signature/authentication path pair in the forgery, check whether
+      the signature is valid on the previous root (first one being the forgery's message),
+      then compute the next root using the authentication path and the leaf resulting from
+      compressing the WOTS-TW public key derived from the signature.
+      Keep track of the intermediate roots and tree/keypair indices. 
+    *)
+    while (size forgeryfs < d) {
+      (sigWOTS', ap') <- nth witness (val sig') (size forgeryfs);
+      
+      pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
+                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size forgeryfs) tidx) kpidx));
+      pkWOTS <- nth witness (nth witness (nth witness pkWOTStd (size forgeryfs)) tidx) kpidx;
+      
+      forgeryfs <- rcons forgeryfs (pkWOTS' = pkWOTS);
+      
+      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx) kpidx) 
+                   (flatten (map DigestBlock.val (val pkWOTS'))); 
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx);
+      roots' <- rcons roots' root';
+      
+      tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      (tidx, kpidx) <- edivz tidx l';
+    }
+    
+    (* Get index of the first valid WOTS-TW signature in the forgery *)
+    ffidx <- find ((=) true) forgeryfs;
+    
+    (* Get tree and key pair index corresponding to first WOTS-TW signature forgery *)    
+    (tidx, kpidx) <- nth witness tkpidxs ffidx;
+    
+    (* Compute index in the challenge oracle's query list of the forgery *)
+    forgeryidx <- bigi predT (fun i => nr_trees i) 0 ffidx * l' + tidx * l' + kpidx; 
+    
+    (* Get root and WOTS-TW sigature forming a forgery *)
+    root' <- nth witness roots' ffidx;
+    sigWOTS' <- (nth witness (val sig') ffidx).`1;
+    
+    return (forgeryidx, root', sigWOTS');
   }
 }.
-
 
 module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
-  proc pick() : unit = {
+  var ad : adrs
+  var ml : msgFLSLXMSSMTTW list
+  var skWOTStd : skWOTS list list list
+  var pkWOTStd : pkWOTS list list list
+  var sigWOTStd : sigWOTS list list list
+  var leavestd : dgstblock list list list
+  var rootstd : dgstblock list list
+    
+  module O_THFC : Oracle_THFC = {
+    var ads : adrs list
+    var xs : dgst list 
+    
+    proc init(ps : pseed) : unit = {
+      ads <- [];
+      xs <- [];
+    }
+    
+    proc query(adq : adrs, x : dgst) : dgstblock = {
+      var y : dgstblock;
+      
+      y <@ OC.query(adq, x);
+      
+      ads <- rcons ads adq;
+      xs <- rcons xs x;
+      
+      return y;
+    }
+    
+    proc get_tweaks() : adrs list = {
+      return ads;
+    }
+  }
   
+  proc pick() : unit = {
+    var m : msgFLSLXMSSMTTW;
+    var em : emsgWOTS;
+    var ch_ele : dgstblock;
+    var skWOTS : dgstblock list;
+    var skWOTSlp : skWOTS list;
+    var skWOTSnt, skWOTSntp : pkWOTS list list;
+    var pkWOTS : dgstblock list;
+    var pkWOTSlp : pkWOTS list;
+    var pkWOTSnt, pkWOTSntp : pkWOTS list list;
+    var sigWOTS : dgstblock list;
+    var sigWOTSlp : sigWOTS list;
+    var sigWOTSnt, sigWOTSntp : sigWOTS list list;
+    var leaf : dgstblock;
+    var leaveslp : dgstblock list;
+    var leavesnt, leavesntp : dgstblock list list;
+    var root : dgstblock;
+    var rootsnt, rootsntp : dgstblock list;
+    var lnode, rnode, node : dgstblock;
+    var nodespl, nodescl : dgstblock list;
+    var nodes : dgstblock list list;
+    var i : int;
+    
+    O_THFC.init(witness);
+    
+    ml <@ A(O_THFC).choose();
+    
+    ad <- val (witness<:xadrs>);
+
+    (* 
+      Using the provided oracles, compute and store all the 
+      WOTS-TW secret keys, WOTS-TW public keys, WOTS-TW signatures, 
+      (inner tree) leaves, and (inner tree) roots.
+    *)
+    skWOTStd <- [];
+    pkWOTStd <- [];
+    sigWOTStd <- [];
+    leavestd <- [];
+    rootstd <- [];
+    (* For each layer in the hypertree, starting from the bottom-most layer,... *)
+    while (size skWOTStd < d - 1) {
+      skWOTSnt <- [];
+      pkWOTSnt <- [];
+      sigWOTSnt <- [];
+      leavesnt <- [];
+      rootsnt <- [];
+      rootsntp <- last ml rootstd;
+      (* For each tree in the current layer, starting from the left-most tree,... *)
+      while (size skWOTSnt < nr_trees (size pkWOTStd)) {
+        skWOTSlp <- [];
+        pkWOTSlp <- [];
+        sigWOTSlp <- [];
+        leaveslp <- [];
+        (* For each leaf of the current tree, starting from the left-most leaf,... *)
+        while (size skWOTSlp < l') {
+          (* Get the to-be-signed message/root and encode it *)
+          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+          em <- encode_msgWOTS root;
+          
+          skWOTS <- [];
+          pkWOTS <- [];
+          sigWOTS <- [];
+          (* For each element of the WOTS-TW artifacts... *)
+          while (size skWOTS < len) {
+            (* Sample and store a skWOTS element *)
+            ch_ele <$ ddgstblock;
+            skWOTS <- rcons skWOTS ch_ele;
+            
+            (* Compute the corresponding signature and public elements *)
+            i <- 0;
+            while (i < w - 1) {
+              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) 
+                                                                 (size pkWOTSnt)) (size pkWOTSlp)) (size skWOTS)) i,
+                                 val ch_ele);
+              
+              if (i = BaseW.val em.[size skWOTS]) {
+                sigWOTS <- rcons sigWOTS ch_ele;
+              }
+              
+              i <- i + 1;
+            }
+            
+            pkWOTS <- rcons pkWOTS ch_ele;
+          }
+          
+          (* Query the challenge oracle to compress the obtained WOTS-TW public key to the corresponding leaf  *)
+          leaf <@ O.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp), 
+                          flatten (map DigestBlock.val pkWOTS));
+
+          pkWOTSlp <- rcons pkWOTSlp (DBLL.insubd pkWOTS);
+          sigWOTSlp <- rcons sigWOTSlp (DBLL.insubd sigWOTS);
+          leaveslp <- rcons leaveslp leaf;
+        }
+
+        
+        nodes <- [];
+        (* For each layer in the current tree, starting from the layer right above the leaves,... *)
+        while (size nodes < h') {
+          nodespl <- last leaveslp nodes;
+
+          nodescl <- [];
+          (* For each (to-be-computed) node in the currently considered layer,... *)
+          while (size nodescl < nr_nodes (size nodes + 1)) {
+            (* Get the left and right children *)
+            lnode <- nth witness nodespl (2 * size nodescl);
+            rnode <- nth witness nodespl (2 * size nodescl + 1);
+
+            (* Query the family oracle on the concatenation of the children to obtain the node *)
+            node <@ OC.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+                                         (size nodes + 1) (size nodescl), 
+                             val lnode ++ val rnode);
+
+            nodescl <- rcons nodescl node;
+          }
+          nodes <- rcons nodes nodescl;
+        }  
+        pkWOTSnt <- rcons pkWOTSnt pkWOTSlp;
+        sigWOTSnt <- rcons sigWOTSnt sigWOTSlp;
+        leavesnt <- rcons leavesnt leaveslp;
+        rootsnt <- rcons rootsnt (nth witness (nth witness nodes (h' - 1)) 0); (* Root of current tree is the last computed/stored node *)
+      }
+      pkWOTStd <- rcons pkWOTStd pkWOTSnt;
+      sigWOTStd <- rcons sigWOTStd sigWOTSnt;
+      leavestd <- rcons leavestd leavesnt;
+      rootstd <- rcons rootstd rootsnt;
+    }
   }
   
   proc find(ps : pseed) : int * dgst = {
-    return witness;
+    var m : msgFLSLXMSSMTTW;
+    var pk : pkFLSLXMSSMTTW;
+    var sigWOTS, sigWOTS' : sigWOTS;
+    var pkWOTS, pkWOTS' : pkWOTS;
+    var ap, ap' : apFLXMSSTW;
+    var sapl, sapl' : (sigWOTS * apFLXMSSTW) list;
+    var sig : sigFLSLXMSSMTTW;
+    var sigl : sigFLSLXMSSMTTW list; 
+    var m' : msgFLSLXMSSMTTW;
+    var sig' : sigFLSLXMSSMTTW;
+    var idx' : index;
+    var root, root' : dgstblock;
+    var roots' : dgstblock list;
+    var tidx, kpidx : int;
+    var tkpidxs : (int * int) list;
+    var leaf, leaf' : dgstblock;
+    var leaves : dgstblock list;
+    var tcfs : bool list; 
+    var ffidx, tcidx : int;
+    
+    (* Sign adversary-chosen messages using computed leaves/signatures *)
+    sigl <- [];
+    while (size sigl < l) {
+      m <- nth witness ml (size sigl);
+      
+      sapl <- [];
+      (tidx, kpidx) <- edivz (size sigl) l';
+      while (size sapl < d) {
+        sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
+        
+        leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
+
+        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+
+        sapl <- rcons sapl (sigWOTS, ap);
+
+        (tidx, kpidx) <- edivz tidx l';
+      }
+
+      sig <- insubd sapl;
+      sigl <- rcons sigl sig;
+    }
+    
+    root <- nth witness (nth witness rootstd (d - 1)) 0; (* Root of hypertree is the last computed root *)
+    
+    (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
+    
+    (tidx, kpidx) <- edivz (val idx') l';
+    tkpidxs <- [];
+    root' <- m';
+    tcfs <- [];
+    (* 
+      For each WOTS-TW signature/authentication path pair in the forgery, check whether
+      the leaf derived from the (public key corresponding to the) signature equals the
+      corresponding leaf from the original tree. Assuming the public keys are different,
+      this gives a collision. 
+      Also keep track of the intermediate tree/keypair indices. 
+    *)
+    while (size tcfs < d) {
+      (sigWOTS', ap') <- nth witness (val sig') (size tcfs);
+      
+      pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
+                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size tcfs) tidx) kpidx));
+      
+      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx) kpidx) 
+                   (flatten (map DigestBlock.val (val pkWOTS'))); 
+      leaf <- nth witness (nth witness (nth witness leavestd (size tcfs)) tidx) kpidx;
+      
+      tcfs <- rcons tcfs (leaf' = leaf);
+      
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx); 
+      
+      
+      tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      (tidx, kpidx) <- edivz tidx l';
+    }
+    
+    (* Get index of the first collision extractable from the forgery *)
+    ffidx <- find ((=) true) tcfs;
+    
+    (* Get tree and key pair index corresponding to first collision *)    
+    (tidx, kpidx) <- nth witness tkpidxs ffidx;
+    
+    (* Compute index in the challenge oracle's query list of the collision *)
+    tcidx <- bigi predT (fun i => nr_trees i) 0 ffidx * l' + tidx * l' + kpidx; 
+    
+    (* Get root and WOTS-TW sigature forming a forgery *)
+    pkWOTS' <- nth witness (nth witness (nth witness pkWOTStd (size tcfs)) tidx) kpidx; 
+    
+    return (tcidx, flatten (map DigestBlock.val (DBLL.val pkWOTS')));
   }
 }.
-
+print extract_coll_bt_ap_trh.
 module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
-  proc pick() : unit = {
-  
+  var ad : adrs
+  var ml : msgFLSLXMSSMTTW list
+  var skWOTStd : skWOTS list list list
+  var pkWOTStd : pkWOTS list list list
+  var sigWOTStd : sigWOTS list list list
+  var leavestd : dgstblock list list list
+  var nodestd : dgstblock list list list list
+  var rootstd : dgstblock list list
+    
+  module O_THFC : Oracle_THFC = {
+    var ads : adrs list
+    var xs : dgst list 
+    
+    proc init(ps : pseed) : unit = {
+      ads <- [];
+      xs <- [];
+    }
+    
+    proc query(adq : adrs, x : dgst) : dgstblock = {
+      var y : dgstblock;
+      
+      y <@ OC.query(adq, x);
+      
+      ads <- rcons ads adq;
+      xs <- rcons xs x;
+      
+      return y;
+    }
+    
+    proc get_tweaks() : adrs list = {
+      return ads;
+    }
   }
   
+  proc pick() : unit = {
+    var m : msgFLSLXMSSMTTW;
+    var em : emsgWOTS;
+    var ch_ele : dgstblock;
+    var skWOTS : dgstblock list;
+    var skWOTSlp : skWOTS list;
+    var skWOTSnt, skWOTSntp : pkWOTS list list;
+    var pkWOTS : dgstblock list;
+    var pkWOTSlp : pkWOTS list;
+    var pkWOTSnt, pkWOTSntp : pkWOTS list list;
+    var sigWOTS : dgstblock list;
+    var sigWOTSlp : sigWOTS list;
+    var sigWOTSnt, sigWOTSntp : sigWOTS list list;
+    var leaf : dgstblock;
+    var leaveslp : dgstblock list;
+    var leavesnt, leavesntp : dgstblock list list;
+    var root : dgstblock;
+    var rootsnt, rootsntp : dgstblock list;
+    var lnode, rnode, node : dgstblock;
+    var nodespl, nodescl : dgstblock list;
+    var nodes : dgstblock list list;
+    var nodesnt : dgstblock list list list;
+    var i : int;
+    
+    O_THFC.init(witness);
+    
+    ml <@ A(O_THFC).choose();
+    
+    ad <- val (witness<:xadrs>);
+
+    (* 
+      Using the provided oracles, compute and store all the 
+      WOTS-TW secret keys, WOTS-TW public keys, WOTS-TW signatures, 
+      (inner tree) leaves, (inner tree) nodes, and (inner tree) roots.
+    *)
+    skWOTStd <- [];
+    pkWOTStd <- [];
+    sigWOTStd <- [];
+    leavestd <- [];
+    nodestd <- [];
+    rootstd <- [];
+    (* For each layer in the hypertree, starting from the bottom-most layer,... *)
+    while (size skWOTStd < d - 1) {
+      skWOTSnt <- [];
+      pkWOTSnt <- [];
+      sigWOTSnt <- [];
+      leavesnt <- [];
+      nodesnt <- [];
+      rootsnt <- [];
+      rootsntp <- last ml rootstd;
+      (* For each tree in the current layer, starting from the left-most tree,... *)
+      while (size skWOTSnt < nr_trees (size pkWOTStd)) {
+        skWOTSlp <- [];
+        pkWOTSlp <- [];
+        sigWOTSlp <- [];
+        leaveslp <- [];
+        (* For each leaf of the current tree, starting from the left-most leaf,... *)
+        while (size skWOTSlp < l') {
+          (* Get the to-be-signed message/root and encode it *)
+          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+          em <- encode_msgWOTS root;
+          
+          skWOTS <- [];
+          pkWOTS <- [];
+          sigWOTS <- [];
+          (* For each element of the WOTS-TW artifacts... *)
+          while (size skWOTS < len) {
+            (* Sample and store a skWOTS element *)
+            ch_ele <$ ddgstblock;
+            skWOTS <- rcons skWOTS ch_ele;
+            
+            (* Compute the corresponding signature and public elements *)
+            i <- 0;
+            while (i < w - 1) {
+              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) 
+                                                                 (size pkWOTSnt)) (size pkWOTSlp)) (size skWOTS)) i,
+                                 val ch_ele);
+              
+              if (i = BaseW.val em.[size skWOTS]) {
+                sigWOTS <- rcons sigWOTS ch_ele;
+              }
+              
+              i <- i + 1;
+            }
+            
+            pkWOTS <- rcons pkWOTS ch_ele;
+          }
+          
+          (* Query the collection oracle to compress the obtained WOTS-TW public key to the corresponding leaf *)
+          leaf <@ OC.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp), 
+                           flatten (map DigestBlock.val pkWOTS));
+
+          pkWOTSlp <- rcons pkWOTSlp (DBLL.insubd pkWOTS);
+          sigWOTSlp <- rcons sigWOTSlp (DBLL.insubd sigWOTS);
+          leaveslp <- rcons leaveslp leaf;
+        }
+
+        
+        nodes <- [];
+        (* For each layer in the current tree, starting from the layer right above the leaves,... *)
+        while (size nodes < h') {
+          nodespl <- last leaveslp nodes;
+
+          nodescl <- [];
+          (* For each (to-be-computed) node in the currently considered layer,... *)
+          while (size nodescl < nr_nodes (size nodes + 1)) {
+            (* Get the left and right children *)
+            lnode <- nth witness nodespl (2 * size nodescl);
+            rnode <- nth witness nodespl (2 * size nodescl + 1);
+
+            (* Query the challenge oracle on the concatenation of the children to obtain the node *)
+            node <@ O.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+                                        (size nodes + 1) (size nodescl), 
+                             val lnode ++ val rnode);
+
+            nodescl <- rcons nodescl node;
+          }
+          nodes <- rcons nodes nodescl;
+        }  
+        pkWOTSnt <- rcons pkWOTSnt pkWOTSlp;
+        sigWOTSnt <- rcons sigWOTSnt sigWOTSlp;
+        leavesnt <- rcons leavesnt leaveslp;
+        nodesnt <- rcons nodesnt nodes;
+        rootsnt <- rcons rootsnt (nth witness (nth witness nodes (h' - 1)) 0); (* Root of current tree is the last computed/stored node *)
+      }
+      pkWOTStd <- rcons pkWOTStd pkWOTSnt;
+      sigWOTStd <- rcons sigWOTStd sigWOTSnt;
+      leavestd <- rcons leavestd leavesnt;
+      nodestd <- rcons nodestd nodesnt;
+      rootstd <- rcons rootstd rootsnt;
+    }
+  }
+    
   proc find(ps : pseed) : int * dgst = {
-    return witness;
+    var m : msgFLSLXMSSMTTW;
+    var pk : pkFLSLXMSSMTTW;
+    var sigWOTS, sigWOTS' : sigWOTS;
+    var pkWOTS, pkWOTS' : pkWOTS;
+    var ap, ap' : apFLXMSSTW;
+    var sapl, sapl' : (sigWOTS * apFLXMSSTW) list;
+    var sig : sigFLSLXMSSMTTW;
+    var sigl : sigFLSLXMSSMTTW list; 
+    var m' : msgFLSLXMSSMTTW;
+    var sig' : sigFLSLXMSSMTTW;
+    var idx' : index;
+    var root, root' : dgstblock;
+    var tidx, kpidx, hidx, bidx : int;
+    var tkpidxs : (int * int) list;
+    var leaf, leaf' : dgstblock;
+    var leaves, leaves' : dgstblock list;
+    var tcfs : bool list; 
+    var ffidx, tcidx : int;
+    var cr;
+    var cnode : dgst;
+    
+    (* Sign adversary-chosen messages using computed leaves/signatures *)
+    sigl <- [];
+    while (size sigl < l) {
+      m <- nth witness ml (size sigl);
+      
+      sapl <- [];
+      (tidx, kpidx) <- edivz (size sigl) l';
+      while (size sapl < d) {
+        sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
+        
+        leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
+
+        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+
+        sapl <- rcons sapl (sigWOTS, ap);
+
+        (tidx, kpidx) <- edivz tidx l';
+      }
+
+      sig <- insubd sapl;
+      sigl <- rcons sigl sig;
+    }
+    
+    root <- nth witness (nth witness rootstd (d - 1)) 0; (* Root of hypertree is the last computed root *)
+    
+    (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
+    
+    (tidx, kpidx) <- edivz (val idx') l';
+    tkpidxs <- [];
+    root' <- m';
+    leaves' <- [];
+    tcfs <- [];
+    (* 
+      For each WOTS-TW signature/authentication path pair in the forgery, check whether
+      the root computed from the (public key corresponding to the) signature and the authentication 
+      path equals the corresponding original root. Assuming the starting leafs are different,
+      this allows for the extraction of a collision. 
+      Also keep track of the intermediate leaves and tree/keypair indices. 
+    *)
+    while (size tcfs < d) {
+      (sigWOTS', ap') <- nth witness (val sig') (size tcfs);
+      
+      pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
+                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size tcfs) tidx) kpidx));
+      
+      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx) kpidx) 
+                    (flatten (map DigestBlock.val (val pkWOTS')));
+      
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx); 
+      root <- nth witness (nth witness rootstd (size tcfs)) tidx;
+      
+      tcfs <- rcons tcfs (root' = root);
+      
+      leaves' <- rcons leaves' leaf';  
+      tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      
+      (tidx, kpidx) <- edivz tidx l';
+    }
+    
+    (* Get index of the first authentication path (in the forgery) that allows the extraction of a collision *)
+    ffidx <- find ((=) true) tcfs;
+    
+    (* Get authentication path and leaf that allow to extract a collision *)
+    (sigWOTS', ap') <- nth witness (val sig') ffidx;
+    leaf' <- nth witness leaves' ffidx; 
+    
+    (* Get tree and key pair index corresponding to first collision *)    
+    (tidx, kpidx) <- nth witness tkpidxs ffidx;
+    
+    (* Get leaves of the tree in which collision occurs *)
+    leaves <- nth witness (nth witness leavestd ffidx) tidx;
+    
+    (* Extract collision information from considered (inner) tree *)
+    cr <- extract_coll_bt_ap_trh ps (set_ltidx (set_typeidx ad trhtype) ffidx tidx)
+                                 (list2tree leaves) (val ap') (rev (int2bs h' kpidx)) leaf' h' 0; 
+    
+    (* Get collision and height/breadth indices *)
+    cnode <- (val cr.`3) ++ (val cr.`4);
+    (hidx, bidx) <- cr.`5;
+    
+    (* Compute index in the challenge oracle's query list of the collision *)
+    tcidx <- bigi predT (fun i => nr_trees i) 0 ffidx * (2 ^ h' - 1) + tidx * (2 ^ h' - 1) + 
+             bigi predT (fun i => nr_nodes i) 1 hidx + bidx; 
+    
+    return (tcidx, cnode);
   }
 }.
 

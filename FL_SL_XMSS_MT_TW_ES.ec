@@ -821,8 +821,11 @@ module FL_SL_XMSS_MT_TW_ES = {
     
     (* Initialize signature list, tree index, and key pair index *)
     sapl <- [];
-    (tidx, kpidx) <- edivz (val idx) l';
+    (tidx, kpidx) <- (val idx, 0);
     while (size sapl < d) {
+      (* Update tree and key pair indices *)
+      (tidx, kpidx) <- edivz tidx l';
+
       (* Compute the WOTS-TW signature on the given message *)
       sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_ltidx ad (size sapl) tidx) chtype) kpidx), m);
 
@@ -834,9 +837,6 @@ module FL_SL_XMSS_MT_TW_ES = {
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
-      
-      (* Compute next tree and key pair indices *)
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     sig <- insubd sapl;
@@ -853,11 +853,14 @@ module FL_SL_XMSS_MT_TW_ES = {
     var pkWOTS : pkWOTS;
     var leaf : dgstblock;
     
-    (* Initialize loop counter, (supposed) root variable, tree index, and key pair index *)
+    (* Initialize loop counter, (supposed) root variable, and tree index *)
     i <- 0;
     root <- m;
-    (tidx, kpidx) <- edivz (val idx) l';
+    (tidx, kpidx) <- (val idx, 0);
     while (i < d) {
+      (* Update tree and key pair indices *)
+      (tidx, kpidx) <- edivz tidx l';
+    
       (* Extract WOTS-TW signature and corresponding authentication path for considered tree *)
       (sigWOTS, ap) <- nth witness (val sig) i;
       
@@ -870,8 +873,7 @@ module FL_SL_XMSS_MT_TW_ES = {
       (* Compute root from computed leaf (and extracted authentication path) *)
       root <- val_ap_trh ap kpidx leaf ps (set_typeidx (set_ltidx ad i tidx) trhtype);
       
-      (* Compute next tree and key pair indices and increase loop counter *)
-      (tidx, kpidx) <- edivz tidx l';
+      (* Increase loop counter *)
       i <- i + 1;
     }
     
@@ -1007,11 +1009,14 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
     (* Extract index, secret key, public seed, and address from the secret key *)
     (skWOTStd, ps, ad) <- sk;
     
-    (* Initialize signature list, tree index, and key pair index *)
+    (* Initialize root, signature list, and tree index *)
     root <- m;
     sapl <- [];
-    (tidx, kpidx) <- edivz (val idx) l';
+    (tidx, kpidx) <- (val idx, 0);
     while (size sapl < d) {
+      (* Update tree and key pair indices *)
+      (tidx, kpidx) <- edivz tidx l';
+      
       (* 
         Extract FL-SL-XMSS-TW secret key in considered layer (size sapl), and corresponding to
         considered inner tree in this layer (tidx).
@@ -1033,12 +1038,11 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
       (* Construct the authentication path from the computed list of leaves *)
       ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
       
+      (* Compute next message/root to sign *)
+      root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) h' 0;
+      
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);
-      
-      (* Compute next message/root to sign, as well as the next tree and key pair indices *)
-      root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) h' 0;
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     sig <- insubd sapl;
@@ -1213,7 +1217,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     leavestd <- [];
     rootstd <- [];
     (* For each layer in the hypertree, starting from the bottom-most layer,... *)
-    while (size pkWOTStd < d - 1) {
+    while (size pkWOTStd < d) {
       pkWOTSnt <- [];
       sigWOTSnt <- [];
       leavesnt <- [];
@@ -1230,11 +1234,11 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
           root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
 
           (* Query the challenge oracle on the computed message/root to obtain a (WOTS-TW) signature and public key *)
-          (pkWOTS, sigWOTS) <@ O.query(WAddress.insubd (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)), 
+          (pkWOTS, sigWOTS) <@ O.query(WAddress.insubd (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTStd) (size pkWOTSnt)) chtype) (size pkWOTSlp)), 
                                        root);  
 
           (* Query the family oracle to compress the obtained WOTS-TW public key to the corresponding leaf  *)
-          leaf <@ OC.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp), 
+          leaf <@ OC.query(set_kpidx (set_typeidx (set_ltidx ad (size pkWOTStd) (size pkWOTSnt)) pkcotype) (size pkWOTSlp), 
                            flatten (map DigestBlock.val (val pkWOTS)));
 
           pkWOTSlp <- rcons pkWOTSlp pkWOTS;
@@ -1256,7 +1260,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
             rnode <- nth witness nodespl (2 * size nodescl + 1);
 
             (* Query the family oracle on the concatenation of the children to obtain the node *)
-            node <@ OC.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+            node <@ OC.query(set_thtbidx (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTStd) (size pkWOTSnt)) trhtype) (size pkWOTSlp)) 
                                          (size nodes + 1) (size nodescl), 
                              val lnode ++ val rnode);
 
@@ -1303,8 +1307,10 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
       m <- nth witness ml (size sigl);
       
       sapl <- [];
-      (tidx, kpidx) <- edivz (size sigl) l';
+      (tidx, kpidx) <- (size sigl, 0);
       while (size sapl < d) {
+        (tidx, kpidx) <- edivz tidx l';
+      
         sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
@@ -1312,8 +1318,6 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
         ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
 
         sapl <- rcons sapl (sigWOTS, ap);
-
-        (tidx, kpidx) <- edivz tidx l';
       }
 
       sig <- insubd sapl;
@@ -1324,7 +1328,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     
     (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
     
-    (tidx, kpidx) <- edivz (val idx') l';
+    (tidx, kpidx) <- (val idx', 0);
     tkpidxs <- [];
     root' <- m';
     roots' <- [];
@@ -1337,21 +1341,22 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
       Keep track of the intermediate roots and tree/keypair indices. 
     *)
     while (size forgeryfs < d) {
+      (tidx, kpidx) <- edivz tidx l';
+      
       (sigWOTS', ap') <- nth witness (val sig') (size forgeryfs);
       
       pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
-                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size forgeryfs) tidx) kpidx));
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) chtype) kpidx));
       pkWOTS <- nth witness (nth witness (nth witness pkWOTStd (size forgeryfs)) tidx) kpidx;
       
       forgeryfs <- rcons forgeryfs (pkWOTS' = pkWOTS);
       
-      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx) kpidx) 
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) pkcotype) kpidx) 
                    (flatten (map DigestBlock.val (val pkWOTS'))); 
-      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx);
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size forgeryfs) tidx) trhtype) ;
       roots' <- rcons roots' root';
       
       tkpidxs <- rcons tkpidxs (tidx, kpidx);
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     (* Get index of the first valid WOTS-TW signature in the forgery *)
@@ -1445,7 +1450,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
     leavestd <- [];
     rootstd <- [];
     (* For each layer in the hypertree, starting from the bottom-most layer,... *)
-    while (size skWOTStd < d - 1) {
+    while (size skWOTStd < d) {
       skWOTSnt <- [];
       pkWOTSnt <- [];
       sigWOTSnt <- [];
@@ -1453,7 +1458,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
       rootsnt <- [];
       rootsntp <- last ml rootstd;
       (* For each tree in the current layer, starting from the left-most tree,... *)
-      while (size skWOTSnt < nr_trees (size pkWOTStd)) {
+      while (size skWOTSnt < nr_trees (size skWOTStd)) {
         skWOTSlp <- [];
         pkWOTSlp <- [];
         sigWOTSlp <- [];
@@ -1461,7 +1466,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
         (* For each leaf of the current tree, starting from the left-most leaf,... *)
         while (size skWOTSlp < l') {
           (* Get the to-be-signed message/root and encode it *)
-          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+          root <- nth witness rootsntp (size skWOTSnt * l' + size skWOTSlp);
           em <- encode_msgWOTS root;
           
           skWOTS <- [];
@@ -1476,8 +1481,8 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
             (* Compute the corresponding signature and public elements *)
             i <- 0;
             while (i < w - 1) {
-              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) 
-                                                                 (size pkWOTSnt)) (size pkWOTSlp)) (size skWOTS)) i,
+              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) chtype) 
+                                                                (size skWOTSlp)) (size skWOTS)) i,
                                  val ch_ele);
               
               if (i = BaseW.val em.[size skWOTS]) {
@@ -1491,7 +1496,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
           }
           
           (* Query the challenge oracle to compress the obtained WOTS-TW public key to the corresponding leaf  *)
-          leaf <@ O.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp), 
+          leaf <@ O.query(set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) pkcotype) (size skWOTSlp), 
                           flatten (map DigestBlock.val pkWOTS));
 
           pkWOTSlp <- rcons pkWOTSlp (DBLL.insubd pkWOTS);
@@ -1513,7 +1518,8 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
             rnode <- nth witness nodespl (2 * size nodescl + 1);
 
             (* Query the family oracle on the concatenation of the children to obtain the node *)
-            node <@ OC.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+            node <@ OC.query(set_thtbidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) trhtype) 
+                                                    (size skWOTSlp)) 
                                          (size nodes + 1) (size nodescl), 
                              val lnode ++ val rnode);
 
@@ -1560,8 +1566,10 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
       m <- nth witness ml (size sigl);
       
       sapl <- [];
-      (tidx, kpidx) <- edivz (size sigl) l';
+      (tidx, kpidx) <- (size sigl, 0);
       while (size sapl < d) {
+        (tidx, kpidx) <- edivz tidx l';
+        
         sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
@@ -1569,8 +1577,6 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
         ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
 
         sapl <- rcons sapl (sigWOTS, ap);
-
-        (tidx, kpidx) <- edivz tidx l';
       }
 
       sig <- insubd sapl;
@@ -1581,7 +1587,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
     
     (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
     
-    (tidx, kpidx) <- edivz (val idx') l';
+    (tidx, kpidx) <- (val idx', 0);
     tkpidxs <- [];
     root' <- m';
     tcfs <- [];
@@ -1593,22 +1599,22 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
       Also keep track of the intermediate tree/keypair indices. 
     *)
     while (size tcfs < d) {
+      (tidx, kpidx) <- edivz tidx l';
+      
       (sigWOTS', ap') <- nth witness (val sig') (size tcfs);
       
       pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
-                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size tcfs) tidx) kpidx));
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size tcfs) tidx) chtype) kpidx));
       
-      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx) kpidx) 
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size tcfs) tidx) pkcotype) kpidx) 
                    (flatten (map DigestBlock.val (val pkWOTS'))); 
       leaf <- nth witness (nth witness (nth witness leavestd (size tcfs)) tidx) kpidx;
       
       tcfs <- rcons tcfs (leaf' = leaf);
       
-      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx); 
-      
-      
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size tcfs) tidx) trhtype); 
+            
       tkpidxs <- rcons tkpidxs (tidx, kpidx);
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     (* Get index of the first collision extractable from the forgery *)
@@ -1704,7 +1710,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
     nodestd <- [];
     rootstd <- [];
     (* For each layer in the hypertree, starting from the bottom-most layer,... *)
-    while (size skWOTStd < d - 1) {
+    while (size skWOTStd < d) {
       skWOTSnt <- [];
       pkWOTSnt <- [];
       sigWOTSnt <- [];
@@ -1713,7 +1719,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
       rootsnt <- [];
       rootsntp <- last ml rootstd;
       (* For each tree in the current layer, starting from the left-most tree,... *)
-      while (size skWOTSnt < nr_trees (size pkWOTStd)) {
+      while (size skWOTSnt < nr_trees (size skWOTStd)) {
         skWOTSlp <- [];
         pkWOTSlp <- [];
         sigWOTSlp <- [];
@@ -1721,7 +1727,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
         (* For each leaf of the current tree, starting from the left-most leaf,... *)
         while (size skWOTSlp < l') {
           (* Get the to-be-signed message/root and encode it *)
-          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+          root <- nth witness rootsntp (size skWOTSnt * l' + size skWOTSlp);
           em <- encode_msgWOTS root;
           
           skWOTS <- [];
@@ -1736,8 +1742,8 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
             (* Compute the corresponding signature and public elements *)
             i <- 0;
             while (i < w - 1) {
-              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size pkWOTStd) 
-                                                                 (size pkWOTSnt)) (size pkWOTSlp)) (size skWOTS)) i,
+              ch_ele <@ OC.query(set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) chtype) 
+                                                                (size skWOTSlp)) (size skWOTS)) i,
                                  val ch_ele);
               
               if (i = BaseW.val em.[size skWOTS]) {
@@ -1751,7 +1757,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
           }
           
           (* Query the collection oracle to compress the obtained WOTS-TW public key to the corresponding leaf *)
-          leaf <@ OC.query(set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp), 
+          leaf <@ OC.query(set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) pkcotype) (size skWOTSlp), 
                            flatten (map DigestBlock.val pkWOTS));
 
           pkWOTSlp <- rcons pkWOTSlp (DBLL.insubd pkWOTS);
@@ -1773,7 +1779,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
             rnode <- nth witness nodespl (2 * size nodescl + 1);
 
             (* Query the challenge oracle on the concatenation of the children to obtain the node *)
-            node <@ O.query(set_thtbidx (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size pkWOTStd) (size pkWOTSnt)) (size pkWOTSlp)) 
+            node <@ O.query(set_thtbidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) trhtype) (size skWOTSlp)) 
                                         (size nodes + 1) (size nodescl), 
                              val lnode ++ val rnode);
 
@@ -1823,8 +1829,10 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
       m <- nth witness ml (size sigl);
       
       sapl <- [];
-      (tidx, kpidx) <- edivz (size sigl) l';
+      (tidx, kpidx) <- (size sigl, 0);
       while (size sapl < d) {
+        (tidx, kpidx) <- edivz tidx l';
+      
         sigWOTS <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
@@ -1832,8 +1840,6 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
         ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
 
         sapl <- rcons sapl (sigWOTS, ap);
-
-        (tidx, kpidx) <- edivz tidx l';
       }
 
       sig <- insubd sapl;
@@ -1844,7 +1850,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
     
     (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
     
-    (tidx, kpidx) <- edivz (val idx') l';
+    (tidx, kpidx) <- (val idx', 0);
     tkpidxs <- [];
     root' <- m';
     leaves' <- [];
@@ -1857,23 +1863,23 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
       Also keep track of the intermediate leaves and tree/keypair indices. 
     *)
     while (size tcfs < d) {
+      (tidx, kpidx) <- edivz tidx l';
+            
       (sigWOTS', ap') <- nth witness (val sig') (size tcfs);
       
       pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
-                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size tcfs) tidx) kpidx));
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size tcfs) tidx) chtype) kpidx));
       
-      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx) kpidx) 
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size tcfs) tidx) pkcotype) kpidx) 
                     (flatten (map DigestBlock.val (val pkWOTS')));
       
-      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size tcfs) tidx); 
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size tcfs) tidx) trhtype); 
       root <- nth witness (nth witness rootstd (size tcfs)) tidx;
       
       tcfs <- rcons tcfs (root' = root);
       
       leaves' <- rcons leaves' leaf';  
       tkpidxs <- rcons tkpidxs (tidx, kpidx);
-      
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     (* Get index of the first authentication path (in the forgery) that allows the extraction of a collision *)
@@ -1986,7 +1992,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     leavestd <- [];
     rootstd <- [];
     (* For each layer in the hypertree, starting from the bottom-most layer,... *)
-    while (size skWOTStd < d - 1) {
+    while (size skWOTStd < d) {
       skWOTSnt <- [];
       pkWOTSnt <- [];
       sigWOTSnt <- [];
@@ -1994,7 +2000,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
       rootsnt <- [];
       rootsntp <- last ml rootstd;
       (* For each tree in the current layer, starting from the left-most tree,... *)
-      while (size skWOTSnt < nr_trees (size pkWOTStd)) {
+      while (size skWOTSnt < nr_trees (size skWOTStd)) {
         skWOTSlp <- [];
         pkWOTSlp <- [];
         sigWOTSlp <- [];
@@ -2002,7 +2008,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
         (* For each leaf of the current tree, starting from the left-most leaf,... *)
         while (size skWOTSlp < l') {
           (* Get the to-be-signed message/root and encode it *)
-          root <- nth witness rootsntp (size pkWOTSnt * l' + size pkWOTSlp);
+          root <- nth witness rootsntp (size skWOTSnt * l' + size skWOTSlp);
           em <- encode_msgWOTS root;
           
           skWOTS <- [];
@@ -2015,10 +2021,11 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
             (* Sample a skWOTS element *)
             skWOTS_ele <$ ddgstblock;
             
-            sigWOTS_ele <- cf ps (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp)) (size skWOTS)) 
+            sigWOTS_ele <- cf ps (set_chidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) chtype) 
+                                                       (size skWOTSlp)) (size skWOTS)) 
                               0 em_ele (val skWOTS_ele);
             
-            pkWOTS_ele <- cf ps (set_chidx (set_kpidx (set_ltidx (set_typeidx ad chtype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp)) (size skWOTS)) 
+            pkWOTS_ele <- cf ps (set_chidx (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) chtype) (size skWOTSlp)) (size skWOTS)) 
                              em_ele (w - 1 - em_ele) (val sigWOTS_ele);
             
             skWOTS <- rcons skWOTS skWOTS_ele;
@@ -2026,7 +2033,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
             sigWOTS <- rcons sigWOTS sigWOTS_ele;
           }
           
-          leaf <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size skWOTStd) (size skWOTSnt)) (size skWOTSlp)) (flatten (map DigestBlock.val pkWOTS));
+          leaf <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) pkcotype) (size skWOTSlp)) (flatten (map DigestBlock.val pkWOTS));
           
           skWOTSlp <- rcons skWOTSlp (DBLL.insubd skWOTS);
           pkWOTSlp <- rcons pkWOTSlp (DBLL.insubd pkWOTS);
@@ -2034,7 +2041,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
           leaveslp <- rcons leaveslp leaf;
         }
 
-        root <- val_bt_trh ps (set_ltidx (set_typeidx ad trhtype) (size skWOTStd) (size skWOTSnt))
+        root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size skWOTStd) (size skWOTSnt)) trhtype)
                            (list2tree leaveslp) h' 0;
         
         pkWOTSnt <- rcons pkWOTSnt pkWOTSlp;
@@ -2056,8 +2063,10 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
       m <- nth witness ml (size sigl);
       
       sapl <- [];
-      (tidx, kpidx) <- edivz (size sigl) l';
+      (tidx, kpidx) <- (size sigl, 0);
       while (size sapl < d) {
+        (tidx, kpidx) <- edivz tidx l';
+                
         sigWOTSins <- nth witness (nth witness (nth witness sigWOTStd (size sapl)) tidx) kpidx;
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
@@ -2065,8 +2074,6 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
         ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
 
         sapl <- rcons sapl (sigWOTSins, ap);
-
-        (tidx, kpidx) <- edivz tidx l';
       }
 
       sig <- insubd sapl;
@@ -2080,7 +2087,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     is_fresh <- ! m' \in take (size sigl) ml;
 
     (* Additional checks *)
-    (tidx, kpidx) <- edivz (val idx') l';
+    (tidx, kpidx) <- (val idx', 0);
     tkpidxs <- [];
     root' <- m';
     leaves' <- [];
@@ -2095,24 +2102,24 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
       Also keep track of the intermediate leaves and tree/keypair indices. 
     *)
     while (size forgeryfs < d) {
+      (tidx, kpidx) <- edivz tidx l';
+            
       (sigWOTS', ap') <- nth witness (val sig') (size forgeryfs);
       
       pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
-                                                     (set_kpidx (set_ltidx (set_typeidx ad chtype) (size forgeryfs) tidx) kpidx));
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) chtype) kpidx));
       pkWOTSins <- nth witness (nth witness (nth witness pkWOTStd (size forgeryfs)) tidx) kpidx;
       forgeryfs <- rcons forgeryfs (pkWOTS' = pkWOTSins);
       
-      leaf' <- pkco ps (set_kpidx (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx) kpidx) 
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) pkcotype) kpidx) 
                     (flatten (map DigestBlock.val (val pkWOTS')));
       leaf <- nth witness (nth witness (nth witness leavestd (size forgeryfs)) tidx) kpidx;
       tclfs <- rcons tclfs (leaf' = leaf);
       
-      root' <- val_ap_trh ap' kpidx leaf' ps (set_ltidx (set_typeidx ad pkcotype) (size forgeryfs) tidx); 
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size forgeryfs) tidx) trhtype); 
       root <- nth witness (nth witness rootstd (size forgeryfs)) tidx;
       
       tcrfs <- rcons tcrfs (root' = root);
-            
-      (tidx, kpidx) <- edivz tidx l';
     }
     
     valid_WOTSTWES <- has ((=) true) forgeryfs;
@@ -2147,56 +2154,62 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
              /\ pk{1} = (root, ps, ad){1}
              /\ sk{1} = (skWOTStd, ps ,ad){1}
              /\ (forall (i j u v : int), 
-                   0 <= i < d - 1 => 0 <= j < nr_trees i => 0 <= u < l' => 0 <= v < len =>
+                   0 <= i < d => 0 <= j < nr_trees i => 0 <= u < l' => 0 <= v < len =>
                      nth witness (val (nth witness (nth witness (nth witness pkWOTStd{2} i) j) u)) v
                      =
-                     cf ps{2} (set_chidx (set_kpidx (set_ltidx (set_typeidx ad{2} chtype) i j) u) v) 0 (w - 1) 
+                     cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0 (w - 1) 
                      (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} i) j) u)) v)))
              /\ (forall (i j u : int),
-                   0 <= i < d - 1 => 0 <= j < nr_trees i => 0 <= u < l' =>
+                   0 <= i < d => 0 <= j < nr_trees i => 0 <= u < l' =>
                      nth witness (nth witness (nth witness leavestd{2} i) j) u
                      =
-                     pkco ps{2} (set_kpidx (set_ltidx (set_typeidx ad{2} pkcotype) i j) u) 
+                     pkco ps{2} (set_kpidx (set_typeidx (set_ltidx ad{2} i j) pkcotype) u) 
                      (flatten (map DigestBlock.val (val (nth witness (nth witness (nth witness pkWOTStd{2} i) j) u)))))
              /\ (forall (i j : int),
-                   0 <= i < d - 1 => 0 <= j < nr_trees i =>
+                   0 <= i < d => 0 <= j < nr_trees i =>
                      nth witness (nth witness rootstd{2} i) j
                      =
-                     val_bt_trh ps{2} (set_ltidx (set_typeidx ad{2} trhtype) i j)
+                     val_bt_trh ps{2} (set_typeidx (set_ltidx ad{2} i j) trhtype)
                                 (list2tree (nth witness (nth witness leavestd{2} i) j)) h' 0)
-             /\ (forall (j u v : int),
-                   0 <= j < nr_trees 0 => 0 <= u < l' => 0 <= v < len => 
-                     nth witness (val (nth witness (nth witness (nth witness sigWOTStd{2} 0) j) u)) v
-                     =
-                     cf ps{2} (set_chidx (set_kpidx (set_ltidx (set_typeidx ad{2} chtype) 0 j) u) v) 0 
-                     (BaseW.val (encode_msgWOTS (nth witness ml{2} (j * l' + u))).[v])
-                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} 0) j) u)) v)))
              /\ (forall (i j u v : int),
-                   1 <= i < d - 1 => 0 <= j < nr_trees i => 0 <= u < l' => 0 <= v < len => 
+                   0 <= i < d => 0 <= j < nr_trees i => 0 <= u < l' => 0 <= v < len => 
                      nth witness (val (nth witness (nth witness (nth witness sigWOTStd{2} i) j) u)) v
                      =
-                     cf ps{2} (set_chidx (set_kpidx (set_ltidx (set_typeidx ad{2} chtype) i j) u) v) 0 
-                     (BaseW.val (encode_msgWOTS (nth witness (nth witness rootstd{2} (i - 1)) (j * l' + u))).[v])
-                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} i) j) u)) v)))).
+                     cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0 
+                     (BaseW.val (encode_msgWOTS 
+                                   (if i = 0
+                                    then nth witness ml{2} (j * l' + u)
+                                    else nth witness (nth witness rootstd{2} (i - 1)) (j * l' + u))).[v])
+                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} i) j) u)) v)))
+             /\ (forall (i j : int), 
+                   0 <= i < d => 0 <= j < nr_trees i =>
+                     size (nth witness (nth witness leavestd{2} i) j) = l')).
 + admit.
 conseq (: _ ==> ={sigl}) => //=.
 inline *.
 while (#pre /\ ={sigl} /\ 0 <= size sigl{1} <= l).
 + wp; sp 5 1 => />.
   conseq (: _ ==> ={sapl}) => />; 1: by smt(size_rcons).
-  print val_bt_trh.
   while (   #pre 
          /\ ={sapl, tidx, kpidx}
          /\ root0{1} 
             =
-            val_bt_trh ps1{1} (set_typeidx (set_ltidx ad1{1} (size sapl{1}) tidx{1}) trhtype) (list2tree leaves0{1}) h' 0 
+            (if size sapl{1} = 0
+             then m0{1}
+             else val_bt_trh ps1{1} (set_typeidx (set_ltidx ad1{1} (size sapl{1} - 1) tidx{1}) trhtype) 
+                    (list2tree (mkseq (fun (i : int) => 
+                      pkco ps1{1} (set_kpidx (set_typeidx (set_ltidx ad1{1} (size sapl{1} - 1) tidx{1}) pkcotype) i)
+                           (flatten (map DigestBlock.val (mkseq (fun (j : int) => 
+                             cf ps1{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad1{1} (size sapl{1} - 1) tidx{1}) chtype) i) j) 0 (w - 1) 
+                                (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (size sapl{1} - 1)) tidx{1}) i)) j))) len)))) l')) h' 0)
+         /\ (size sapl{1} < d => 
+                   tidx{1} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl{1}, 0) (size sapl{1})).`1
+                /\ kpidx{1} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl{1}, 0) (size sapl{1})).`2)
+         /\ (0 < size sapl{1} => tidx{1} < nr_trees (size sapl{1} - 1))
+         /\ 0 <= tidx{1}
+         /\ 0 <= kpidx{1} < l'
          /\ 0 <= size sapl{1} <= d).
-  - wp.
-    wp => />.
-    conseq (: _ 
-              ==>    sigWOTS{1} = nth witness (nth witness (nth witness sigWOTStd{2} (size sapl{2})) tidx{2}) kpidx{2}
-                  /\ leaves1{1} = nth witness (nth witness leavestd{2} (size sapl{2})) tidx{2}) => />.
-    * by move=> *; smt(size_rcons).  
+  - wp => /=.
     while{1} ((forall (i : int), 0 <= i < size leaves1{1} =>
                 nth witness leaves1{1} i
                 =
@@ -2239,19 +2252,149 @@ while (#pre /\ ={sigl} /\ 0 <= size sigl{1} <= l).
               /\ 0 <= size sig1{1} <= len)
              (len - size sig1{1}).
     * move=> ? z.
-      wp; skip => />.
-      
-      admit.
+      wp; skip => /> &1 nthsig ? ? ?.
+      rewrite -!andbA; split => [i ge0_i|]; 2: smt(size_rcons).
+      rewrite size_rcons => ltsz1_i; rewrite nth_rcons.
+      case (i = size sig1{1}) => [-> // | neqszs_i].
+      by rewrite (: i < size sig1{1}) 1:/# /= nthsig 1:/#.
     wp; skip => />.
-    progress. smt().
+    progress. 
+    smt().
     smt(ge2_len).
     smt(ge2_len).
     smt(ge2_len).
     smt(ge1_lp).
     smt(ge2_len).
-    rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP // => i rng_i.
-    rewrite insubdK 1:/#.
-  by wp; skip => />; smt(Index.insubdK ge1_d).
+    congr. congr.
+    rewrite &(DBLL.val_inj) &(eq_from_nth witness).
+    rewrite ?valP //.
+    move => i. rewrite valP => rng_i.
+    rewrite insubdK 1:/# H16 1:/# H2 1:/#.
+     rewrite divz_ge0 /=. smt(ge1_lp).
+    rewrite H9 /= ltz_divLR. smt(ge1_lp).
+    rewrite /nr_trees /l' -exprD_nneg /=.
+    rewrite mulr_ge0. smt(ge0_hp).
+    smt(ge1_d).
+    smt(ge0_hp).
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _); 1: smt(ge1_d).
+    rewrite eq0 fold0 /= => [-> ]. 
+    smt(Index.valP).
+    move: (H8 _); smt().
+    smt(). trivial.
+    congr. congr. congr. congr.
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _); 1: smt(ge1_d).
+    rewrite eq0 fold0 /= => [-> ].
+    rewrite -divz_eq //.
+    rewrite H1.
+    smt().
+    rewrite -divz_eq /#.
+    do 2! congr.
+    rewrite -divz_eq /#.
+    rewrite &(eq_from_nth witness).    
+    by rewrite size_mkseq 1:/# H3.
+    move=> j. rewrite size_mkseq => rng_j.
+    rewrite H0 1:/#.
+    rewrite -divz_eq /#.
+    smt().
+    rewrite (nth_map witness) /= 1:size_iota 1:/#.
+    rewrite -divz_eq nth_iota 1:/# /=.
+    congr.
+    congr. congr.
+     rewrite &(eq_from_nth witness).
+    rewrite valP size_mkseq /#.
+    move=> m; rewrite size_mkseq => rng_m.
+    rewrite H 1,2,3,4:/#.
+    rewrite (nth_map witness) 1:size_iota 1:/# //=.
+    rewrite nth_iota 1:/# //.
+    congr; congr.
+    rewrite &(eq_from_nth witness).
+    rewrite H3 1,3:/#.
+    rewrite divz_ge0 /=. smt(ge1_lp).
+    rewrite H9 /= ltz_divLR. smt(ge1_lp).
+    rewrite /nr_trees /l' -exprD_nneg /=.
+    rewrite mulr_ge0. smt(ge0_hp).
+    smt(ge1_d).
+    smt(ge0_hp).
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _); 1: smt(ge1_d).
+    rewrite eq0 fold0 /= => [-> ]. 
+    smt(Index.valP).
+    move: (H8 _); smt().
+    move=> j rng_j. 
+    rewrite H0 1:/#.
+    rewrite divz_ge0 /=. smt(ge1_lp).
+    rewrite H9 /= ltz_divLR. smt(ge1_lp).
+    rewrite /nr_trees /l' -exprD_nneg /=.
+    rewrite mulr_ge0. smt(ge0_hp).
+    smt(ge1_d).
+    smt(ge0_hp).
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _); 1: smt(ge1_d).
+    rewrite eq0 fold0 /= => [-> ]. 
+    smt(Index.valP).
+    move: (H8 _); smt().
+    smt().
+    rewrite H20 //.
+     congr. congr. congr.
+    rewrite &(eq_from_nth witness).
+    rewrite valP size_mkseq /#.
+    move=> m; rewrite size_mkseq => rng_m.
+    rewrite H 1,3,4:/#.
+    rewrite divz_ge0 /=. smt(ge1_lp).
+    rewrite H9 /= ltz_divLR. smt(ge1_lp).
+    rewrite /nr_trees /l' -exprD_nneg /=.
+    rewrite mulr_ge0. smt(ge0_hp).
+    smt(ge1_d).
+    smt(ge0_hp).
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _); 1: smt(ge1_d).
+    rewrite eq0 fold0 /= => [-> ]. 
+    smt(Index.valP).
+    move: (H8 _); smt().
+    rewrite (nth_map witness) /=.
+    rewrite size_iota /#.
+    by rewrite nth_iota /#.
+    rewrite size_rcons (: size sapl{2} + 1 <> 0) 1:/# /=.
+    congr. congr.
+     rewrite &(eq_from_nth witness).
+     rewrite size_mkseq 1:/#.
+    move=> j rng_j.
+    rewrite H20 //=.
+    rewrite (nth_map witness) 1:size_iota 1:/# /=.
+    by rewrite ?nth_iota 1:/# //.
+    rewrite size_rcons foldS 1:/# /= /#.
+    rewrite size_rcons foldS 1:/# /= /#.
+    rewrite size_rcons in H23. rewrite size_rcons.
+    apply ltz_divLR. smt(ge1_lp).
+    rewrite /nr_trees /l' -exprD_nneg.
+    rewrite mulr_ge0.
+    smt(ge0_hp ge1_d).    
+    smt(ge0_hp ge1_d size_rcons).
+    smt(ge0_hp ge1_d).
+    case (size sapl{2} = 0) => [eq0 | neq0].
+    move: (H7 _). smt().
+    move=> -[-> _]. rewrite eq0 fold0 /=.
+    smt().
+    simplify.
+    move: (H8 _). smt(size_ge0).
+    move=> @/nr_trees. smt().    
+    rewrite divz_ge0 //. smt(ge1_lp).
+    smt(size_rcons).
+    rewrite ltz_pmod. smt(ge1_lp).
+    smt(size_rcons).
+    smt(size_rcons).
+    smt(size_rcons).
+    smt(size_rcons).
+   wp; skip => />.
+   progress.
+   rewrite insubdK //. 
+   rewrite fold0 insubdK //=.
+   rewrite fold0 //.
+   smt(Index.valP).
+   smt(ge1_lp).
+   smt(ge1_d).
 by wp; skip => />; smt(Top.ge1_l).
 qed.
 

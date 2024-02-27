@@ -737,7 +737,7 @@ clone import Subtype as XHA with
   
 type xadrs = XHA.sT.
 
-lemma validxadrs_validwadrs_setall (i j u v : int) (ad : adrs) :
+lemma validxadrs_validwadrs_setallch (i j u v : int) (ad : adrs) :
      valid_xadrs ad
   => valid_lidx i
   => valid_tidx i j
@@ -745,8 +745,30 @@ lemma validxadrs_validwadrs_setall (i j u v : int) (ad : adrs) :
   => valid_chidx v
   => valid_wadrs (set_chidx (set_kpidx (set_typeidx (set_ltidx ad i j) chtype) u) v).
 proof.
-rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp => [#].
-admit.
+rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp.
+move=> [#] szval valgp vt vlidx vtidx vkpidx vchidx.
+have gt0al : 0 < size (val ad) by smt(ge6_adrslen).
+have gt1al : 1 < size (val ad) by smt(ge6_adrslen).
+have gt2al : 2 < size (val ad) by smt(ge6_adrslen).
+have gt3al : 3 < size (val ad) by smt(ge6_adrslen).
+have gt4al : 4 < size (val ad) by smt(ge6_adrslen).
+have gt5al : 5 < size (val ad) by smt(ge6_adrslen).
+have gt0alif : 0 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+have gt1alif : 1 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+have gt2alif : 2 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+have gt3alif : 3 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+have gt4alif : 4 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+have gt5alif : 5 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
+apply validwadrs_setchidx => //. 
+rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals.
+rewrite ?nth_drop ?nth_take // drop_drop //=.
+rewrite ?insubdK /valid_adrsidxs /valid_idxvals ?size_put 
+        ?valid_xidxvals_idxvals /= /valid_xidxvals ?drop_putK //
+        ?take_put /= ?valgp /= /valid_xidxvalslp /valid_xidxvalslpch 
+        /valid_xidxvalslppkco /valid_xidxvalslptrh ?nth_put ?size_put 
+        ?size_take //= ?nth_take //=; 1..7: smt(val_w ge2_len ge1_lp nth_take).
+rewrite szval vkpidx vtidx vlidx /= /valid_widxvalslp.
+by rewrite ?nth_put ?size_put ?size_take //=; smt(val_w ge2_len).
 qed.
 
 
@@ -1935,8 +1957,13 @@ all (fun (ad : adrs) =>   get_typeidx ad <> chtype
                       /\ get_typeidx ad <> pkcotype
                       /\ get_typeidx ad <> trhtype) adsOC
 *)
+declare axiom A_choose_ll (OC <: Oracle_THFC{-A}) : 
+  islossless OC.query => islossless A(OC).choose.
 
-
+declare axiom A_forge_ll (OC <: Oracle_THFC{-A}) : 
+  islossless A(OC).forge.
+    
+  
 local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
   var valid_WOTSTWES, valid_TCRPKCO, valid_TCRTRH : bool
   
@@ -2144,7 +2171,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
   }
 }.
 
-local equiv Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES_Orig_V :
+local equiv Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_Orig_V :
   EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main ~ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.main :
     ={glob A} ==> ={res}.
 proof.
@@ -2226,6 +2253,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
     by rewrite insubdK 1:/# size_rcons ?mkseqS 1://; smt(ge2_len mkseqS).
   wp => /=.
   while (   ={skWOTStd}
+         /\ valid_xadrs ad{2} 
          /\ (forall (i j u v : int), 
                0 <= i < size pkWOTStd{2} => 0 <= j < nr_trees i => 0 <= u < l' => 0 <= v < len =>
                  nth witness (val (nth witness (nth witness (nth witness pkWOTStd{2} i) j) u)) v
@@ -2264,6 +2292,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
          /\ size skWOTStd{2} = size rootstd{2}).
   - wp.
     while (   ={skWOTStd, skWOTSnt}
+           /\ valid_xadrs ad{2}
            /\ rootsntp{2} = last ml{2} rootstd{2}
            /\ (forall (j u v : int), 
                  0 <= j < size pkWOTSnt{2} => 0 <= u < l' => 0 <= v < len =>
@@ -2308,6 +2337,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
            /\ size skWOTStd{2} = size rootstd{2}).
     * wp.
       while (   ={skWOTStd, skWOTSnt, skWOTSlp}
+             /\ valid_xadrs ad{2}
              /\ rootsntp{2} = last ml{2} rootstd{2}
              /\ (forall (u v : int), 
                    0 <= u < size pkWOTSlp{2} => 0 <= v < len =>
@@ -2347,6 +2377,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
              /\ size skWOTStd{2} = size rootstd{2}).
       + wp.
         while (   ={skWOTStd, skWOTSnt, skWOTSlp, skWOTS}
+               /\ valid_xadrs ad{2}
                /\ em{2} = encode_msgWOTS (nth witness (last ml{2} rootstd{2}) (size skWOTSnt{2} * l' + size skWOTSlp{2}))
                /\ (forall (v : int), 
                      0 <= v < size pkWOTS{2} =>
@@ -2381,7 +2412,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
                /\ size skWOTStd{2} = size sigWOTStd{2}
                /\ size skWOTStd{2} = size leavestd{2}
                /\ size skWOTStd{2} = size rootstd{2}).
-        - wp; rnd; wp; skip => /> &2 nthpk nthsig ge0_szsk _ eqszsp eqszss ge0_szsklp 
+        - wp; rnd; wp; skip => |> &2 valad nthpk nthsig ge0_szsk _ eqszsp eqszss ge0_szsklp 
                                      ltlp_szsklp eqszlpsp eqszlpss eqszlpsl ge0_szsknt 
                                      ltnt_szsknt eqszntsp eqszntss eqszntsl eqszntsr 
                                      ge0_szsktd ltd_szskts eqsztdsp eqsztdss eqsztdsl 
@@ -2392,14 +2423,14 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
             pose emt := encode_msgWOTS _.
             rewrite (: w - 1 = val emt.[size pkWOTS{2}] + (w - 1 - val emt.[size pkWOTS{2}])) 1:/# /cf.
             rewrite ch_comp 2:valP //=; 2..4: smt(BaseW.valP val_w).
-            - admit.
+            - by apply validxadrs_validwadrs_setallch => // /#.
             by rewrite eqsztdsp eqszntsp eqszlpsp; congr; ring.
           split => [v ge0_v ltszsig1_v | /#].
           rewrite 2!nth_rcons eqszss; case (v = size sigWOTS{2}) => [eqsz | /#].
           rewrite eqsz /= eq_sym eqsztdss eqszntss eqszlpss.
           do 4! congr.
           by rewrite (last_nth witness) /= -eqsztdsr eqsztdss /#.
-        wp; skip => /> &2 nthpks nthlfs nthsigs ge0_szsklp ltlp_szsklp eqszlpsp 
+        wp; skip => |> &2 valad nthpks nthlfs nthsigs ge0_szsklp ltlp_szsklp eqszlpsp 
                           eqszlpss eqszlpsl ge0_szsknt ltnt_szsknt eqszntsp eqszntss 
                           eqszntsl eqszntsr ge0_szsktd ltd_szskts eqsztdsp eqsztdss 
                           eqsztdsl eqsztdsr ltl_szsklp.
@@ -2417,14 +2448,14 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
         rewrite size_rcons => ge0_u ltszsig1_u ge0_v ltlen_v. 
         rewrite 2!nth_rcons ?eqszlpss; case (u = size sigWOTSlp{2}) => [eqsz | /#].
         by rewrite eqsz /= ?insubdK // /#.
-      wp; skip => /> &2 nthpks nthlfs nthrs nthsigs nthszlfs ge0_szsknt lent_szsknt eqszntsp 
+      wp; skip => |> &2 valad nthpks nthlfs nthrs nthsigs nthszlfs ge0_szsknt lent_szsknt eqszntsp 
                         eqszntss eqszntsl eqszntsr ge0_szsktd ltd_szsktd eqsztdsp eqsztdss 
                         eqsztdsl eqsztdsr ltnrt_szskts.
       split => [| lfs pks sigs sks /lezNgt gelp_szsks _]; 1: by smt(ge1_lp).
       move=> nthpkp nthlfp nthsigp ge0_szsks lelp_szsks eqszspp eqszssp eqszslp.
       do 4! (split; 1: smt(ge1_d ge1_lp nth_rcons size_rcons)). 
       by split; smt(ge1_d ge1_lp nth_rcons size_rcons).
-    wp; skip => /> &2 nthpk nthlf nthrt nthsig sznthlf ge0_szsk _ eqszpk eqszsig eqszlf eqszrt ltd_szsk.
+    wp; skip => |> &2 valad nthpk nthlf nthrt nthsig sznthlf ge0_szsk _ eqszpk eqszsig eqszlf eqszrt ltd_szsk.
     split => [|lfs pks rts sigs sks /lezNgt genrt_szsk _].
     - by rewrite /nr_trees expr_ge0 /#.
     move=> nthpkp nthlfp nthrtp nthsigp sznthlfp ge0_szskp lenrt_szsk eqszpkp eqszsigp eqszlfp eqszrtp.
@@ -2446,7 +2477,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
   wp.
   call (: ={O_THFC_Default.pp}); 1: by sim.
   inline *.
-  wp; rnd; wp; skip => /> ps psin ml. 
+  wp; rnd; wp; skip => |> ps psin ml; rewrite valP /=. 
   split => [| lfs pks rs sigs sks /lezNgt ged_szsks _]; 1: smt(ge1_d).
   move => nthpks nthlfs nthrs nthsigs nthszlfs ge0_szsknt lent_szsknt 
           eqszntsp eqszntss eqszntsl eqszntsr.
@@ -2582,7 +2613,13 @@ while (#pre /\ ={sigl} /\ 0 <= size sigl{1} <= l).
 by wp; skip => />; smt(Top.ge1_l).
 qed.
 
+
 local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
+(* hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
+          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC.ads = [] 
+          ==> 
+          all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) 
+              R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC.ads] => *)
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
   Pr[M_EUF_GCMA_WOTSTWESNPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A), O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).main() @ &m : res]
@@ -2590,7 +2627,18 @@ local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
   Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNAGCMA(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
-proof. admit. qed.
+proof.
+have ->:
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
+  =
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.main() @ &m : res].
++ by byequiv (Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_Orig_V).
+rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_WOTSTWES] RealOrder.ler_add.
++ admit.
+rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_TCRPKCO] RealOrder.ler_add.
++ admit.
+admit.
+qed.
 
 
 lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
@@ -2610,8 +2658,58 @@ lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
 proof.
 move: (MEUFGCMA_WOTSTWESNPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)) _ _ &m) 
       (EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
-+ admit. 
-admit. 
++ move=> O OC Oll OCll.
+  proc; inline *.
+  wp.
+  while (true) (d - size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd).
+  - move=> z.
+    wp.
+    while (true) 
+          (nr_trees (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd) - size pkWOTSnt).
+    * move=> z'.
+      wp => /=.
+      while (true) (h' - size nodes).
+      + move=> z''.
+        wp => /=.
+        while (true) (nr_nodes (size nodes + 1) - size nodescl).
+        - move=> z'''.
+          by wp; call OCll; wp; skip => />; smt(size_rcons). 
+        by wp; skip => />; smt(size_rcons).
+      wp => /=.
+      while (true) (l' - size pkWOTSlp).
+      + move=> z''.
+        wp => /=.
+        call OCll; call Oll.
+        by wp; skip => />; smt(size_rcons).
+      by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(size_rcons).
+  wp; call (: true). 
+  - by move=> OC' OCpll; apply (A_choose_ll OC' OCpll).
+  - proc.
+    by wp; call OCll.
+  by wp; skip => /> /#.
+move => O OC.
+proc; inline *.
+wp => /=.
+while (true) (d - size forgeryfs).
++ move=> z.
+  wp.
+  while (true) (len - size pkWOTS0).
+  - move=> z'.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+wp.
+call (: true).
++ by move=> OC'; apply (A_forge_ll OC').
+wp => /=.
+while (true) (l - size sigl).
++ move=> z.
+  wp.
+  while (true) (d - size sapl).
+  - move=> z'.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+by wp; skip => /> /#.
 qed.
 
 end section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.

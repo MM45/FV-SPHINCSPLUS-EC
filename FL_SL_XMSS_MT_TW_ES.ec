@@ -849,11 +849,13 @@ module FL_SL_XMSS_MT_TW_ES = {
     var ap : apFLXMSSTW;
     var sapl : (sigWOTS * apFLXMSSTW) list;
     var sig : sigFLSLXMSSMTTW;
+    var root : dgstblock;
     
     (* Extract secret seed, public seed, and address from the secret key *)
     (ss, ps, ad) <- sk;
     
     (* Initialize signature list, tree index, and key pair index *)
+    root <- m;
     sapl <- [];
     (tidx, kpidx) <- (val idx, 0);
     while (size sapl < d) {
@@ -868,6 +870,9 @@ module FL_SL_XMSS_MT_TW_ES = {
 
       (* Construct the authentication path from the computed list of leaves *)
       ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+      
+      (* Compute next message/root to sign *)
+      root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) h' 0;
       
       (* Add computed WOTS-TW signature and authentication path  *)
       sapl <- rcons sapl (sigWOTS, ap);

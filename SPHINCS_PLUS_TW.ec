@@ -1,7 +1,7 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
 require import AllCore List Distr SmtMap IntDiv RealExp StdOrder FinType BitEncoding.
-(*---*) import IntOrder.
+(*---*) import IntOrder RealOrder.
 (*---*) import BS2Int.
 
 
@@ -511,6 +511,10 @@ import Adrs.
 
 type adrs = HA.adrs.
 
+(* Initialization ("zero") address *)
+const adz : adrs = insubd [0; 0; chtype; 0; 0; 0].
+
+
 
 (* - Operators (2/2) - *)
 (* -- Setters -- *)
@@ -707,11 +711,11 @@ clone import FORS_TW_ES as FTWES with
   realize dpseed_ll by exact: dpseed_ll.
   realize ddgstblock_ll by exact: ddgstblock_ll.
   
-import DBAL BLKAL DBAPKL DBLLKTL.
+import DBAL BLKAL DBAPKL DBLLKTL FP_OPRETCRDSPR.
 
 
 (* FL-SL-XMSS-MT-TW *)
-clone import FL_SL_XMSS_MT_TW_ES as FSXMTWES with
+clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op adrs_len <- adrs_len,
     op n <- n,
     op log2_w <- log2_w,
@@ -728,6 +732,7 @@ clone import FL_SL_XMSS_MT_TW_ES as FSXMTWES with
   type dgst <- dgst,
     
     op nr_nodes <- nr_nodesx,
+    op nr_trees <- nr_trees,
     op chtype <- chtype,
     op trhtype <- trhxtype,
     op pkcotype <- pkcotype,
@@ -836,7 +841,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     var pk : pkSPHINCSPLUSTW;
     var sk : skSPHINCSPLUSTW;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     ms <$ dmseed;
     ss <$ dsseed;
@@ -866,7 +871,7 @@ module SPHINCS_PLUS_TW : Scheme = {
         
     (ms, ss, ps) <- sk;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, ad), m);
     
@@ -896,7 +901,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     (root, ps) <- pk;
     (mk, sigFORSTW, sigFLSLXMSSMTTW) <- sig;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     (cm, idx) <- mco mk m;
     
@@ -934,7 +939,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
       var sigFORSTW : sigFORSTW;
       var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
 
-      ad <- insubd [0; 0; chtype; 0; 0; 0];
+      ad <- adz;
 
       (* rm <$ drm;
          mk <- mkg ms (rm, m); *)
@@ -942,7 +947,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
 
       (cm, idx) <- mco mk m;
 
-      (tidx, kpidx) <- edivz (val idx) l;
+      (tidx, kpidx) <- edivz (val idx) l';
 
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
 
@@ -983,7 +988,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
     ms <$ dmseed;
     ps <$ dpseed;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     skFORSnt <- [];
     while (size skFORSnt < nr_trees 0) {
@@ -1076,7 +1081,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
       var sigFORSTW : sigFORSTW;
       var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
 
-      ad <- insubd [0; 0; chtype; 0; 0; 0];
+      ad <- adz;
 
       (* rm <$ drm;
          mk <- mkg ms (rm, m); *)
@@ -1084,7 +1089,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
 
       (cm, idx) <- mco mk m;
 
-      (tidx, kpidx) <- edivz (val idx) l;
+      (tidx, kpidx) <- edivz (val idx) l';
 
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
 
@@ -1119,12 +1124,10 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
     var is_valid, is_fresh : bool;
 
     (* Initialize module variables (for oracle usage) *)
-    skFORSnt <- [];
-    skWOTStd <- [];
     qs <- [];
     ps <$ dpseed;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     skFORSnt <- [];
     while (size skFORSnt < nr_trees 0) {
@@ -1439,7 +1442,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
     var nodespl, nodescl : dgstblock list;
     var lnode, rnode, node : dgstblock;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     skFORSnt <- [];
     pkFORSnt <- [];
@@ -1460,6 +1463,8 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
             skFORSet <- rcons skFORSet skFORS_ele;
             leaves <- rcons leaves leaf;
           }
+          
+          skFORS <- rcons skFORS skFORSet; 
           
           (* root <- val_bt_trh ps ad (list2tree leaves) (size roots); *)
           nodes <- [];
@@ -1529,6 +1534,13 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
 
 section Proof_SPHINCS_PLUS_TW_EUFCMA.
 
+
+declare module A <: Adv_EUFCMA {-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.FC_TCR.O_SMDTTCR_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.TRHC_TCR.O_SMDTTCR_Default, -TRCOC.O_THFC_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_CMA_MFORSTWESNPRF, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTPREC_Game4WOTSTWES, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA, -O_CMA_Default}.
+
+declare axiom A_forge_ll (O <: SOracle_CMA{-A}) :
+  islossless O.sign => islossless A(O).forge.
+
+  
 local module SPHINCS_PLUS_TW_FS = {
   proc keygen_prf() : pkSPHINCSPLUSTW * (mseed * skFORS list list * skWOTS list list list * pseed) = {
     var ad : adrs;
@@ -1550,7 +1562,7 @@ local module SPHINCS_PLUS_TW_FS = {
     var pk : pkSPHINCSPLUSTW;
     var sk : mseed * skFORS list list * skWOTS list list list * pseed;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     ms <$ dmseed;
     ss <$ dsseed;
@@ -1623,7 +1635,7 @@ local module SPHINCS_PLUS_TW_FS = {
     var pk : pkSPHINCSPLUSTW;
     var sk : mseed * skFORS list list * skWOTS list list list * pseed;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     ms <$ dmseed;
     ss <$ dsseed;
@@ -1680,6 +1692,7 @@ local module SPHINCS_PLUS_TW_FS = {
   proc verify = SPHINCS_PLUS_TW.verify
 }.
 
+
 local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
   var sk : mseed * skFORS list list * skWOTS list list list * pseed
   var qs : msg list
@@ -1707,7 +1720,7 @@ local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
     
     (ms, skFORSnt, skWOTStd, ps) <- sk;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     (* rm <$ drm;
        mk <- mkg ms (rm, m); *)
@@ -1715,7 +1728,7 @@ local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
          
     (cm, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) l;
+    (tidx, kpidx) <- edivz (val idx) l';
     
     skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
      
@@ -1769,7 +1782,7 @@ local module O_CMA_SPHINCSPLUSTWFS_NPRF : SOracle_CMA = {
     
     (ms, skFORSnt, skWOTStd, ps) <- sk;
     
-    ad <- insubd [0; 0; chtype; 0; 0; 0];
+    ad <- adz;
     
     (* rm <$ drm; *)
     
@@ -1782,7 +1795,7 @@ local module O_CMA_SPHINCSPLUSTWFS_NPRF : SOracle_CMA = {
       
     (cm, idx) <- mco mk m;
     
-    (tidx, kpidx) <- edivz (val idx) l;
+    (tidx, kpidx) <- edivz (val idx) l';
     
     skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
      
@@ -1797,9 +1810,6 @@ local module O_CMA_SPHINCSPLUSTWFS_NPRF : SOracle_CMA = {
     return (mk, sigFORSTW, sigFLSLXMSSMTTW);
   }
 }.
-
-
-declare module A <: Adv_EUFCMA {}.
 
 local module EUF_CMA_SPHINCSPLUSTWFS_PRFPRF = {
   proc main() : bool = {
@@ -1827,9 +1837,173 @@ local module EUF_CMA_SPHINCSPLUSTWFS_PRFPRF = {
 local equiv Eqv_EUF_CMA_SPHINCSPLUSTW_Orig_FSPRFPRF :
   EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main ~ EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main : 
     ={glob A} ==> ={res}.
-proof. admit. qed.
-
-
+proof.
+proc.
+seq 3 3 : (   ={pk, m, sig}
+           /\ ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)); 2: by sim.
+seq 1 1 : (   ={glob A, pk} 
+           /\ sk{1}.`1 = sk{2}.`1 
+           /\ sk{1}.`3 = sk{2}.`4 
+           /\ (forall (i j u v : int),
+                 0 <= i && i < nr_trees 0 =>
+                 0 <= j && j < l' =>
+                 0 <= u && u < k =>
+                 0 <= v && v < t =>
+                 nth witness (nth witness (val (nth witness (nth witness sk{2}.`2 i) j)) u) v =
+                 skg sk{1}.`2
+                   (sk{1}.`3, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v))) 
+           /\ (forall (i j u v : int),
+                0 <= i && i < d =>
+                0 <= j && j < nr_trees i =>
+                0 <= u && u < l' =>
+                0 <= v && v < len =>
+                nth witness (val (nth witness (nth witness (nth witness sk{2}.`3 i) j) u)) v =
+                skg sk{1}.`2
+                  (sk{1}.`3, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
++ inline{1} 1; inline{2} 1.
+  inline{1} 5.
+  admit.
+inline{1} 1; inline{2} 1.
+call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
+       /\ O_CMA_Default.sk{1}.`1 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`1
+       /\ O_CMA_Default.sk{1}.`3 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`4 
+       /\ (forall (i j u v : int),
+             0 <= i && i < nr_trees 0 =>
+             0 <= j && j < l' =>
+             0 <= u && u < k =>
+             0 <= v && v < t =>
+             nth witness (nth witness (val (nth witness (nth witness O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`2 i) j)) u) v =
+             skg O_CMA_Default.sk{1}.`2
+               (O_CMA_Default.sk{1}.`3, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)))
+       /\ (forall (i j u v : int),
+            0 <= i && i < d =>
+            0 <= j && j < nr_trees i =>
+            0 <= u && u < l' =>
+            0 <= v && v < len =>
+            nth witness (val (nth witness (nth witness (nth witness O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`3 i) j) u)) v =
+            skg O_CMA_Default.sk{1}.`2
+              (O_CMA_Default.sk{1}.`3, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
++ proc.
+  inline{1} 1.
+  wp.
+  conseq (: _ ==> ={mk, sigFORSTW, sigFLSLXMSSMTTW}) => //.
+  inline{1} 9; inline{2} 9.
+  wp => /=.
+  while (   ={sapl, root, tidx0, kpidx0, ps0, ad0}
+         /\ O_CMA_Default.sk{1} = (ms, ss0, ps0){1}
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{2} = (ms, skFORSnt, skWOTStd0, ps0){2}
+         /\ size sapl{1} <= d
+         /\ #pre).
+  - inline{1} 3; inline{2} 5.
+    wp => />.
+    admit.
+  inline{1} 8; inline{2} 8.  
+  wp => />; 1: smt().
+  while (   ={roots, ad, ps1, ad1, tidx, kpidx}
+         /\ O_CMA_Default.sk{1} = (ms, ss1, ps1){1}
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{2} = (ms, skFORSnt, skWOTStd, ps1){2}
+         /\ ad1{1} = set_kpidx (set_tidx (set_typeidx adz trhftype) tidx{1}) kpidx{1}
+         /\ skFORS0{2} = nth witness (nth witness skFORSnt{2} tidx{2}) kpidx{2}
+         /\ 0 <= tidx{2} < nr_trees 0
+         /\ 0 <= kpidx{2} < l'
+         /\ size roots{1} <= k
+         /\ #pre).
+  - inline{1} 1; inline{2} 1.
+    wp => />.
+    while (   ={leaves1, ps2, ad2, idxt}
+           /\ ss2{1} = ss1{1}
+           /\ ps2{1} = ps1{1}
+           /\ size leaves1{1} <= t
+           /\ ad2{2} = ad1{2}
+           /\ skFORS1{2} = skFORS0{2}
+           /\ 0 <= idxt{1} < k
+           /\ #pre).
+    * wp; skip => /> &1 &2 _ ge0_idxt ltk_idxt ge0_tidx ltnt_tidx ge0_kpidx ltlp_kpidx _ nthskf nthskw ltk_szrs ltt_szlfs.
+      rewrite -!andbA; split; 2: by smt(size_rcons).
+      by do 3! congr; rewrite nthskf.    
+    by wp; skip => />; smt(ge2_t size_rcons size_ge0).
+  inline{1} 5; inline{1} 11; inline{2} 7.
+  wp => />; 1: smt(). 
+  while (   tidx{2} = (val idx{2}) %/ l'
+         /\ kpidx{2} = (val idx{2}) %% l'
+         /\ O_CMA_Default.sk{1} = (ms, ss2, ps2){1}
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{2} = (ms, skFORSnt, skWOTStd, ps2){2}
+         /\ sig3{1} = sig0{2}
+         /\ m3{1} = m1{2}
+         /\ idx1{1} = idx{2}
+         /\ ad3{1} = ad2{2}
+         /\ ps3{1} = ps2{2}
+         /\ ss3{1} = ss2{1}
+         /\ skFORS1{2} = nth witness (nth witness skFORSnt{2} tidx{2}) kpidx{2}
+         /\ ad2{2} = set_kpidx (set_tidx (set_typeidx adz trhftype) tidx{2}) kpidx{2}
+         /\ 0 <= tidx{2} < nr_trees 0
+         /\ 0 <= kpidx{2} < l'
+         /\ size sig3{1} <= k
+         /\ #pre).
+  - inline{1} 4; inline{2} 4.
+    wp => />.
+    while (  ={leaves2, idxt}
+           /\ idxt{1} = size sig3{1}
+           /\ skFORS2{2} = skFORS1{2}
+           /\ ss4{1} = ss3{1}
+           /\ ps4{1} = ps3{1}
+           /\ ps4{1} = ps3{2}
+           /\ ad4{1} = ad3{1}
+           /\ ad4{1} = ad3{2}
+           /\ size leaves2{1} <= t
+           /\ #pre).
+    * wp; skip => />.
+      progress.
+      do 2! congr.
+      rewrite H5. 
+      smt(divz_ge0 ge1_lp Index.valP).
+      smt(modz_ge0 ltz_pmod Index.valP).
+      smt(size_ge0). smt(size_ge0). 
+      smt(size_ge0). 
+      smt(size_ge0 size_rcons).
+      smt(size_ge0 size_rcons).
+      smt(size_ge0 size_rcons).
+    wp; skip => />. progress.
+    smt(ge2_t).
+    do 2! congr.
+    rewrite H4 //.
+    rewrite bs2int_ge0 /=.
+    print bs2int_le2Xs.
+    pose ls := rev _.
+    rewrite (IntOrder.ltr_le_trans (2 ^ size ls)) 1:bs2int_le2Xs //.
+    search (exp _ _ <= exp _ _)%Int.
+    apply IntOrder.ler_weexpn2l => //.
+    rewrite size_ge0 /= /ls.
+    rewrite size_rev size_take. smt(ge1_a).
+    rewrite size_drop. rewrite mulr_ge0; smt(size_ge0 ge1_a). 
+    by rewrite ?valP /#. 
+    smt(ge2_t size_rcons).
+    smt(ge2_t size_rcons).
+    smt(ge2_t size_rcons).
+  wp; skip => />. 
+  progress. 
+  smt().
+  smt().
+  smt().
+  smt().
+  smt().
+  
+  rewrite divz_ge0; smt(divz_ge0 ge1_lp Index.valP).
+  rewrite ltz_divLR; 1: smt(divz_ge0 ge1_lp Index.valP).
+  rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0 /=; 1,2,3: smt(ge0_hp ge1_d).
+  smt(divz_ge0 ge1_lp Index.valP).
+  by rewrite modz_ge0; 1: smt(divz_ge0 ge1_lp Index.valP).
+  rewrite ltz_pmod; smt(divz_ge0 ge1_lp Index.valP).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+  
+  smt(divz_ge0 ge1_lp Index.valP ge1_k ge1_d).
+  smt(divz_ge0 ge1_lp Index.valP ge1_k).
+by wp; skip.
+qed.
 
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF = {
   proc main() : bool = {
@@ -1939,8 +2113,8 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF = {
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m');
     
     
-    (*is_valid_MFORSTWESNPRF <@ M_FORS_TW_ES_NPRF.verify();*)
-    ad <- insubd [0; 0; chtype; 0; 0; 0]; 
+    (* is_valid_MFORSTWESNPRF <@ M_FORS_TW_ES_NPRF.verify(); *)
+    ad <- adz; 
     skFORSnt <- sk.`2;
     ps <- sk.`4;
     
@@ -1977,7 +2151,7 @@ qed.
 local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF &m :
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF]
   =
-  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), O_THFC_Default).main() @ &m : res].
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 byequiv=> //.
 admit.
@@ -2003,11 +2177,11 @@ local lemma EUFCMA_SPHINCS_PLUS_TW_FX &m :
     - Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(true) @ &m : res] |
   +
   `|  Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(false) @ &m : res]
-  - Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(true) @ &m : res] |
+    - Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(true) @ &m : res] |
   +  
   Pr[EUF_CMA_MFORSTWESNPRF(R_MFORSTWESNPRFEUFCMA_EUFCMA(A), O_CMA_MFORSTWESNPRF).main() @ &m : res]
   +
-  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), O_THFC_Default).main() @ &m : res].
+  Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 have ->:
   Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
@@ -2041,24 +2215,25 @@ by rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF.
 qed.
 
 
-(* TODO: replace OpenPRE by DSPR and TCR *)
 lemma EUFCMA_SPHINCS_PLUS_TW &m :
   Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
   <= 
-  `|  Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(false) @ &m : res]
-    - Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(true) @ &m : res] |
-  +
   `|  Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(false) @ &m : res]
     - Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(true) @ &m : res] |
   +
+  `|  Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(false) @ &m : res]
+    - Pr[MKG_PRF.PRF(R_MKGPRF_EUFCMA(A), MKG_PRF.O_PRF_Default).main(true) @ &m : res] |
+  +
   Pr[MCO_ITSR.ITSR(R_ITSR_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
   +
-  Pr[F_OpenPRE.SM_DT_OpenPRE(R_FSMDTOpenPRE_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), F_OpenPRE.O_SMDTOpenPRE_Default).main() @ &m : res]
-(*  
-  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
-*)
+  maxr 0%r 
+       (Pr[FP_DSPR.SM_DT_DSPR(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE(R_MFORSTWESNPRFEUFCMA_EUFCMA(A))), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res]
+        -
+        Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE(R_MFORSTWESNPRFEUFCMA_EUFCMA(A))), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
+  +
+  3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE(R_MFORSTWESNPRFEUFCMA_EUFCMA(A))), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
   + 
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
+  Pr[FTWES.TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), FTWES.TRHC_TCR.O_SMDTTCR_Default, FTWES.TRHC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(R_MFORSTWESNPRFEUFCMA_EUFCMA(A)), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res]  
   +
@@ -2072,7 +2247,63 @@ lemma EUFCMA_SPHINCS_PLUS_TW &m :
   +
   Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
   +
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
-proof. admit. qed.
+  Pr[FSSLXMTWES.TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), FSSLXMTWES.TRHC_TCR.O_SMDTTCR_Default, FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
+proof.
+move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m)
+      (EUFCMA_MFORSTWESNPRF (R_MFORSTWESNPRFEUFCMA_EUFCMA(A)) &m)
+      (EUFCMA_SPHINCS_PLUS_TW_FX &m); last smt(). 
++ move=> OC OCll.
+  proc.
+  while (true) (nr_trees 0 - size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt).
+  - move=> z.
+    wp.
+    while (true) (l' - size skFORSlp).
+    * move=> z''.
+      wp.
+      call OCll.
+      while (true) (k - size skFORS).
+      + move=> z'''.
+        wp.
+        while (true) (a - size nodes).
+        - move=> z''''.
+          wp.
+          while (true) (nr_nodesf (size nodes + 1) - size nodescl).
+          * move=> z'''''.
+            wp.
+            call OCll.
+            by wp; skip => />; smt(size_rcons).
+          by wp; skip => />; smt(size_rcons).
+        wp.
+        while (true) (t - size skFORSet).
+        + move=> z''''.
+          wp.
+          call OCll.
+          rnd.
+          by wp; skip => />; smt(size_rcons ddgstblock_ll).
+        by wp; skip => />; smt(size_rcons). 
+      by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+move=> OC.
+proc; inline *.
+wp.
+while (true) (k - size roots).
++ move=> z. 
+  by wp; skip => />; smt(size_rcons).
+wp.
+call (: true). 
++ by move=> O Oll; apply (A_forge_ll O).
++ proc; inline *.
+  wp.
+  while (true) (k - size sig).
+  + move=> z.
+    wp => /=.
+    while (true) (t - size leaves0).
+    - move=> z'.
+      by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(size_rcons).
+  wp; rnd; skip => />; smt(dmkey_ll).
+by wp; skip => /> /#.
+qed.
  
 end section Proof_SPHINCS_PLUS_TW_EUFCMA.

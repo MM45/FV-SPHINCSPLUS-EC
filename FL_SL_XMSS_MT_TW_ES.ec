@@ -863,7 +863,7 @@ module FL_SL_XMSS_MT_TW_ES = {
       (tidx, kpidx) <- edivz tidx l';
 
       (* Compute the WOTS-TW signature on the given message *)
-      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_ltidx ad (size sapl) tidx) chtype) kpidx), m);
+      sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx (set_ltidx ad (size sapl) tidx) chtype) kpidx), root);
 
       (* Compute the list of leaves *)
       leaves <@ leaves_from_sspsad(ss, ps, (set_ltidx ad (size sapl) tidx));

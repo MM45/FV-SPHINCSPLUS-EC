@@ -1841,29 +1841,123 @@ proof.
 proc.
 seq 3 3 : (   ={pk, m, sig}
            /\ ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)); 2: by sim.
-seq 1 1 : (   ={glob A, pk} 
-           /\ sk{1}.`1 = sk{2}.`1 
-           /\ sk{1}.`3 = sk{2}.`4 
+inline{1} 1; inline{2} 1.
+inline{1} 5.
+seq 4 8 : (   ={glob A, ad, ms, ss, ps}
+           /\ ad{1} = adz
            /\ (forall (i j u v : int),
                  0 <= i && i < nr_trees 0 =>
                  0 <= j && j < l' =>
                  0 <= u && u < k =>
                  0 <= v && v < t =>
-                 nth witness (nth witness (val (nth witness (nth witness sk{2}.`2 i) j)) u) v =
-                 skg sk{1}.`2
-                   (sk{1}.`3, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v))) 
+                 nth witness (nth witness (val (nth witness (nth witness skFORSnt{2} i) j)) u) v =
+                 skg ss{1}
+                   (ps{1}, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v))) 
            /\ (forall (i j u v : int),
                 0 <= i && i < d =>
                 0 <= j && j < nr_trees i =>
                 0 <= u && u < l' =>
                 0 <= v && v < len =>
-                nth witness (val (nth witness (nth witness (nth witness sk{2}.`3 i) j) u)) v =
-                skg sk{1}.`2
-                  (sk{1}.`3, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
-+ inline{1} 1; inline{2} 1.
-  inline{1} 5.
-  admit.
-inline{1} 1; inline{2} 1.
+                nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} i) j) u)) v =
+                skg ss{1}
+                  (ps{1}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
++ while{2} (    ad{2} = adz
+            /\ (forall (i j u v : int),
+                  0 <= i && i < size skWOTStd{2} =>
+                  0 <= j && j < nr_trees i =>
+                  0 <= u && u < l' =>
+                  0 <= v && v < len =>
+                  nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} i) j) u)) v =
+                  skg ss{2}
+                    (ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0)))
+           (d - size skWOTStd{2}).
+  - move=> _ z.
+    wp => /=.
+    while (    ad = adz
+           /\ (forall (j u v : int),
+                 0 <= j && j < size skWOTSnt =>
+                 0 <= u && u < l' =>
+                 0 <= v && v < len =>
+                 nth witness (val (nth witness (nth witness skWOTSnt j) u)) v =
+                 skg ss
+                     (ps, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz (size skWOTStd) j) chtype) u) v) 0)))
+          (nr_trees (size skWOTStd) - size skWOTSnt).
+    * move=> z'.
+      wp => /=.
+      while (    ad = adz
+             /\ (forall (u v : int),
+                   0 <= u && u < size skWOTSlp =>
+                   0 <= v && v < len =>
+                   nth witness (val (nth witness skWOTSlp u)) v =
+                   skg ss
+                       (ps, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz (size skWOTStd) (size skWOTSnt)) chtype) u) v) 0)))
+            (l' - size skWOTSlp).
+      + move=> z''.
+        wp => /=.
+        while (    ad = adz
+               /\ (forall (v : int),
+                     0 <= v && v < size skWOTS =>
+                     nth witness skWOTS v =
+                     skg ss
+                         (ps, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz (size skWOTStd) (size skWOTSnt)) chtype) (size skWOTSlp)) v) 0))
+               /\ size skWOTS <= len)
+              (len - size skWOTS).
+        - move=> z'''.
+          by wp; skip => />; smt(nth_rcons size_rcons).
+        by wp; skip => />; smt(ge2_len nth_rcons size_rcons DBLL.insubdK DBLL.valP).
+      by wp; skip => />; smt(nth_rcons size_rcons).
+    by wp; skip => />; smt(nth_rcons size_rcons).
+  wp => />; 1: smt().
+  while{2} (    ad{2} = adz
+            /\ (forall (i j u v : int),
+                 0 <= i && i < size skFORSnt{2} =>
+                 0 <= j && j < l' =>
+                 0 <= u && u < k =>
+                 0 <= v && v < t =>
+                 nth witness (nth witness (val (nth witness (nth witness skFORSnt{2} i) j)) u) v =
+                 skg ss{2}
+                   (ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v))))
+           (nr_trees 0 - size skFORSnt{2}).
+  - move => _ z.
+    wp => /=.
+    while (   ad = adz
+           /\ (forall (j u v : int),
+                 0 <= j && j < size skFORSlp =>
+                 0 <= u && u < k =>
+                 0 <= v && v < t =>
+                 nth witness (nth witness (val (nth witness skFORSlp j)) u) v =
+                 skg ss
+                   (ps, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) (size skFORSnt)) j) 0 (u * t + v))))
+          (l' - size skFORSlp).
+    * move=> z'.
+      wp => /=.
+      while (   ad = adz
+             /\ (forall (u v : int),
+                   0 <= u && u < size skFORS =>
+                   0 <= v && v < t =>
+                   nth witness (nth witness skFORS u) v =
+                   skg ss
+                     (ps, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) (size skFORSnt)) (size skFORSlp)) 0 (u * t + v)))
+             /\ all (fun ls => size ls = t) skFORS
+             /\ size skFORS <= k)
+            (k - size skFORS).
+      + move=> z''.
+        wp => /=.
+        while (   ad = adz
+               /\ (forall (v : int),
+                     0 <= v && v < size skFORSet =>
+                     nth witness skFORSet v =
+                     skg ss
+                       (ps, set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) (size skFORSnt)) (size skFORSlp)) 0 (size skFORS * t + v)))
+               /\ size skFORSet <= t)
+            (t - size skFORSet).
+        - move=> z'''.
+          by wp; skip => />; smt(nth_rcons size_rcons).
+        by wp; skip => />; smt(ge2_t nth_rcons size_rcons cats1 all_cat).  
+      by wp; skip => />; smt(nth_rcons size_rcons ge1_k DBLLKTL.valP DBLLKTL.insubdK).
+    by wp; skip => />; smt(nth_rcons size_rcons).
+  wp; do 3! rnd.
+  by wp; skip => /> /#.
 call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
        /\ O_CMA_Default.sk{1}.`1 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`1
        /\ O_CMA_Default.sk{1}.`3 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`4 
@@ -1892,13 +1986,78 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
   while (   ={sapl, root, tidx0, kpidx0, ps0, ad0}
          /\ O_CMA_Default.sk{1} = (ms, ss0, ps0){1}
          /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{2} = (ms, skFORSnt, skWOTStd0, ps0){2}
+         /\ ad0{1} = adz
+         /\ 0 <= tidx0{1} < nr_trees (size sapl{1} - 1)
+         /\ 0 <= kpidx0{1} < l'
          /\ size sapl{1} <= d
          /\ #pre).
   - inline{1} 3; inline{2} 5.
     wp => />.
-    admit.
-  inline{1} 8; inline{2} 8.  
-  wp => />; 1: smt().
+    while (   ={leaves0, ad1, ps1}
+           /\ ss1{1} = ss0{1}
+           /\ ad1{1} = set_ltidx ad0{1} (size sapl{1}) tidx0{1}
+           /\ ps1{1} = ps0{1}
+           /\ skWOTSl{2} = nth witness (nth witness skWOTStd0{2} (size sapl{2})) tidx0{2}
+           /\ 0 <= tidx0{2} < nr_trees (size sapl{2})
+           /\ size leaves0{1} <= l'
+           /\ #pre).
+    * inline{1} 2; inline{1} 1; inline{2} 2.
+      wp => />.
+      while (   ={ps2, ad2, pkWOTS0}
+             /\ skWOTS1{1} = skWOTS2{2}
+             /\ size pkWOTS0{1} <= len).
+      - by wp; skip => />; smt(size_rcons).
+      wp => />; 1: smt().
+      while{1} (   (forall (i : int), 0 <= i < size skWOTS2{1} =>
+                     nth witness skWOTS2{1} i 
+                     =
+                     skg ss2{1} (ps3{1}, set_hidx (set_chidx ad3{1} i) 0))
+                /\ size skWOTS2{1} <= len)
+           (len - size skWOTS2{1}).
+      - move=> _ z.
+        by wp; skip => />; smt(nth_rcons size_rcons).
+      wp; skip => /> &1 &2 ge0_tidx ltnt_tidx _ _ ltnt1_tidx ge0_kpidx ltlp_kpidx _ nthskf nthskw ltd_szsapl ltlp_szlfs.
+      split => [| skw]; 1: smt(ge2_len).
+      split => [/# | /lezNgt gelen_szskw nthskwp lelen_szskw].
+      split; 2: smt(size_rcons).
+      split; 2: smt(ge2_len).
+      rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP //= => i rng_i.
+      by rewrite insubdK 1:/# nthskwp 1:/# nthskw 1:size_ge0.
+    inline{1} 2; inline{2} 4.
+    wp => />; 1: smt().
+    while (   ={ps2, ad2, em} 
+           /\ sig2{1} = sig0{2}
+           /\ skWOTS1{1} = skWOTS2{2}
+           /\ size sig2{1} <= len).
+    * by wp; skip => />; smt(size_rcons).
+    inline{1} 8.
+    wp => />; 1: smt().
+    while{1} (   (forall (i : int), 0 <= i < size skWOTS2{1} =>
+                   nth witness skWOTS2{1} i 
+                   =
+                   skg ss3{1} (ps3{1}, set_hidx (set_chidx ad3{1} i) 0))
+              /\ size skWOTS2{1} <= len)
+         (len - size skWOTS2{1}).
+    * move=> _ z. 
+      by wp; skip => />; smt(nth_rcons size_rcons).
+    wp; skip => /> &1 &2 ge0_tidx ltnt1_tidx ge0_kpidx ltlp_kpidx _ nthskf nthskw ltd_szsapl.
+    split => [| skw]; 1: smt(ge2_len).
+    split => [/# | /lezNgt gelen_szskw nthskwp lelen_szskw].
+    split => [| sigw /lezNgt gelen_szsigw _ lelen_szsigw].
+    * split; 2: smt(ge2_len).
+      rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP //= => i rng_i.
+      rewrite insubdK 1:/# nthskwp 1:/# nthskw 1:size_ge0 //=.
+      + rewrite divz_ge0 2:ge0_tidx 2:ltz_divLR /=; 1,2: smt(ge1_lp).
+        by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d).
+      by rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
+    split => [| lfs]; 2: smt(size_rcons).
+    rewrite modz_ge0 2:ltz_pmod /=; 1,2: smt(ge1_lp).
+    rewrite divz_ge0 2:ge0_tidx 2:(: 0 <= l') /=; 1,2: smt(ge1_lp).
+    rewrite ltz_divLR 2:(: nr_trees (size sapl{2}) * l' =  nr_trees (size sapl{2} - 1)); 1: smt(ge1_lp).
+    - by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d).
+    by rewrite ltnt1_tidx /= (IntOrder.ler_lt_trans tidx0{2}) //= leq_div //; smt(ge1_lp).
+  inline{1} 8; inline{2} 8.
+  wp => /=.
   while (   ={roots, ad, ps1, ad1, tidx, kpidx}
          /\ O_CMA_Default.sk{1} = (ms, ss1, ps1){1}
          /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{2} = (ms, skFORSnt, skWOTStd, ps1){2}
@@ -1923,7 +2082,7 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
       by do 3! congr; rewrite nthskf.    
     by wp; skip => />; smt(ge2_t size_rcons size_ge0).
   inline{1} 5; inline{1} 11; inline{2} 7.
-  wp => />; 1: smt(). 
+  wp => /=. 
   while (   tidx{2} = (val idx{2}) %/ l'
          /\ kpidx{2} = (val idx{2}) %% l'
          /\ O_CMA_Default.sk{1} = (ms, ss2, ps2){1}
@@ -1952,57 +2111,43 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
            /\ ad4{1} = ad3{2}
            /\ size leaves2{1} <= t
            /\ #pre).
-    * wp; skip => />.
-      progress.
-      do 2! congr.
-      rewrite H5. 
-      smt(divz_ge0 ge1_lp Index.valP).
-      smt(modz_ge0 ltz_pmod Index.valP).
-      smt(size_ge0). smt(size_ge0). 
-      smt(size_ge0). 
-      smt(size_ge0 size_rcons).
-      smt(size_ge0 size_rcons).
-      smt(size_ge0 size_rcons).
-    wp; skip => />. progress.
-    smt(ge2_t).
-    do 2! congr.
-    rewrite H4 //.
-    rewrite bs2int_ge0 /=.
-    print bs2int_le2Xs.
-    pose ls := rev _.
-    rewrite (IntOrder.ltr_le_trans (2 ^ size ls)) 1:bs2int_le2Xs //.
-    search (exp _ _ <= exp _ _)%Int.
-    apply IntOrder.ler_weexpn2l => //.
-    rewrite size_ge0 /= /ls.
-    rewrite size_rev size_take. smt(ge1_a).
-    rewrite size_drop. rewrite mulr_ge0; smt(size_ge0 ge1_a). 
+    * by wp; skip => />; smt(size_ge0 size_rcons).
+    wp; skip => /> ? ? ? ? ? ? ? nthskf *.
+    split=> [| lfs /lezNgt get_lfs _ let_lfs]; 1: smt(ge2_t).
+    rewrite -!andbA; split; 2: smt(size_rcons).
+    do 2! congr; rewrite nthskf // bs2int_ge0 /=.
+    pose ls := rev _; rewrite (IntOrder.ltr_le_trans (2 ^ size ls)) 1:bs2int_le2Xs //.
+    apply IntOrder.ler_weexpn2l => //. 
+    rewrite size_ge0 /= /ls size_rev size_take 2:size_drop; 1,2: smt(ge1_a size_ge0). 
     by rewrite ?valP /#. 
-    smt(ge2_t size_rcons).
-    smt(ge2_t size_rcons).
-    smt(ge2_t size_rcons).
-  wp; skip => />. 
-  progress. 
-  smt().
-  smt().
-  smt().
-  smt().
-  smt().
-  
-  rewrite divz_ge0; smt(divz_ge0 ge1_lp Index.valP).
-  rewrite ltz_divLR; 1: smt(divz_ge0 ge1_lp Index.valP).
-  rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0 /=; 1,2,3: smt(ge0_hp ge1_d).
-  smt(divz_ge0 ge1_lp Index.valP).
-  by rewrite modz_ge0; 1: smt(divz_ge0 ge1_lp Index.valP).
-  rewrite ltz_pmod; smt(divz_ge0 ge1_lp Index.valP).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-  
-  smt(divz_ge0 ge1_lp Index.valP ge1_k ge1_d).
-  smt(divz_ge0 ge1_lp Index.valP ge1_k).
-by wp; skip.
+  wp; skip => /> &1 &2 ? ? /= nthskf nthskw *.
+  split; 2: smt(ge1_k ge1_lp ge1_d Index.valP).
+  rewrite !andbA -4!andbA; split => [/#| ].
+  rewrite divz_ge0 2:modz_ge0 3:ltz_pmod 4:ltz_divLR /=; 1..4: smt(ge1_lp).
+  by rewrite /nr_trees /= /l' -exprD_nneg; smt(ge0_hp ge1_d ge1_k Index.valP).
+inline{1} 10; inline{2} 7.
+inline{1} 4; inline{2} 2.
+sp 6 4; wp => />.
+while (   ={leaves0}
+       /\ size leaves0{1} <= l'
+       /\ #pre).
++ wp; call (: true); 1: by sim.
+  inline{1} 1.
+  wp => />; 1: smt().
+  while{1} (   (forall (i : int), 0 <= i < size skWOTS0{1} =>
+                 nth witness skWOTS0{1} i 
+                 =
+                 skg ss2{1} (ps2{1}, set_hidx (set_chidx ad2{1} i) 0))
+            /\ size skWOTS0{1} <= len)
+           (len - size skWOTS0{1}).
+  + move=> _ z.
+    by wp; skip => />; smt(nth_rcons size_rcons).
+  wp; skip => />. progress. smt(ge2_len). smt(ge2_len). smt(ge2_len). 
+  rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP // => i rng_i. 
+  rewrite insubdK 1:/#.
+  rewrite H4 1:/#. rewrite H1 //; smt(ge1_d ge1_lp ge2_len IntOrder.expr_gt0).
+  smt(ge1_d ge1_lp ge2_len IntOrder.expr_gt0 size_rcons).
+by wp; skip => />; smt(ge1_lp).
 qed.
 
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF = {
@@ -2081,7 +2226,7 @@ qed.
 
 
 
-local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF = {
+local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
   var valid_MFORSTWESNPRF : bool
   
   proc main() : bool = {
@@ -2134,13 +2279,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF = {
   }
 }.
 
-local equiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF :
-  EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main ~ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main : ={glob A} ==> ={res}.
+local equiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V :
+  EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main ~ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main : ={glob A} ==> ={res}.
 proof. admit. qed.
 
 
-local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFT_MFORSTWESNPRF &m :
-  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF]
+local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF &m :
+  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF]
   =
   Pr[EUF_CMA_MFORSTWESNPRF(R_MFORSTWESNPRFEUFCMA_EUFCMA(A), O_CMA_MFORSTWESNPRF).main() @ &m : res].
 proof.
@@ -2148,8 +2293,8 @@ byequiv=> //.
 admit.
 qed.
 
-local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF &m :
-  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF]
+local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF &m :
+  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF]
   =
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
@@ -2207,11 +2352,11 @@ rewrite RealOrder.ger0_norm 1:Pr[mu_ge0] //.
 have ->:
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main() @ &m : res]
   =
-  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.main() @ &m : res].
-+ by byequiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.
-rewrite Pr[mu_split EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFF.valid_MFORSTWESNPRF].
-rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFT_MFORSTWESNPRF.
-by rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VFFF_FLSLXMSSMTTWESNPRF.
+  Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res].
++ by byequiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.
+rewrite Pr[mu_split EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF].
+rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF.
+by rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF.
 qed.
 
 

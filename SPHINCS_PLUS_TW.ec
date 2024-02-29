@@ -1062,6 +1062,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
 }.
 
 module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_PRF) = {
+  var ad : adrs
   var ps : pseed
   var skFORSnt : skFORS list list
   var skWOTStd : skWOTS list list list
@@ -1105,8 +1106,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
   }
   
   proc distinguish() : bool = {
-    var ad : adrs;
-    var ps : pseed;
+    var ss : sseed;
     var skFORS_ele : dgstblock;
     var skFORSet : dgstblock list;
     var skFORS : dgstblock list list;
@@ -1124,6 +1124,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
 
     (* Initialize module variables (for oracle usage) *)
     qs <- [];
+    ss <$ dsseed;
     ps <$ dpseed;
     
     ad <- adz;
@@ -1788,9 +1789,9 @@ local module O_CMA_SPHINCSPLUSTWFS_NPRF : SOracle_CMA = {
     if (m \notin mmap) { 
       mk <$ dmkey;
       mmap.[m] <- mk;
-    } else {
-      mk <- oget mmap.[m];
-    }
+    } 
+    mk <- oget mmap.[m];
+    
       
     (cm, idx) <- mco mk m;
     
@@ -2267,7 +2268,8 @@ seq 8 14 : (   ={glob A, ad}
              /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}
              /\ R_SKGPRF_EUFCMA.qs{2} = []).
 + sp 0 2 => />.
-  while (   (forall (psad : pseed * adrs),
+  while (   SKG_PRF.O_PRF_Default.b{2}
+         /\ (forall (psad : pseed * adrs),
               psad \in SKG_PRF.O_PRF_Default.m{2}
               <=>
               ((exists (i j u v : int), 
@@ -2279,8 +2281,100 @@ seq 8 14 : (   ={glob A, ad}
                   psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)))
          /\ size skWOTStd{1} <= d
          /\ #post).
-  - wp => /=.
-    admit.
+  - wp => />; 1: smt().
+    while (  ={skWOTSnt}
+           /\ SKG_PRF.O_PRF_Default.b{2}
+           /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
+           /\ (forall (psad : pseed * adrs),
+                psad \in SKG_PRF.O_PRF_Default.m{2}
+                <=>
+                ((exists (i j u v : int), 
+                    0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                    psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                 \/ 
+                 (exists (i j u v : int),
+                    0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                    psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                 \/ (exists (j u v : int),
+                     0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                      psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)))
+           /\ size skWOTStd{1} < d
+           /\ size skWOTSnt{1} <= nr_trees (size skWOTStd{1})).
+    * wp => />; 1: smt().
+      while (  ={skWOTSnt, skWOTSlp}
+             /\ SKG_PRF.O_PRF_Default.b{2}
+             /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
+             /\ (forall (psad : pseed * adrs),
+                  psad \in SKG_PRF.O_PRF_Default.m{2}
+                  <=>
+                  ((exists (i j u v : int), 
+                      0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                      psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                   \/ 
+                   (exists (i j u v : int),
+                      0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                      psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                   \/ (exists (j u v : int),
+                       0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)
+                   \/ (exists (u v : int),
+                       0 <= u < size skWOTSlp{2} /\ 0 <= v < len /\ 
+                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0)))
+             /\ size skWOTStd{1} < d
+             /\ size skWOTSnt{1} < nr_trees (size skWOTStd{1})
+             /\ size skWOTSlp{1} <= l').
+      + wp => />; 1: smt().
+        while (  ={skWOTSnt, skWOTSlp, skWOTS}
+               /\ SKG_PRF.O_PRF_Default.b{2}
+               /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
+               /\ (forall (psad : pseed * adrs),
+                    psad \in SKG_PRF.O_PRF_Default.m{2}
+                    <=>
+                    ((exists (i j u v : int), 
+                        0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                        psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                     \/ 
+                     (exists (i j u v : int),
+                        0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                     \/ (exists (j u v : int),
+                         0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
+                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)
+                     \/ (exists (u v : int),
+                         0 <= u < size skWOTSlp{2} /\ 0 <= v < len /\ 
+                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0)
+                     \/ (exists (v : int),
+                         0 <= v < size skWOTS{2} /\ 
+                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) (size skWOTSlp{2})) v) 0)))
+               /\ size skWOTStd{1} < d
+               /\ size skWOTSnt{1} < nr_trees (size skWOTStd{1})
+               /\ size skWOTSlp{1} < l'
+               /\ size skWOTS{1} <= len).
+        - inline{2} 1.
+          rcondt{2} 2; 1: by auto.
+          rcondt{2} 2.
+          * (*
+            auto => /> &2 bt mdom *.
+            pose psad := (_, set_hidx _ _).
+            move/iffLR /contra: (mdom psad) => ->.
+            rewrite ?negb_or; split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              admit.
+            *)
+            admit.
+          wp; rnd; wp; skip => />.
+        wp; skip => /> &2 *.
+        split => *; 1: smt(ge2_len).
+        split => *; 2: smt(size_rcons).
+        by split => *; smt(size_rcons size_ge0).
+      wp; skip => /> &2 *.
+      split => *; 1: smt(ge1_lp).
+      split => *; 2: smt(size_rcons).
+      by split => *; smt(size_rcons size_ge0).
+    wp; skip => /> &2 *.
+    split => *; 1: smt(IntOrder.expr_ge0).
+    split => *; 2: smt(size_rcons).
+    by split => *; smt(size_rcons size_ge0).
   wp => /=.
   while (    ={ad} 
           /\ SKG_PRF.O_PRF_Default.b{2}
@@ -2316,8 +2410,8 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF = {
   proc main() : bool = {
     var pk : pkSPHINCSPLUSTW;
     var sk : mseed * skFORS list list * skWOTS list list list * pseed;
-    var m : msg;
-    var sig : sigSPHINCSPLUSTW;
+    var m' : msg;
+    var sig' : sigSPHINCSPLUSTW;
     var is_valid : bool;
     var is_fresh : bool;
     
@@ -2325,10 +2419,10 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF = {
     
     O_CMA_SPHINCSPLUSTWFS_NPRF.init(sk);
     
-    (m, sig) <@ A(O_CMA_SPHINCSPLUSTWFS_NPRF).forge(pk);
+    (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_NPRF).forge(pk);
     
-    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m, sig);
-    is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m);
+    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');
+    is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m');
     
     return is_valid /\ is_fresh;
   }
@@ -2343,9 +2437,65 @@ local lemma EqAdv_EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF_NPRFNPRF_MKGPRF &m :
 proof.
 do 2! congr; 2: congr.
 + byequiv => //.
-  by admit.
+  proc.
+  inline{1} 5; inline{1} 1; inline{2} 2; inline{2} 1.
+  seq 8 12 : (   ={glob A}
+              /\ ad{1} = R_MKGPRF_EUFCMA.ad{2}
+              /\ ps{1} = R_MKGPRF_EUFCMA.ps{2} 
+              /\ ms{1} = O_PRF_Default.k{2}
+              /\ skFORSnt{1} = R_MKGPRF_EUFCMA.skFORSnt{2}
+              /\ skWOTStd{1} = R_MKGPRF_EUFCMA.skWOTStd{2}
+              /\ ! O_PRF_Default.b{2}
+              /\ O_PRF_Default.m{2} = empty
+              /\ R_MKGPRF_EUFCMA.qs{2} = []).
+  - swap{2} [4..5] -1; sp 0 4 => />.
+    swap{2} 4 -3.
+    by sim.  
+  wp 11 7.
+  seq 8 5 : (   ={pk, m', sig'} 
+             /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_MKGPRF_EUFCMA)); 2: by sim.
+  call (:   ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_MKGPRF_EUFCMA)
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (O_PRF_Default.k, R_MKGPRF_EUFCMA.skFORSnt, R_MKGPRF_EUFCMA.skWOTStd, R_MKGPRF_EUFCMA.ps){2} 
+         /\ ! O_PRF_Default.b{2}).
+  - proc.
+    inline{2} 2.
+    rcondf{2} 3; 1: by auto.
+    sp 1 0; wp => />.
+    by sim.
+  inline{1} 7.
+  wp => />.
+  by sim : (={leaves}).
 byequiv => //.
-by admit.
+proc.
+inline{1} 5; inline{1} 1; inline{2} 2; inline{2} 1.
+seq 8 12 : (   ={glob A}
+            /\ ad{1} = R_MKGPRF_EUFCMA.ad{2}
+            /\ ps{1} = R_MKGPRF_EUFCMA.ps{2} 
+            /\ ms{1} = O_PRF_Default.k{2}
+            /\ skFORSnt{1} = R_MKGPRF_EUFCMA.skFORSnt{2}
+            /\ skWOTStd{1} = R_MKGPRF_EUFCMA.skWOTStd{2}
+            /\ O_PRF_Default.b{2}
+            /\ O_PRF_Default.m{2} = empty
+            /\ R_MKGPRF_EUFCMA.qs{2} = []).
++ swap{2} [4..5] -1; sp 0 4 => />.
+  swap{2} 4 -3.
+  by sim.  
+wp 11 7.
+seq 8 5 : (   ={pk, m', sig'} 
+           /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_MKGPRF_EUFCMA)); 2: by sim.
+call (:   ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_MKGPRF_EUFCMA)
+       /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (O_PRF_Default.k, R_MKGPRF_EUFCMA.skFORSnt, R_MKGPRF_EUFCMA.skWOTStd, R_MKGPRF_EUFCMA.ps){2} 
+       /\ O_CMA_SPHINCSPLUSTWFS_NPRF.mmap{1} = O_PRF_Default.m{2}
+       /\ O_PRF_Default.b{2}).
+- proc.
+  inline{2} 2.
+  rcondt{2} 3; 1: by auto.
+  swap{2} 2 - 1.
+  sp 1 1; wp => />.
+  by sim.
+inline{1} 7.
+wp => />.
+by sim : (={leaves}).
 qed.
 
 
@@ -2404,8 +2554,26 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
 }.
 
 local equiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V :
-  EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main ~ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main : ={glob A} ==> ={res}.
-proof. admit. qed.
+  EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main ~ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main : 
+    ={glob A} ==> ={res}.
+proof. 
+proc.
+seq 5 5 : (={is_valid, is_fresh}); 1: by sim.
+inline *.
+wp => />.
+while{2} (true) (k - size roots0{2}).
++ move=> _ z.
+  by wp; skip => />; smt(size_rcons).
+wp => />.
+while{2} (true) (k - size roots{2}).
++ move=> _ z.
+  wp.
+  while (true) (t - size leaves0).
+  - move=> z'.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+by wp; skip => /> /#.
+qed.
 
 
 local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF &m :

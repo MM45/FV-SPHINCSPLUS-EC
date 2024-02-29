@@ -498,6 +498,9 @@ lemma valid_xadrs_xadrschpkcotrh (ad : adrs) :
   valid_xadrsch ad \/ valid_xadrspkco ad \/ valid_xadrstrh ad.  
 proof. smt(). qed.
 
+(* Initialization ("zero") address *)
+const adz : { adrs | valid_xadrs adz } as valx_adz.
+
 
 (* -- Setters -- *)
 op set_lidx (ad : adrs) (i : int) : adrs =
@@ -730,7 +733,7 @@ op extract_coll_bt_ap_trh (ps : pseed)
   FL-SL-XMSS-MT-TW addresses
   Only used to select arbitrary valid FL-SL-XMSS-MT-TW 
   address in security notion/reductions
- *)
+*)
 clone import Subtype as XHA with
   type T <= adrs,
     op P ad <= valid_xadrs ad. 
@@ -1162,7 +1165,7 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     var is_valid, is_fresh : bool;
     var adsOC : adrs list; 
     
-    ad <- val (witness<:xadrs>);
+    ad <- adz;
     ps <$ dpseed;
 
     OC.init(ps);
@@ -1245,7 +1248,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     
     ml <@ A(O_THFC).choose();
     
-    ad <- val (witness<:xadrs>);
+    ad <- adz;
 
     (* 
       Using the provided oracles, compute and store all the 
@@ -1476,7 +1479,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
     
     ml <@ A(O_THFC).choose();
     
-    ad <- val (witness<:xadrs>);
+    ad <- adz;
 
     (* 
       Using the provided oracles, compute and store all the 
@@ -1735,7 +1738,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
     
     ml <@ A(O_THFC).choose();
     
-    ad <- val (witness<:xadrs>);
+    ad <- adz;
 
     (* 
       Using the provided oracles, compute and store all the 
@@ -2017,7 +2020,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     var forgeryfs, tclfs, tcrfs : bool list;
     
         
-    ad <- val (witness<:xadrs>);
+    ad <- adz;
     ps <$ dpseed;
 
     O_THFC_Default.init(ps);
@@ -2482,7 +2485,7 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
   wp.
   call (: ={O_THFC_Default.pp}); 1: by sim.
   inline *.
-  wp; rnd; wp; skip => |> ps psin ml; rewrite valP /=. 
+  wp; rnd; wp; skip => |> ps psin ml; rewrite valx_adz /=. 
   split => [| lfs pks rs sigs sks /lezNgt ged_szsks _]; 1: smt(ge1_d).
   move => nthpks nthlfs nthrs nthsigs nthszlfs ge0_szsknt lent_szsknt 
           eqszntsp eqszntss eqszntsl eqszntsr.

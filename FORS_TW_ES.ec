@@ -391,6 +391,9 @@ lemma valid_fadrs_adrs :
   valid_fadrs <= valid_adrs.
 proof. smt(valid_fadrsidxs_adrsidxs). qed.
 
+(* Initialization ("zero") address *)
+const adz : { adrs | valid_fadrs adz } as valf_adz.
+
 
 (* -- Setters -- *)
 op set_tidx (ad : adrs) (i : int) : adrs =
@@ -818,12 +821,13 @@ op extract_collision_bt_ap_trh (ps : pseed)
 (* 
   FORS-TW addresses 
   Only used to select arbitrary valid FORS-TW in security notion/reductions 
-*)
+
 clone import Subtype as FHA with
   type T <= adrs,
     op P ad <= valid_fadrs ad. 
   
 type fadrs = FHA.sT.
+*)
 
 
 
@@ -1103,6 +1107,7 @@ module FL_FORS_TW_ES_NPRF = {
   }
   
   proc keygen(ps : pseed, ad : adrs) : pkFORSTW * (skFORS * pseed * adrs) =  {
+    var ms : mseed;
     var pkFORS : pkFORS;
     var skFORS : skFORS;
     var pk : pkFORSTW;
@@ -1220,7 +1225,7 @@ module M_FORS_TW_ES_NPRF = {
       pkFORSl <- [];
       while (size skFORSl < l) {
         skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
-        pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx ad (size skFORSs)) (size skFORSl));
+        pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl));
         skFORSl <- rcons skFORSl skFORS;
         pkFORSl <- rcons pkFORSl pkFORS; 
       }
@@ -1364,7 +1369,7 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
     var sig' : mkey * sigFORSTW;
     var is_valid, is_fresh : bool;
 
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     ps <$ dpseed;
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
@@ -1414,9 +1419,8 @@ module O_CMA_MFORSTWESNPRF : Oracle_CMA_MFORSTWESNPRF = {
     if (m \notin mmap) { 
       mk <$ dmkey;
       mmap.[m] <- mk;
-    } else {
-      mk <- oget mmap.[m];
     }
+    mk <- oget mmap.[m];
       
     (cm, idx) <- mco mk m;
     
@@ -1506,7 +1510,7 @@ module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
     var m' : msg;
     var sig' : mkey * sigFORSTW;
     
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     ps <$ dpseed;
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);    
@@ -1590,7 +1594,7 @@ module (R_FSMDTOpenPREC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_OpenPRE.Adv_S
     var leavesl : dgstblock list list list;
     
     (* Pick address *)
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     
     (* 
       Sample FORS-TW secret keys, specify each secret key element as target 
@@ -1727,9 +1731,8 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
       if (m \notin mmap) { 
         mk <$ dmkey;
         mmap.[m] <- mk;
-      } else {
-        mk <- oget mmap.[m];
       }
+      mk <- oget mmap.[m];
 
       (cm, idx) <- mco mk m;
 
@@ -1757,7 +1760,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     var tidx, kpidx, tbidx : int;
     
     (* Pick address *)
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     
     adl <- [];
     tidx <- 0;
@@ -1926,7 +1929,7 @@ module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC)
     var leavesl : dgstblock list list list;
     
     (* Pick address *)
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     
     (* 
       Sample FORS-TW secret keys, specify each secret key element as target 
@@ -2059,7 +2062,7 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
     var nodesl : dgstblock list list list list;
     
     (* Pick address *)
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     
     (* Sample FORS-TW secret keys and compute corresponding leaves *)
     skFORSs <- [];
@@ -2267,7 +2270,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
     var pkFORSl : pkFORS list;
     
     (* Pick address *)
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     
     (* Sample FORS-TW secret keys and compute corresponding leaves *)
     skFORSs <- [];
@@ -2433,7 +2436,7 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
     var x, x', leaf, leaf', root, root' : dgstblock;
     var ap' : apFORSTW;
     
-    ad <- val (witness<:fadrs>);
+    ad <- adz;
     ps <$ dpseed;
     
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
@@ -2603,6 +2606,7 @@ seq 4 4 : (   ={pp, i}
     wp; if => //=.
     * wp; rnd; skip => /> &2 _ mnin mk mkin. 
       move: (Index.valP (mco mk m{2}).`2) => [ge0_idx ltd_idx].
+      rewrite get_set_sameE oget_some.
       by rewrite modz_ge0 2:divz_ge0 3:ltz_pmod 4:ltz_divLR 5:-dval; 1..4: smt(Top.ge1_l).
     wp; skip => /> &2 _ _.  
     move: (Index.valP (mco (oget R_FSMDTOpenPRE_EUFCMA.mmap{2}.[m{2}]) m{2}).`2) => [ge0_idx ltd_idx].

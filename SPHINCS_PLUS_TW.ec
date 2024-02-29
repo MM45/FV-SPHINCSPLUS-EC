@@ -512,7 +512,7 @@ import Adrs.
 type adrs = HA.adrs.
 
 (* Initialization ("zero") address *)
-const adz : adrs = insubd [0; 0; chtype; 0; 0; 0].
+const adz : adrs = insubd [0; 0; 0; chtype; 0; 0].
 
 
 
@@ -641,6 +641,7 @@ clone import FORS_TW_ES as FTWES with
     op l <- l',
     op s <- nr_trees 0,
     op d <- l,
+    op adz <- insubd [0; 0; 0; trhftype; 0; 0],
     
   type mseed <- mseed,
   (* type rm <- rm, *)
@@ -688,9 +689,10 @@ clone import FORS_TW_ES as FTWES with
   type dgstblock <- dgstblock,
   type index <- index,
   type adrs <- adrs
-  
+
   proof ge5_adrslen, ge1_n, ge1_k, ge1_a, ge1_l, ge1_s, dval, dist_adrstypes, 
-        valid_fidxvals_idxvals, dmseed_ll, dmkey_ll, dpseed_ll, ddgstblock_ll.
+        valid_fidxvals_idxvals, dmseed_ll, dmkey_ll, dpseed_ll, ddgstblock_ll,
+        valf_adz.
   realize ge5_adrslen by trivial.
   realize ge1_n by exact: ge1_n.
   realize ge1_k by exact ge1_k.
@@ -710,11 +712,17 @@ clone import FORS_TW_ES as FTWES with
   realize dmkey_ll by exact: dmkey_ll.
   realize dpseed_ll by exact: dpseed_ll.
   realize ddgstblock_ll by exact: ddgstblock_ll.
-  
+  realize valf_adz.
+    rewrite /valid_fadrs /valid_fadrsidxs /valid_fidxvals /valid_fidxvalslp.
+    rewrite /valid_fidxvalslptrh ?nth_take // ?nth_drop //.
+    by rewrite insubdK; smt(ge1_k ge1_a ge1_lp IntOrder.expr_gt0).
+  qed.
+   
 import DBAL BLKAL DBAPKL DBLLKTL FP_OPRETCRDSPR.
 
 
 (* FL-SL-XMSS-MT-TW *)
+(* Instantiate with adz being same adz as here --> easier reduction proof (initial addresses match) *)
 clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op adrs_len <- adrs_len,
     op n <- n,
@@ -726,6 +734,7 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op h' <- h',
     op l' <- l',
     op d <- d,
+    op adz <- adz,
     
   type sseed <- sseed,
   type pseed <- pseed,
@@ -775,7 +784,8 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
   type adrs <- adrs
   
   proof ge6_adrslen, ge1_n, val_log2w, ge0_hp, ge1_d, dist_adrstypes, 
-        valid_xidxvals_idxvals, dpseed_ll, ddgstblock_ll, WTWES.WAddress.inhabited.
+        valid_xidxvals_idxvals, dpseed_ll, ddgstblock_ll, WTWES.WAddress.inhabited,
+        valx_adz.
   realize ge6_adrslen by trivial.
   realize ge1_n by exact: ge1_n.
   realize val_log2w by exact: val_log2w.
@@ -797,6 +807,14 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     rewrite /valid_wadrsidxs /adrs_len /= /valid_widxvals /predT /=.
     rewrite /valid_kpidx /valid_tidx /l' ?expr_gt0 //=. 
     by rewrite /valid_widxvalslp; smt(val_w ge2_len Top.ge1_d).
+  qed.
+  realize valx_adz.
+  (*
+    rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp.
+    rewrite /valid_xidxvalslptrh ?nth_take // ?nth_drop //.
+    by rewrite /adz insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; smt(ge1_d ge0_hp IntOrder.expr_gt0).    
+  *)
+    admit.
   qed.
   
 import DBHPL SAPDL.
@@ -1243,7 +1261,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
     var mk' : mkey;
     var sigFORSTW' : sigFORSTW;
     var sigFLSLXMSSMTTW' : sigFLSLXMSSMTTW; 
-    
+        
     (pkFORSnt, ps, ad) <- pk;
     
     skWOTStd <- [];
@@ -1441,7 +1459,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
     var nodes : dgstblock list list;
     var nodespl, nodescl : dgstblock list;
     var lnode, rnode, node : dgstblock;
-    
+     
     ad <- adz;
     
     skFORSnt <- [];
@@ -1535,7 +1553,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
 section Proof_SPHINCS_PLUS_TW_EUFCMA.
 
 
-declare module A <: Adv_EUFCMA {-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.FC_TCR.O_SMDTTCR_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.TRHC_TCR.O_SMDTTCR_Default, -TRCOC.O_THFC_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_CMA_MFORSTWESNPRF, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTPREC_Game4WOTSTWES, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA, -O_CMA_Default, -SKG_PRF.O_PRF_Default, -MKG_PRF.O_PRF_Default, -R_SKGPRF_EUFCMA, -R_MKGPRF_EUFCMA}.
+declare module A <: Adv_EUFCMA {-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.FC_TCR.O_SMDTTCR_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.TRHC_TCR.O_SMDTTCR_Default, -TRCOC.O_THFC_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_CMA_MFORSTWESNPRF, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTPREC_Game4WOTSTWES, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA, -O_CMA_Default, -SKG_PRF.O_PRF_Default, -MKG_PRF.O_PRF_Default, -R_SKGPRF_EUFCMA, -R_MKGPRF_EUFCMA, -R_MFORSTWESNPRFEUFCMA_EUFCMA}.
 
 declare axiom A_forge_ll (O <: SOracle_CMA{-A}) :
   islossless O.sign => islossless A(O).forge.
@@ -2144,11 +2162,12 @@ while (   ={leaves0}
            (len - size skWOTS0{1}).
   + move=> _ z.
     by wp; skip => />; smt(nth_rcons size_rcons).
-  wp; skip => />. progress. smt(ge2_len). smt(ge2_len). smt(ge2_len). 
+  wp; skip => /> &2 _ nthskf nthskw ltlen_szlfs.
+  split=> [| skw]; 1: smt(ge2_len). 
+  split => [/# |/lezNgt gelen_szskw nthskwp lelen_szskw].
+  split; 2: smt(size_rcons).
   rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP // => i rng_i. 
-  rewrite insubdK 1:/#.
-  rewrite H4 1:/#. rewrite H1 //; smt(ge1_d ge1_lp ge2_len IntOrder.expr_gt0).
-  smt(ge1_d ge1_lp ge2_len IntOrder.expr_gt0 size_rcons).
+  by rewrite insubdK 1:/# 1:nthskwp 1:/# nthskw //; smt(ge1_d IntOrder.expr_gt0).
 by wp; skip => />; smt(ge1_lp).
 qed.
 
@@ -2274,11 +2293,11 @@ seq 8 14 : (   ={glob A, ad}
               <=>
               ((exists (i j u v : int), 
                   0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
-                  psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                  psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
                \/ 
                (exists (i j u v : int),
                   0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                  psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)))
+                  psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0))))
          /\ size skWOTStd{1} <= d
          /\ #post).
   - wp => />; 1: smt().
@@ -2290,14 +2309,14 @@ seq 8 14 : (   ={glob A, ad}
                 <=>
                 ((exists (i j u v : int), 
                     0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
-                    psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                    psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
                  \/ 
                  (exists (i j u v : int),
                     0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                    psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                    psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0))
                  \/ (exists (j u v : int),
                      0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                      psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)))
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0))))
            /\ size skWOTStd{1} < d
            /\ size skWOTSnt{1} <= nr_trees (size skWOTStd{1})).
     * wp => />; 1: smt().
@@ -2309,17 +2328,17 @@ seq 8 14 : (   ={glob A, ad}
                   <=>
                   ((exists (i j u v : int), 
                       0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
-                      psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
                    \/ 
                    (exists (i j u v : int),
                       0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                      psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0))
                    \/ (exists (j u v : int),
                        0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0))
                    \/ (exists (u v : int),
                        0 <= u < size skWOTSlp{2} /\ 0 <= v < len /\ 
-                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0)))
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0))))
              /\ size skWOTStd{1} < d
              /\ size skWOTSnt{1} < nr_trees (size skWOTStd{1})
              /\ size skWOTSlp{1} <= l').
@@ -2332,20 +2351,20 @@ seq 8 14 : (   ={glob A, ad}
                     <=>
                     ((exists (i j u v : int), 
                         0 <= i < nr_trees 0 /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
-                        psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
                      \/ 
                      (exists (i j u v : int),
                         0 <= i < size R_SKGPRF_EUFCMA.skWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                        psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0)
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0))
                      \/ (exists (j u v : int),
                          0 <= j < size skWOTSnt{2} /\ 0 <= u < l' /\ 0 <= v < len /\ 
-                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0)
+                          psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0))
                      \/ (exists (u v : int),
                          0 <= u < size skWOTSlp{2} /\ 0 <= v < len /\ 
-                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0)
+                          psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) u) v) 0))
                      \/ (exists (v : int),
                          0 <= v < size skWOTS{2} /\ 
-                          psad.`2 = set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) (size skWOTSlp{2})) v) 0)))
+                          psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) (size skWOTSnt{2})) chtype) (size skWOTSlp{2})) v) 0))))
                /\ size skWOTStd{1} < d
                /\ size skWOTSnt{1} < nr_trees (size skWOTStd{1})
                /\ size skWOTSlp{1} < l'
@@ -2353,16 +2372,35 @@ seq 8 14 : (   ={glob A, ad}
         - inline{2} 1.
           rcondt{2} 2; 1: by auto.
           rcondt{2} 2.
-          * (*
-            auto => /> &2 bt mdom *.
+          * auto => /> &2 bt mdom *.
             pose psad := (_, set_hidx _ _).
-            move/iffLR /contra: (mdom psad) => ->.
+            move/iffLR /contra: (mdom psad) => -> //=.
             rewrite ?negb_or; split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              admit.
-            *)
-            admit.
-          wp; rnd; wp; skip => />.
+              by admit.
+            split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+            by admit.
+          wp; rnd; wp; skip => /> &2 bt mdom *.
+          rewrite -!andbA andbA; split; 2: smt(size_rcons).
+          rewrite get_set_sameE oget_some /= => psad.
+          split => [/mem_set [| -> /=]|]; 1,2: smt(size_ge0 size_rcons).
+          move=> mdomrc; rewrite mem_set /=.
+          pose psad' := (_, set_hidx _ _).
+          case (psad \in SKG_PRF.O_PRF_Default.m{2}) => [// | /= ninm].
+          move/iffRL /contra: (mdom psad) mdomrc => /(_ ninm) /=.
+          rewrite ?negb_or => [#] -> -> -> -> /=; rewrite negb_exists => /= ninskw /=.
+          move=> -[v]; rewrite size_rcons => -[rng_v psadval /=].
+          case (v = size skWOTS{2}) => [ // | neqszv].
+          by move: (ninskw v); rewrite negb_and (: 0 <= v && v < size skWOTS{2}) /#.
         wp; skip => /> &2 *.
         split => *; 1: smt(ge2_len).
         split => *; 2: smt(size_rcons).
@@ -2376,21 +2414,100 @@ seq 8 14 : (   ={glob A, ad}
     split => *; 2: smt(size_rcons).
     by split => *; smt(size_rcons size_ge0).
   wp => /=.
-  while (    ={ad} 
-          /\ SKG_PRF.O_PRF_Default.b{2}
-          /\ ss{1} = SKG_PRF.O_PRF_Default.k{2}
-          /\ ms{1} = R_SKGPRF_EUFCMA.ms{2} 
-          /\ ps{1} = R_SKGPRF_EUFCMA.ps{2} 
-          /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
-          /\ (forall (psad : pseed * adrs),
+  while (   SKG_PRF.O_PRF_Default.b{2}
+         /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
+         /\ (forall (psad : pseed * adrs),
               psad \in SKG_PRF.O_PRF_Default.m{2}
               <=>
               (exists (i j u v : int), 
                   0 <= i < size R_SKGPRF_EUFCMA.skFORSnt{2} /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
-                  psad.`2 = set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
+                  psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v))))
          /\ size skFORSnt{1} <= nr_trees 0).
   - wp => /=.
-    admit.
+    while (   ={skFORSlp} 
+           /\ SKG_PRF.O_PRF_Default.b{2}
+           /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
+           /\ (forall (psad : pseed * adrs),
+                psad \in SKG_PRF.O_PRF_Default.m{2}
+                <=>
+                ((exists (i j u v : int), 
+                    0 <= i < size R_SKGPRF_EUFCMA.skFORSnt{2} /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                    psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
+                 \/
+                 (exists (j u v : int), 
+                    0 <= j < size skFORSlp{2} /\ 0 <= u < k /\ 0 <= v < t /\ 
+                    psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) j) 0 (u * t + v)))))
+           /\ size skFORSnt{1} < nr_trees 0
+           /\ size skFORSlp{1} <= l').
+    * wp => /=.
+      while (   ={skFORSlp, skFORS} 
+             /\ SKG_PRF.O_PRF_Default.b{2}
+             /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
+             /\ (forall (psad : pseed * adrs),
+                  psad \in SKG_PRF.O_PRF_Default.m{2}
+                  <=>
+                  ((exists (i j u v : int), 
+                      0 <= i < size R_SKGPRF_EUFCMA.skFORSnt{2} /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
+                   \/
+                   (exists (j u v : int), 
+                      0 <= j < size skFORSlp{2} /\ 0 <= u < k /\ 0 <= v < t /\ 
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) j) 0 (u * t + v)))
+                   \/
+                   (exists (u v : int), 
+                     0 <= u < size skFORS{2} /\ 0 <= v < t /\ 
+                      psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) (size skFORSlp{2})) 0 (u * t + v)))))
+             /\ size skFORSnt{1} < nr_trees 0
+             /\ size skFORSlp{1} < l'
+             /\ size skFORS{1} <= k).
+      + wp => /=.
+        while (   ={skFORSlp, skFORS, skFORSet} 
+               /\ SKG_PRF.O_PRF_Default.b{2}
+               /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
+               /\ (forall (psad : pseed * adrs),
+                    psad \in SKG_PRF.O_PRF_Default.m{2}
+                    <=>
+                    ((exists (i j u v : int), 
+                        0 <= i < size R_SKGPRF_EUFCMA.skFORSnt{2} /\ 0 <= j < l' /\ 0 <= u < k /\ 0 <= v < t /\ 
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) i) j) 0 (u * t + v)))
+                     \/
+                     (exists (j u v : int), 
+                        0 <= j < size skFORSlp{2} /\ 0 <= u < k /\ 0 <= v < t /\ 
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) j) 0 (u * t + v)))
+                     \/
+                     (exists (u v : int), 
+                       0 <= u < size skFORS{2} /\ 0 <= v < t /\ 
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) (size skFORSlp{2})) 0 (u * t + v)))
+                     \/ 
+                     (exists (v : int),
+                       0 <= v < size skFORSet{2} /\ 
+                        psad = (R_SKGPRF_EUFCMA.ps{2}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{2} trhftype) (size R_SKGPRF_EUFCMA.skFORSnt{2})) (size skFORSlp{2})) 0 ((size skFORS{2}) * t + v)))))
+               /\ size skFORSnt{1} < nr_trees 0
+               /\ size skFORSlp{1} < l'
+               /\ size skFORS{1} < k
+               /\ size skFORSet{1} <= t).
+        - inline *.
+          rcondt{2} 2; 1: by auto.
+          rcondt{2} 2.
+          * auto => /> &2 bt mdom *.
+            pose psad := (_, set_thtbidx _ _ _).
+            move/iffLR /contra: (mdom psad) => -> //=.
+            rewrite ?negb_or; split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            split.
+            + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+              by admit.
+            do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
+            by admit.
+          wp; rnd; wp; skip => /> *.
+          by rewrite get_set_sameE oget_some /=; smt(size_rcons size_ge0 mem_set).  
+        by wp; skip => />; smt(size_rcons size_ge0 ge2_t).
+      by wp; skip => />; smt(size_rcons size_ge0 ge1_k).
+    by wp; skip => />; smt(size_rcons size_ge0 ge1_lp).
   wp => /=.
   swap{2} 1 5.
   do 3! rnd.
@@ -2576,18 +2693,61 @@ by wp; skip => /> /#.
 qed.
 
 
-local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF &m :
+local lemma LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF &m :
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF]
-  =
+  <=
   Pr[EUF_CMA_MFORSTWESNPRF(R_MFORSTWESNPRFEUFCMA_EUFCMA(A), O_CMA_MFORSTWESNPRF).main() @ &m : res].
 proof.
 byequiv=> //.
+proc.
+inline{1} 1; inline{2} 5; inline{2} 4; inline{2} 3.
+seq 4 4 : (   ={glob A, ps0}
+           /\ ad0{1} = adz).
++ wp; rnd.
+  do 2! rnd{1}.
+  by wp; skip.
+seq 2 3 : (   #pre
+           /\ skFORSnt0{1} = skFORSs{2}
+           /\ (forall (i j : int),
+                 0 <= i < nr_trees 0 => 0 <= j < l' =>
+                 let roots 
+                     = 
+                     mkseq (fun (u : int) => 
+                             FTWES.val_bt_trh ps0{2} ((set_kpidx (set_tidx (set_typeidx ad0{2} trcotype) i) j))
+                                              (list2tree (mkseq (fun (v : int) => 
+                                                            f ps0{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad0{2} trhftype) i) j) 0 (u * t + v)) 
+                                                                      (val (nth witness (nth witness (val (nth witness (nth witness skFORSs{2} i) j)) u) v))) t )) u) k in
+                  nth witness (nth witness pkFORSs{2} i) j
+                  =
+                  trco ps0{2} (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad0{2} trhftype) i) j) trcotype) (get_kpidx ad0{2})) 
+                       (flatten (map DigestBlock.val roots)))).
++ admit.
+swap{2} [1..10] 2.
+seq 2 2 : (   skWOTStd{1} = R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd{2}
+           /\ #pre). 
++ conseq />.
+  by sim.
+inline{1} 7.
+swap{1} [4..
+seq 10 12 : (   ={root}
+             /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, O_CMA_MFORSTWESNPRF)
+             /\ ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, O_CMA_MFORSTWESNPRF)
+             /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (ms, skFORSnt0, skWOTStd, ps0){1}
+             /\ O_CMA_SPHINCSPLUSTWFS_PRF.qs{1} = []
+             /\ O_CMA_SPHINCSPLUSTWFS_NPRF.mmap{1} = empty
+             /\ pk{1} = (root, ps0){2}
+             /\ pk{2} = (pkFORSs, ps0, ad0){2}
+             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.pkFORSnt{2} = pkFORSs{2}
+             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ps{2} = ps0{2}
+             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ad{2} = ad0{2}
+             /\ #pre).
+sp; wp => />.
 admit.
 qed.
 
-local lemma EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF &m :
+local lemma LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF &m :
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF]
-  =
+  <=
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 byequiv=> //.

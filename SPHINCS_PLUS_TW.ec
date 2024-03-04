@@ -800,7 +800,7 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
   realize dpseed_ll by exact: dpseed_ll.
   realize ddgstblock_ll by exact: ddgstblock_ll.
   realize WTWES.WAddress.inhabited.
-    exists (Adrs.insubd [0; 0; 0; chtype; 0; 0]).
+    exists adz.
     rewrite /valid_wadrs insubdK 1:/valid_adrsidxs /adrs_len /= /valid_idxvals.
     + left; rewrite /valid_idxvalsch /= /valid_kpidx /l' /valid_tidx /nr_trees.
       by rewrite ?expr_gt0 //=; smt(val_w ge2_len Top.ge1_d).
@@ -809,12 +809,23 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     by rewrite /valid_widxvalslp; smt(val_w ge2_len Top.ge1_d).
   qed.
   realize valx_adz.
-  (*
-    rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp.
-    rewrite /valid_xidxvalslptrh ?nth_take // ?nth_drop //.
-    by rewrite /adz insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; smt(ge1_d ge0_hp IntOrder.expr_gt0).    
-  *)
-    admit.
+    rewrite /valid_xadrs /valid_xadrsidxs.
+    move: (Adrs.valP adz) => @/valid_adrsidxs -[-> /= ?] @/valid_xidxvals @/predT /=.
+    suff vch: valid_xidxvalslpch [0; 0; 0; chtype; 0; 0]. 
+    + rewrite insubdK 2:/# valid_xadrsidxs_adrsidxs valid_xadrsidxs_xadrschpkcotrhidxs.
+      by left => @/valid_xadrschidxs @/adrs_len /= @/valid_xidxchvals /#. 
+    rewrite /valid_xidxvalslpch /= /valid_hidx /valid_chidx /valid_kpidx /valid_tidx /valid_lidx.
+    rewrite ?expr_gt0 //= andbA; split; 2: smt(Top.ge1_d).
+    split; 1: by rewrite subz_gt0 exprn_egt1 //; smt(val_log2w). 
+    rewrite /len /len2 /len1; pose ndv := _ / _.
+    suff gt0_ndv : 0%r < ndv.
+    + rewrite addr_gt0 1:-lt_fromint; 1: smt(ceil_bound).
+      rewrite -from_int_floor ltzS floor_mono divr_ge0 log_ge0 //= le_fromint.
+      - rewrite mulr_ege1. smt(ceil_bound). apply IntOrder.ler_subr_addr => /=.
+        by rewrite /w IntOrder.ler_eexpr //; smt(val_log2w). 
+      by rewrite /w IntOrder.exprn_ege1 //; smt(val_log2w).
+    rewrite ltr_pdivl_mulr /w -RField.fromintXn 2:/log2; 1,3,4: smt(val_log2w ge1_n).
+    by rewrite -rpow_int // logK //; smt(val_log2w).  
   qed.
   
 import DBHPL SAPDL.
@@ -2342,7 +2353,7 @@ seq 8 14 : (   ={glob A, ad}
              /\ size skWOTStd{1} < d
              /\ size skWOTSnt{1} < nr_trees (size skWOTStd{1})
              /\ size skWOTSlp{1} <= l').
-      + wp => />; 1: smt().
+      + wp => /=.
         while (  ={skWOTSnt, skWOTSlp, skWOTS}
                /\ SKG_PRF.O_PRF_Default.b{2}
                /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
@@ -2616,7 +2627,7 @@ by sim : (={leaves}).
 qed.
 
 
-
+print SPHINCS_PLUS_TW.
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
   var valid_MFORSTWESNPRF : bool
   
@@ -2633,11 +2644,12 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
     var mk' : mkey;
     var sigFORSTW' : sigFORSTW;
     var sigFLSLXMSSMTTW' : sigFLSLXMSSMTTW;
-    var cm' : msgFORSTW;
-    var idx' : index;
-    var tidx', kpidx' : int;
+    var cm : msgFORSTW;
+    var idx : index;
+    var tidx, kpidx : int;
     var pkFORS, pkFORS' : pkFORS;
     var skFORS : skFORS;
+    var root, root' : dgstblock;
     
     (pk, sk) <@ SPHINCS_PLUS_TW_FS.keygen_nprf();
     
@@ -2645,11 +2657,30 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
     
     (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_NPRF).forge(pk);
     
-    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');
+    (*is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');*)
+    (root, ps) <- pk;
+    (mk', sigFORSTW', sigFLSLXMSSMTTW') <- sig';
+    ad <- adz;
+    skFORSnt <- sk.`2;
+    
+    (cm, idx) <- mco mk' m';
+    
+    (tidx, kpidx) <- edivz (val idx) l';
+    
+    skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
+    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    
+    pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    
+    valid_MFORSTWESNPRF <- pkFORS' = pkFORS;
+    
+    root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS', sigFLSLXMSSMTTW', idx, ps, ad);
+    
+    is_valid <- root' = root;
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m');
     
     
-    (* is_valid_MFORSTWESNPRF <@ M_FORS_TW_ES_NPRF.verify(); *)
+    (* is_valid_MFORSTWESNPRF <@ M_FORS_TW_ES_NPRF.verify();
     ad <- adz; 
     skFORSnt <- sk.`2;
     ps <- sk.`4;
@@ -2663,8 +2694,9 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
     pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx') kpidx');
     
     pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm', ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx') kpidx');
-    
+     
     valid_MFORSTWESNPRF <- pkFORS' = pkFORS;
+    *)
     
     return is_valid /\ is_fresh;
   }
@@ -2675,6 +2707,25 @@ local equiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V :
     ={glob A} ==> ={res}.
 proof. 
 proc.
+swap{1} 5 -1; swap{2} 16 -12.
+seq 4 4 : (={is_fresh, m', sig', pk, sk}); 1: by sim.
+inline{1} 1; inline{2} 8.
+wp; sp => />.
+conseq (: _ ==> ={root, root'}) => //.
+seq 0 1 : (   ={root, ps, idx, cm, ad, tidx, kpidx}
+           /\ sigFORSTW{1} = sigFORSTW'{2}
+           /\ sigFLSLXMSSMTTW{1} = sigFLSLXMSSMTTW'{2}); 2: by sim.
+while{2} (true) (k - size roots{2}).
++ move=> _ z.
+  inline 1.
+  wp => /=.
+  while (true) (t - size leaves0).
+  - move=> z0.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).     
+by wp; skip => /> &1 &2 <- + /= [-> ->] => <- /= [-> ->]; smt(ge1_k).
+qed.
+(*
 seq 5 5 : (={is_valid, is_fresh}); 1: by sim.
 inline *.
 wp => />.
@@ -2690,7 +2741,7 @@ while{2} (true) (k - size roots{2}).
     by wp; skip => />; smt(size_rcons).
   by wp; skip => />; smt(size_rcons).
 by wp; skip => /> /#.
-qed.
+*)
 
 
 local lemma LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF &m :
@@ -2702,7 +2753,8 @@ byequiv=> //.
 proc.
 inline{1} 1; inline{2} 5; inline{2} 4; inline{2} 3.
 seq 4 4 : (   ={glob A, ps0}
-           /\ ad0{1} = adz).
+           /\ ad0{1} = adz
+           /\ ad0{2} = insubd [0; 0; 0; trhftype; 0; 0]).
 + wp; rnd.
   do 2! rnd{1}.
   by wp; skip.
@@ -2722,28 +2774,105 @@ seq 2 3 : (   #pre
                   trco ps0{2} (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad0{2} trhftype) i) j) trcotype) (get_kpidx ad0{2})) 
                        (flatten (map DigestBlock.val roots)))).
 + admit.
-swap{2} [1..10] 2.
+swap{2} [1..9] 2.
 seq 2 2 : (   skWOTStd{1} = R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd{2}
            /\ #pre). 
 + conseq />.
   by sim.
 inline{1} 7.
-swap{1} [4..
+seq 21 16 : (   ={m'}
+             /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, O_CMA_MFORSTWESNPRF)
+             /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF{1} = is_valid{2}
+).
++ inline{2} 16; inline{2} 24.
+  wp.
+  call (: true); 1: by sim.
+  inline{1} 19.
+  wp => /=.
+  while{1} (roots{1} 
+            =  
+            mkseq (fun (u : int) => 
+                     FTWES.val_bt_trh ps1{1} 
+                                      ((set_kpidx (set_tidx (set_typeidx ad1{1} trcotype) tidx{1}) kpidx{1}))
+                                      (list2tree (mkseq (fun (v : int) => 
+                                                    f ps1{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad1{2} trhftype) tidx{1}) kpidx{1}) 0 (u * t + v)) 
+                                                              (val (nth witness (nth witness (val (nth witness (nth witness skFORSnt{1} tidx{1}) kpidx{1})) u) v))) t)) u) (size roots{1})
+           /\ size roots{1} <= k)
+           (k - size roots{1}).
+  - admit.
+  wp => /=.
+  call (:   ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, O_CMA_MFORSTWESNPRF)
+         /\ ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, O_CMA_MFORSTWESNPRF)
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`2 = O_CMA_MFORSTWESNPRF.sk.`1{2}
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`3 = R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd{2}
+         /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`4 = R_MFORSTWESNPRFEUFCMA_EUFCMA.ps{2} 
+         /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ad{2} = insubd [0; 0; 0; trhftype; 0; 0]).
+  - admit.
+  wp.
+  inline{1} 2; inline{2} 11.
+  wp => /=.
+  while (   ={skWOTSl}   
+         /\ leaves1{1} = leaves0{2}
+         /\ ps2{1} = ps3{2}
+         /\ set_typeidx ad2{1} chtype = set_typeidx ad3{2} chtype
+         /\ set_typeidx ad2{1} pkcotype = set_typeidx ad3{2} pkcotype
+         /\ size leaves1{1} <= l').
+  - wp.
+    call (: true) => /=; 1: by sim.
+    by wp; skip => />; smt(size_rcons).
+  wp; skip => />.
+  progress. admit. admit. admit. admit.
+  rewrite mkseq0 //. admit. smt().
+  congr. congr. admit. 
+  admit.
+conseq (: _ ==> ={is_fresh}) => //.
+seq 2 0 : #pre; [conseq (: _ ==> true) => // | by sim].
+inline{1} 1.
+wp; sp.
+while{1} (true) (d - i{1}).
++ move=> ? z.
+  inline 3.
+  wp.
+  while (true) (len - size pkWOTS0).
+  - move=> z'.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => /> /#. 
+by skip => /> /#.
+qed.
+(*
 seq 10 12 : (   ={root}
              /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, O_CMA_MFORSTWESNPRF)
              /\ ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, O_CMA_MFORSTWESNPRF)
              /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (ms, skFORSnt0, skWOTStd, ps0){1}
              /\ O_CMA_SPHINCSPLUSTWFS_PRF.qs{1} = []
              /\ O_CMA_SPHINCSPLUSTWFS_NPRF.mmap{1} = empty
-             /\ pk{1} = (root, ps0){2}
+             /\ pk{1} = (root, ps0){1}
              /\ pk{2} = (pkFORSs, ps0, ad0){2}
              /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.pkFORSnt{2} = pkFORSs{2}
              /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ps{2} = ps0{2}
              /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ad{2} = ad0{2}
              /\ #pre).
-sp; wp => />.
++ sp; wp => />.
+  inline{1} 1; inline{2} 1.
+  wp => /=.
+  while (   ={leaves0, skWOTSl, ps1}
+         /\ set_typeidx ad1{1} chtype = set_typeidx ad1{2} chtype
+         /\ set_typeidx ad1{1} pkcotype = set_typeidx ad1{2} pkcotype
+         /\ size leaves0{1} <= l').
+  - inline{1} 2; inline{2} 2.
+    wp => /=.
+    while (   ={pkWOTS0, skWOTS1, ps2, ad2}
+           /\ size pkWOTS0{1} <= len).
+    * by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(ge2_len size_rcons).
+  by wp; skip => />; admit.
+swap{1} 2 1; swap{2} 4 1.
+inline{1} 3; inline{2} 5; inline{2} 13.
+inline{}
+sim : (={is_fresh} /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF{1} = is_valid{2}).
 admit.
 qed.
+*)
 
 local lemma LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF &m :
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res /\ ! EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF]

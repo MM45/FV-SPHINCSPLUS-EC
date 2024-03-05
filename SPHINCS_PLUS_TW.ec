@@ -734,6 +734,7 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op h' <- h',
     op l' <- l',
     op d <- d,
+    op l <- l,
     op adz <- adz,
     
   type sseed <- sseed,
@@ -2906,7 +2907,7 @@ seq 21 16 : (   ={m'}
           /\ size roots < k
           /\ size leaves1 <= t)
           (t - size leaves1).
-    - move=> z'.
+    * move=> z'.
       wp; skip => /> *.
       by rewrite size_rcons mkseqS //; smt(size_rcons size_ge0).
     wp; skip => /> *.
@@ -2965,7 +2966,7 @@ seq 21 16 : (   ={m'}
       seq 1 1 : (#pre /\ sigFORSTW{1} = sigFORSTW0{2}).
       + call (: true); 1: by sim.
         skip => /> &2 nthpkfnt.
-        admit.
+        by admit.
       inline{1} 1.
       wp => /=.
       while{1} (roots{1} 
@@ -2978,7 +2979,7 @@ seq 21 16 : (   ={m'}
                                                                   (val (nth witness (nth witness (val skFORS0{1}) u) v))) t)) u) (size roots{1})
                /\ size roots{1} <= k)
                (k - size roots{1}).
-      - move=> _ z.
+      + move=> _ z.
         inline 1.
         wp => /=.
         while (leaves0
@@ -2989,36 +2990,26 @@ seq 21 16 : (   ={m'}
               /\ size roots < k
               /\ size leaves0 <= t)
               (t - size leaves0).
-      - move=> z'.
-        wp; skip => /> &1 lfsdef *.
-        by rewrite size_rcons mkseqS //=; smt(size_rcons size_ge0).
-      wp; skip => /> &1 rsdef *.
-      split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge2_t).
-      split => [/# | ? lfsdef *].
-      rewrite -andbA; split; 2: smt(size_rcons).
-      rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
-      by do 3! congr; rewrite lfsdef; congr => /#.
-    wp; skip => /> &2 nthpkfnt.
-    split => [|rs]; 1: by rewrite mkseq0 /=; smt(ge1_k).
-    split => [/# | ? rsdef *].
-    move: (Index.valP (mco mk0{2} m{2}).`2) => [ge0_idx @/l lt2h_idx]. 
-    rewrite nthpkfnt 2:modz_ge0 3:ltz_pmod 4://; 2,3: smt(ge1_lp).
-    * rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge1_lp). 
-      by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d).
-    progress.
-    rewrite mkseq0 //.
-    smt(ge1_k).
-    smt(ge1_k).
-    rewrite H. admit. admit.
-    congr.
-    admit.
-    congr. congr. rewrite H1. congr => [| /#]. 
-    rewrite fun_ext => u /=.
-    congr. congr. admit.
-    congr. congr.
-    rewrite fun_ext => v /=.
-    congr. congr.
-    admit.   
+        - move=> z'.
+          wp; skip => /> &1 lfsdef *.
+          by rewrite size_rcons mkseqS //=; smt(size_rcons size_ge0).
+        wp; skip => /> &1 rsdef *.
+        split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge2_t).
+        split => [/# | ? lfsdef *].
+        rewrite -andbA; split; 2: smt(size_rcons).
+        rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
+        by do 3! congr; rewrite lfsdef; congr => /#.
+      wp; skip => /> &2 nthpkfnt.
+      split => [|rs]; 1: by rewrite mkseq0 /=; smt(ge1_k).
+      split => [/# | ? rsdef *].
+      move: (Index.valP (mco mk0{2} m{2}).`2) => [ge0_idx @/l lt2h_idx]. 
+      rewrite nthpkfnt 2:modz_ge0 3:ltz_pmod 4://; 2,3: smt(ge1_lp).
+      + rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge1_lp). 
+        by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d).
+      do 2! congr; 1,2: admit.
+      congr; rewrite rsdef (: size rs = k) 1:/#; congr.
+      rewrite fun_ext => u /=; do 3! congr; 1: admit.
+      by rewrite fun_ext => v /=; do 4! congr; admit.
     inline{1} 1; inline{2} 1.
     swap{1} 7 -1; swap{2} 7 -1.
     wp => /=.
@@ -3040,20 +3031,16 @@ seq 21 16 : (   ={m'}
         by wp; skip => />; smt(size_rcons).
       wp => /=.
       call (: true); 1: by sim.
-      wp; skip => />.
-      progress.
-      congr. 
+      wp; skip => /> &2 _ ltd_szsapl.
+      split => [| eqkpad sigw].
+      + congr; admit.
+      split => [| lfs /lezNgt gelp_szlfs _ *].
+      + rewrite andbA; split; 2: smt(ge1_lp). 
+        split; admit.
+      rewrite -!andbA andbA; split; 2: smt(size_rcons).
+      split; congr.
+      + do 2! congr; admit.
       admit.
-      admit.
-      admit.
-      smt(ge1_lp).
-      congr. congr. congr.
-      admit.
-      congr.
-      admit.
-      smt(size_rcons).
-      smt(size_rcons).
-      smt(size_rcons).
     by wp; skip => />; smt(ge1_d).
   inline{1} 2; inline{2} 11.
   wp => /=.
@@ -3140,7 +3127,24 @@ local lemma LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF &m :
   <=
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
-byequiv=> //.
+byequiv => //.
+proc.
+inline{1} 2; inline{1} 1.
+inline{2} 4; inline{2} 3; inline{2} 11; inline{2} 23.
+(* 
+  SPHINCS+ Adversary can return before querying l times, 
+  and then FORS public key computed from the message, even though it doesn't equal the
+  FORS public key on the specific index corresponding to the message, might still equal a 
+  FORS public key corresponding to on eof the other leaves. In this case, the reduction advesary
+  against EUF-NACMA of FL-SL-XMSS-MT-TW returns a forgery message (i.e., a FORS public key) 
+  that was already present in the list of messages (i.e., FORS public keys) for which it received
+  a signature. As a result, the "freshness" predicatre will not hold for the reduction adversary,
+  even though the adversary against SPHINCS returns a valid forgery. This might be fixed by
+  adapting the freshness predicate in EUF-NACMA of FL-SL-XMSS-MT-TW to only check whether the
+  returned message does not equal the message in the message list at the returned index
+  (i.e., is_fresh <- m' <> nth witness ml idx'). Check whether this still allows the 
+  reductions from the hash function properties. 
+*)
 admit.
 qed. 
 
@@ -3197,8 +3201,8 @@ have ->:
   Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.main() @ &m : res].
 + by byequiv Eqv_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.
 rewrite Pr[mu_split EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF].
-rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF.
-by rewrite EqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF.
+rewrite ler_add 1:LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VT_MFORSTWESNPRF.
+by rewrite LeqPr_EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_VF_FLSLXMSSMTTWESNPRF.
 qed.
 
 

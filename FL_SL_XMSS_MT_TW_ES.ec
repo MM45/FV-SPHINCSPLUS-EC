@@ -700,7 +700,7 @@ op val_ap_trh_gen (ps : pseed) (ad : adrs) (ap : dgstblock list) (bs : bool list
   0. Note that, in case the given binary tree is not of height h',
   this operator does not explicitly fail; instead, witness is returned.
 *)
-op cons_ap_trh (bt : dgstblock bintree) (idx : int) (ps : pseed) (ad : adrs) : apFLXMSSTW =
+op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) : apFLXMSSTW =
   DBHPL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h' idx)) h' 0).
 
 (* 
@@ -872,7 +872,7 @@ module FL_SL_XMSS_MT_TW_ES = {
       leaves <@ leaves_from_sspsad(ss, ps, (set_ltidx ad (size sapl) tidx));
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+      ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
       
       (* Compute next message/root to sign *)
       root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) h' 0;
@@ -1078,7 +1078,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
       leaves <@ leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (size sapl) tidx);
 
       (* Construct the authentication path from the computed list of leaves *)
-      ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+      ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
       
       (* Compute next message/root to sign *)
       root <- val_bt_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) h' 0;
@@ -1186,8 +1186,11 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     (m', sig', idx') <@ A(OC).forge(pk, sigl);
 
     is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
-
+    
+    (*
     is_fresh <- ! m' \in take (size sigl) ml;
+    *)
+    is_fresh <- m' <> nth witness ml (val idx');
     
     return is_valid /\ is_fresh; 
   }
@@ -1357,7 +1360,7 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
 
-        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+        ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
 
         sapl <- rcons sapl (sigWOTS, ap);
       }
@@ -1616,7 +1619,7 @@ module (R_SMDTTCRCPKCO_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : PKCOC_
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
 
-        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+        ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
 
         sapl <- rcons sapl (sigWOTS, ap);
       }
@@ -1879,7 +1882,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
 
-        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+        ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
 
         sapl <- rcons sapl (sigWOTS, ap);
       }
@@ -2120,7 +2123,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
         
         leaves <- nth witness (nth witness leavestd (size sapl)) tidx;
 
-        ap <- cons_ap_trh (list2tree leaves) kpidx ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype);
+        ap <- cons_ap_trh ps (set_typeidx (set_ltidx ad (size sapl) tidx) trhtype) (list2tree leaves) kpidx;
 
         sapl <- rcons sapl (sigWOTSins, ap);
       }
@@ -2133,8 +2136,11 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
 
     is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
 
+    (*
     is_fresh <- ! m' \in take (size sigl) ml;
-
+    *)
+    is_fresh <- m' <> nth witness ml (val idx'); 
+    
     (* Additional checks *)
     (tidx, kpidx) <- (val idx', 0);
     tkpidxs <- [];
@@ -2195,7 +2201,7 @@ seq 7 14 : (={glob A, sigl, pk, ml}); last first.
       by wp; skip => />; smt(size_rcons).
     by wp; skip => />; smt(size_rcons).
   wp. 
-  call (: true) => />; 1: by sim.
+  call (: true) => /=; 1: by sim.
   call (: true).
   by skip => />; smt(ge1_d).
 inline{1} 5.

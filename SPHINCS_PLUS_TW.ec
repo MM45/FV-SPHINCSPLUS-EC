@@ -1453,7 +1453,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
       
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
       
-      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_typeidx (set_ltidx ad 0 tidx) trhftype) kpidx), cm); 
+      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm); 
       
       sigFLSLXMSSMTTW <- nth witness sigFLSLXMSSMTTWl (val idx);
       
@@ -3268,7 +3268,7 @@ seq 10 14: (   #pre
                   =
                   let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
                   let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-                  let adlt = set_ltidx ad{2} (j - 1) ti in
+                  let adlt = set_ltidx ad{2} j ti in
                   let rt = (if j = 0
                             then nth witness ml{2} i 
                             else FSSLXMTWES.val_bt_trh ps{2} (set_typeidx adlt trhxtype)
@@ -3298,7 +3298,7 @@ seq 10 14: (   #pre
               =
               let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
               let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-              let adlt = set_ltidx sk{2}.`3 (j - 1) ti in
+              let adlt = set_ltidx sk{2}.`3 j ti in
               let rt = (if j = 0
                         then nth witness ml{2} i 
                         else FSSLXMTWES.val_bt_trh sk{2}.`2 (set_typeidx adlt trhxtype)
@@ -3374,6 +3374,7 @@ while{1} (roots{1}
 wp => /=.
 call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA)
        /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`2 = R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt{2}
+       /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`3 = EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2}
        /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`4 = R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2}
        /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} = adz
        /\ (forall (i j : int),
@@ -3394,7 +3395,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
             =
             let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
             let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-            let adlt = set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} (j - 1) ti in
+            let adlt = set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti in
             let rt = (if j = 0
                       then nth witness (flatten R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) i 
                       else FSSLXMTWES.val_bt_trh R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_typeidx adlt trhxtype)
@@ -3417,8 +3418,124 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                      (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                          cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
                                             (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} j) ti) u)) v))) len)))) l' in
-              FSSLXMTWES.cons_ap_trh R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_typeidx (set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti) trhxtype) (list2tree lfs) ki)).
-+ admit.
+              FSSLXMTWES.cons_ap_trh R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_typeidx (set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti) trhxtype) (list2tree lfs) ki)
+      /\ size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2} = nr_trees 0
+      /\ all ((=) l' \o size) R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}).
++ proc.
+  sp 2 0 => /=.
+  seq 6 6 : (   #pre
+             /\ ={mk, cm, idx, tidx, kpidx, skFORS, sigFORSTW}
+             /\ tidx{1} = (val idx{1}) %/ l'
+             /\ kpidx{1} = (val idx{1}) %% l'
+             /\ skFORS{1} = nth witness (nth witness skFORSnt{1} tidx{1}) kpidx{1}).
+  - conseq />.
+    call (: true); 1: by sim.
+    wp => /=.
+    by if => //=; auto.    
+  inline{1} 2; inline{1} 1.
+  wp => /=.
+  while{1} ((forall (j : int), 0 <= j < size sapl{1} =>
+              (nth witness sapl{1} j).`1
+              =
+              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`1 in
+              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`2 in
+              let adlt = set_ltidx ad0{1} j ti in
+              let rt = (if j = 0
+                        then m0{1} 
+                        else FSSLXMTWES.val_bt_trh ps0{1} (set_typeidx adlt trhxtype)
+                                                   (list2tree (mkseq (fun (u : int) => 
+                                                       pkco ps0{1} (set_kpidx (set_typeidx adlt pkcotype) u)
+                                                            (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                                                cf ps0{1} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                DBLL.insubd (mkseq (fun (v : int) => 
+                  cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} j ti) chtype) ki) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} j) ti) ki)) v))) len))
+        /\ (forall (j : int), 0 <= j < size sapl{1} =>
+              (nth witness sapl{1} j).`2
+              =
+              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`1 in
+              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`2 in
+              let adlt = set_ltidx ad0{1} j ti in
+              let lfs = mkseq (fun (u : int) => 
+                                  pkco ps0{1} (set_kpidx (set_typeidx adlt pkcotype) u)
+                                       (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                           cf ps0{1} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                              (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} j) ti) u)) v))) len)))) l' in
+                FSSLXMTWES.cons_ap_trh ps0{1} (set_typeidx (set_ltidx ad0{1} j ti) trhxtype) (list2tree lfs) ki)
+        /\ size sapl{1} <= d)
+           (d - size sapl{1}).
+  - admit.
+  wp => /=.
+  while{1} (roots{1} 
+            =  
+            mkseq (fun (u : int) => 
+                     FTWES.val_bt_trh ps1{1} ad1{1}
+                                      (list2tree (mkseq (fun (v : int) => 
+                                                    f ps1{1} (set_thtbidx ad1{1} 0 (u * t + v)) 
+                                                              (val (nth witness (nth witness (val skFORS0{1}) u) v))) t)) u) (size roots{1})
+           /\ size roots{1} <= k)
+           (k - size roots{1}).
+  + move=> _ z.
+    inline 1.
+    wp => /=.
+    while (leaves1
+           =
+           mkseq (fun (v : int) => 
+                    f ps2 (set_thtbidx ad2 0 (idxt * t + v)) 
+                      (val (nth witness (nth witness (val skFORS1) idxt) v))) (size leaves1)
+          /\ size roots < k
+          /\ size leaves1 <= t)
+          (t - size leaves1).
+    - move=> z'.
+      wp; skip => /> &1 lfsdef *.
+      by rewrite size_rcons mkseqS //=; smt(size_rcons size_ge0).
+    wp; skip => /> &1 rsdef *.
+    split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge2_t).
+    split => [/# | ? lfsdef *].
+    rewrite -andbA; split; 2: smt(size_rcons).
+    rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
+    by do 3! congr; rewrite lfsdef; congr => /#.
+  wp; skip => />.
+  progress. rewrite mkseq0 //.
+  smt(ge1_k).
+  smt(ge1_k).
+  smt(ge1_k).
+  smt(ge1_k).
+  smt(ge1_d).
+  smt(ge1_k).
+  rewrite &(SAPDL.val_inj) &(eq_from_nth witness) ?valP 1:// insubdK 1:/# => j rng_j.
+  suff /#:
+    (nth witness sapl_L j).`1 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`1
+    /\
+    (nth witness sapl_L j).`2 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`2.
+  split.
+  rewrite H0 1:valP // H8 // 1:/#.
+  do 2! congr. rewrite fun_ext => v /=.
+  do 5! congr.
+  rewrite eq_sym.
+  have {1}->:
+    val idx{2}
+    =
+    sumz (map size (take (val idx{2} %/ l') R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) + val idx{2} %% l'.
+  + rewrite StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT/(\o).
+    rewrite (StdBigop.Bigint.BIA.eq_big_seq _ (fun _ => l')) => [pkflp /mem_take pkfin /=|].
+    - move/allP: H3 => /(_ pkflp pkfin) @/(\o) -> //.
+    rewrite StdBigop.Bigint.big_constz count_predT /= size_take.
+    - by rewrite divz_ge0; smt(ge1_lp Index.valP).
+    rewrite (: val idx{2} %/ l' < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) 2:/=.
+    - rewrite H2 /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
+      by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+    by rewrite mulrC -divz_eq.
+  rewrite nth_flatten.
+  + admit.
+  + admit.
+  rewrite H.
+  + admit. admit.
+  do 2! congr. admit.  
+  rewrite H5.
+  by do 2! congr; smt().
+  by rewrite H1 ?valP // H9 // /#.
 wp; skip => />.
 progress.
 rewrite mkseq0 //. smt(ge1_k). smt().

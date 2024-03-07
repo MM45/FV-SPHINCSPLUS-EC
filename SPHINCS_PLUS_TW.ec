@@ -3301,7 +3301,9 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         (*let st = oget (sub_bt (list2tree leaves{2}) (rev (int2bs j (a - (i + 1))))) in*)
                           FTWES.val_bt_trh_gen ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) (size pkFORSlp{2})) (list2tree leavesp) (i + 1) (size skFORS{2} * nr_nodesf (i + 1) + j))
                   /\ size leaves{2} = t 
-                  /\ size nodes{2} <= a)
+                  /\ size nodes{2} <= a
+                  /\ size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2} = size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt{2}
+                  /\ size pkFORSlp{2} = size skFORSlp{2})
                  (a - size nodes{2}).
         - move=> ? z.
           wp => /=.
@@ -3321,7 +3323,9 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         (*let st =  oget (sub_bt (list2tree leaves) (rev (int2bs j (a - (size nodes + 1))))) in*)
                           FTWES.val_bt_trh_gen ps (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt)) (size pkFORSlp)) (list2tree leavesp) (size nodes + 1) (size skFORS * nr_nodesf (size nodes + 1) + j))                  
                  /\ size leaves = t
-                 /\ size nodes < a)
+                 /\ size nodes < a
+                 /\ size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt = size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt
+                 /\ size pkFORSlp = size skFORSlp)
                 (nr_nodesf (size nodes + 1) - size nodescl).
           * move=> z'.
             inline 3.
@@ -3335,17 +3339,23 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             rewrite size_cat ?valP /=.
             case (size nodes{hr} = a - 1) => [eqa1_sz /= |].
             rewrite eqa1_sz /= -/t -H1 (: size nodescl{hr} = 0) /=.
-            move: H3. rewrite eqa1_sz /nr_nodesf /= expr0. smt(size_ge0).
+            move: H5. 
+            rewrite eqa1_sz /nr_nodesf /= expr0. smt(size_ge0).
             rewrite drop0 take_size /nr_nodesf /= expr0 /=.
             rewrite -{3}(cat_take_drop (2 ^ (a - 1)) leaves{hr}).
             rewrite (list2treeS (a - 1)). smt(ge1_a).
-            rewrite size_take 1:expr_ge0 //=. admit. 
-            rewrite size_drop 1:expr_ge0 //=. admit.
+            rewrite size_take 1:expr_ge0 //=. rewrite H1 /t gt_exprsbde //=; smt(ge1_a).
+             
+            rewrite size_drop 1:expr_ge0 //=. rewrite H1 /t (: 2 ^ a = 2 * 2 ^ (a - 1)) 1:-{2}expr1 1:-exprD_nneg //. smt(ge1_a). 
+            
+            rewrite lez_maxr 1: (: 2 * 2 ^ (a - 1) = 2 ^ (a - 1) + 2 ^ (a - 1)) 1:/# /=. 
+            rewrite addrAC subrr /= 1:expr_ge0 //.
+            smt().
             rewrite /val_bt_trh_gen /trhi /= /trh /=.
             congr.
             smt().
-            admit.
-            case ( a = 1) => [a1 | an1].
+            smt(). 
+            case (a = 1) => [a1 | an1].
             rewrite -nth_last eqa1_sz a1 /= expr0 /= (nth_out leaves{hr}).
             smt(size_ge0).
             rewrite (: 1 = 0 + 1) // (take_nth witness) // 1:H1 1:expr_gt0 //=.
@@ -3361,7 +3371,12 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             congr. rewrite /nr_nodesf eqa1_sz mulrC. congr. rewrite -{2}expr1.
             congr. smt().
              rewrite /updhbidx /=. congr. congr. 
-            rewrite eqa1_sz. rewrite {1}(: 2 ^ (a - 1) = size (drop (2 ^ (a - 1)) leaves{hr})) 1:size_drop 1:expr_ge0 // 1:H1. admit.
+            rewrite eqa1_sz. rewrite {1}(: 2 ^ (a - 1) = size (drop (2 ^ (a - 1)) leaves{hr})) 1:size_drop 1:expr_ge0 // 1:H1. 
+            rewrite /t (: 2 ^ a = 2 * 2 ^ (a - 1)) 1:-{2}expr1 1:-exprD_nneg //. smt(ge1_a). 
+            
+            rewrite lez_maxr 1: (: 2 * 2 ^ (a - 1) = 2 ^ (a - 1) + 2 ^ (a - 1)) 1:/# /=. 
+            rewrite addrAC subrr /= 1:expr_ge0 //.
+            smt().
             by rewrite take_size. 
             
             rewrite /nr_nodesf eqa1_sz mulrC. congr.  congr.  congr. rewrite -{2}expr1. smt().
@@ -3373,7 +3388,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             rewrite take_take_drop_cat 1,2:expr_ge0 //=.
             rewrite drop_drop 1:expr_ge0 //= 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
             rewrite -nth_last.
-            rewrite (list2treeS (size nodes{hr})) 1:size_ge0. 1:size_take 1:expr_ge0 //=.
+            rewrite (list2treeS (size nodes{hr})) 1:size_ge0 1:size_take 1:expr_ge0 //=.
             rewrite size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
             rewrite H1 /t (: 2 ^ a = 2 ^ (a - size nodes{hr}) * 2 ^ (size nodes{hr})). rewrite -exprD_nneg 1:/# //. smt(size_ge0).
             rewrite mulzDr.
@@ -3381,13 +3396,80 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             suff t: 2 <= (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}).
             rewrite lez_maxr 1:mulr_ge0 1:/# 1:expr_ge0 //.
             have -> //: 2 ^ size nodes{hr} < (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}) * 2 ^ size nodes{hr}.
-            search (<) ( * ) edivz.
             rewrite -ltz_divLR 1:expr_gt0 //= 1:expz_div //= expr0 /#.
-            simplify. search edivz exp.
+            simplify.
             rewrite IntOrder.ler_subr_addr /=.
-            rewrite lez_eqVlt; right.
-            rewrite &(IntOrder.ltr_le_trans (2 + 2 * nr_nodesf (size nodes{hr} + 1))). smt(). 
-            rewrite /nr_nodesf -{2}expr1 -exprD_nneg //. smt().
+            rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{hr} + 1) - 1))). smt(). 
+            rewrite mulzDr /=.
+            rewrite /nr_nodesf -{1}expr1 -exprD_nneg //. smt(). smt().
+            rewrite size_take 1:expr_ge0 // size_drop 1:addr_ge0 1:expr_ge0 //= 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
+            rewrite H1 /t (: 2 ^ a = 2 ^ (a - size nodes{hr}) * 2 ^ (size nodes{hr})). rewrite -exprD_nneg 1:/# //. smt(size_ge0).
+            rewrite mulzDr.
+            rewrite (: 2 ^ (a - size nodes{hr}) * 2 ^ size nodes{hr} - (2 ^ size nodes{hr} + (size nodescl{hr} * 2 ^ size nodes{hr} + size nodescl{hr} * 2 ^ size nodes{hr})) = (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr} - 1) * 2 ^ size nodes{hr}) 1:/#.
+            suff /lez_eqVlt [<- /= | gt12a]: 1 <= (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr} - 1).
+            rewrite lez_maxr 1:expr_ge0 //.
+            rewrite lez_maxr 1:mulr_ge0 1:/# 1:expr_ge0 //.            
+            have -> //: 2 ^ size nodes{hr} < (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}- 1) * 2 ^ size nodes{hr}.
+            rewrite -{1}(mul1r (2 ^ (size nodes{hr}))) ltr_pmul2r 1:expr_gt0 //=.
+            rewrite ?ler_subr_addr /=.
+            rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{hr} + 1) - 1))). smt(). 
+            rewrite mulzDr /=.
+            rewrite /nr_nodesf -{1}expr1 -exprD_nneg //. smt(). smt().
+            rewrite /val_bt_trh_gen /trhi /trh /=.
+            congr. smt().
+            smt(). 
+            case (nodes{hr} = []) => [dda | dda].
+            rewrite dda /= ?expr0 /=.
+            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness).
+            rewrite size_drop. smt(size_ge0).
+            suff /# : 0 < size leaves{hr} - size nodescl{hr} * 2.
+            rewrite ltr_subr_addr /=.
+            rewrite (IntOrder.ltr_le_trans (nr_nodesf (size nodes{hr} + 1) * 2)) 1:/# -(expr1 2) /nr_nodesf -exprD_nneg 1:/# //. 
+            rewrite H1 /t //. smt(ge1_a size_eq0).
+     
+            
+            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
+            congr => [/#|].
+            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness). rewrite size_drop /=. smt(size_ge0).
+            suff /# : 0 < size leaves{hr} - 1 - size nodescl{hr} * 2.
+            rewrite ?ltr_subr_addr /=.
+            rewrite (IntOrder.ltr_le_trans (nr_nodesf (size nodes{hr} + 1) * 2)) 1:/# -(expr1 2) /nr_nodesf -exprD_nneg 1:/# //. 
+            rewrite H1 /t //. smt(ge1_a size_eq0).
+            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
+            congr => /#. 
+            rewrite -(nth_change_dfl leaves{hr} witness). smt(size_eq0 size_ge0).
+            rewrite ?H; 1,3: smt(size_eq0 size_ge0 IntOrder.expr_ge0).
+            rewrite mulr_ge0 //=.
+            rewrite (IntOrder.ltr_le_trans (2 * nr_nodesf (size nodes{hr} + 1))) 1:/# /nr_nodesf -{1}expr1 -exprD_nneg //. smt(size_ge0). smt(size_ge0).
+            split => [|_]; 1: smt(size_ge0).
+            rewrite -ltr_subr_addr /=.
+            
+            rewrite (IntOrder.ler_lt_trans (2 * (nr_nodesf (size nodes{hr} + 1) - 1))) 1:/# mulzDr /nr_nodesf -{1}expr1 /= -exprD_nneg // 1:/#.
+            smt().
+            simplify.
+            rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=. congr.
+            congr. congr. do 3!
+           congr. smt().
+           congr.  rewrite mulzDr. congr.
+           
+           rewrite mulrA mulrAC mulrC. congr. 
+           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
+           smt(ge1_a).
+           smt().
+            congr. congr. do 3!
+           congr. smt().
+           congr.  rewrite mulzDr. 
+           rewrite addrA. congr. congr.
+           rewrite mulrA mulrAC mulrC. congr. 
+           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
+           smt(ge1_a).
+           smt().
+           smt(size_rcons).
+(*         
+            admit.
+              search (_ * _ < _ * _)%Int.
+            rewrite -ltz_divLR 1:expr_gt0 //= 1:expz_div //= expr0 /#.
+            
              admit.
               
             rewrite /nr_nodesf. admit. admit.
@@ -3438,6 +3520,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
            smt(ge1_a).
            smt().
            smt(size_rcons).
+           *)
           wp; skip => />.
           progress.
           smt().
@@ -3447,7 +3530,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
           by rewrite H //.
           have eqiszn : i = size nodes{hr} by smt(size_rcons).
           
-          rewrite eqiszn /= H4.
+          rewrite eqiszn /= H6.
           suff : nr_nodesf (i + 1) <= nr_nodesf (size nodes{hr} + 1). smt(). smt(). trivial.
           smt(size_rcons).
           smt(size_rcons).

@@ -3465,62 +3465,6 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
            smt(ge1_a).
            smt().
            smt(size_rcons).
-(*         
-            admit.
-              search (_ * _ < _ * _)%Int.
-            rewrite -ltz_divLR 1:expr_gt0 //= 1:expz_div //= expr0 /#.
-            
-             admit.
-              
-            rewrite /nr_nodesf. admit. admit.
-            suff : 1 < (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}).  admit. admit.
-            rewrite size_take 1:expr_ge0 //= size_drop. admit.
-(* (if 2 ^ size nodes{hr} <
-    max 0
-      (size leaves{hr} -
-       (2 ^ size nodes{hr} + size nodescl{hr} * (2 ^ size nodes{hr} + 2 ^ size nodes{hr}))) then
-   2 ^ size nodes{hr}
- else
-   max 0
-     (size leaves{hr} -
-      (2 ^ size nodes{hr} + size nodescl{hr} * (2 ^ size nodes{hr} + 2 ^ size nodes{hr})))) =
-2 ^ size nodes{hr}
-*)
-            admit.
-            rewrite /val_bt_trh_gen /= /trhi /trh /=. 
-            congr. smt(). admit. 
-            case (nodes{hr} = []) => [dda | dda].
-            rewrite dda /= ?expr0 /=.
-            search take nth.
-            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness). admit.
-            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
-            congr => [/#|].
-            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness). admit.
-            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
-            congr => /#. 
-            rewrite -nth_last -(nth_change_dfl leaves{hr} witness). smt(size_eq0 size_ge0).
-            rewrite ?H; 1,3: smt(size_eq0 size_ge0 IntOrder.expr_ge0).
-            admit.
-            admit.
-            rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=. congr.
-            congr. congr. do 3!
-           congr. smt().
-           congr.  rewrite mulzDr. congr.
-           
-           rewrite mulrA mulrAC mulrC. congr. 
-           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
-           smt(ge1_a).
-           smt().
-            congr. congr. do 3!
-           congr. smt().
-           congr.  rewrite mulzDr. 
-           rewrite addrA. congr. congr.
-           rewrite mulrA mulrAC mulrC. congr. 
-           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
-           smt(ge1_a).
-           smt().
-           smt(size_rcons).
-           *)
           wp; skip => />.
           progress.
           smt().
@@ -3619,7 +3563,7 @@ seq 10 14: (   #pre
                   =
                   let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
                   let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-                  let adlt = set_ltidx ad{2} j ti in
+                  let adlt = set_ltidx ad{2} (j - 1) ti in
                   let rt = (if j = 0
                             then nth witness ml{2} i 
                             else FSSLXMTWES.val_bt_trh ps{2} (set_typeidx adlt trhxtype)
@@ -3629,13 +3573,13 @@ seq 10 14: (   #pre
                                                                     cf ps{2} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
                                                                        (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
                     DBLL.insubd (mkseq (fun (v : int) => 
-                      cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} j ti) chtype) ki) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
-                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) ti) ki)) v))) len))
+                      cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
             /\ (forall (i j : int), 0 <= i < l => 0 <= j < d =>
                   (nth witness (val (nth witness sigl{2} i)) j).`2
                   =
-                  let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
-                  let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
+                  let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`1 in
+                  let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`2 in
                   let adlt = set_ltidx ad{2} j ti in
                   let lfs = mkseq (fun (u : int) => 
                                       pkco ps{2} (set_kpidx (set_typeidx adlt pkcotype) u)
@@ -3644,44 +3588,210 @@ seq 10 14: (   #pre
                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) ti) u)) v))) len)))) l' in
                     FSSLXMTWES.cons_ap_trh ps{2} (set_typeidx (set_ltidx ad{2} j ti) trhxtype) (list2tree lfs) ki)).
 + wp 6 9 => /=.
-  while{2} ((forall (i j : int), 0 <= i < size sigl{2} => 0 <= j < d =>
-              (nth witness (val (nth witness sigl{2} i)) j).`1
-              =
-              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
-              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-              let adlt = set_ltidx sk{2}.`3 j ti in
-              let rt = (if j = 0
-                        then nth witness ml{2} i 
-                        else FSSLXMTWES.val_bt_trh sk{2}.`2 (set_typeidx adlt trhxtype)
-                                                   (list2tree (mkseq (fun (u : int) => 
-                                                       pkco sk{2}.`2 (set_kpidx (set_typeidx adlt pkcotype) u)
-                                                            (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
-                                                                cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
-                DBLL.insubd (mkseq (fun (v : int) => 
-                  cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx (set_ltidx sk{2}.`3 j ti) chtype) ki) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
-                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) ti) ki)) v))) len))
-        /\ (forall (i j : int), 0 <= i < size sigl{2} => 0 <= j < d =>
-              (nth witness (val (nth witness sigl{2} i)) j).`2
-              =
-              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
-              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-              let adlt = set_ltidx sk{2}.`3 j ti in
-              let lfs = mkseq (fun (u : int) => 
-                                  pkco sk{2}.`2 (set_kpidx (set_typeidx adlt pkcotype) u)
-                                       (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
-                                           cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                              (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) ti) u)) v))) len)))) l' in
-                FSSLXMTWES.cons_ap_trh sk{2}.`2 (set_typeidx (set_ltidx sk{2}.`3 j ti) trhxtype) (list2tree lfs) ki)
-        /\ size sigl{2} <= l)
+  while{2} (   skWOTStd{2} = EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2}
+            /\ (forall (i j : int), 0 <= i < size sigl{2} => 0 <= j < d =>
+                (nth witness (val (nth witness sigl{2} i)) j).`1
+                =
+                let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
+                let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
+                let adlt = set_ltidx sk{2}.`3 (j - 1) ti in
+                let rt = (if j = 0
+                          then nth witness ml{2} i 
+                          else FSSLXMTWES.val_bt_trh sk{2}.`2 (set_typeidx adlt trhxtype)
+                                                     (list2tree (mkseq (fun (u : int) => 
+                                                         pkco sk{2}.`2 (set_kpidx (set_typeidx adlt pkcotype) u)
+                                                              (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                                                  cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                                                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                  DBLL.insubd (mkseq (fun (v : int) => 
+                    cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx (set_ltidx sk{2}.`3 j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                       (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
+            /\ (forall (i j : int), 0 <= i < size sigl{2} => 0 <= j < d =>
+                  (nth witness (val (nth witness sigl{2} i)) j).`2
+                  =
+                  let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`1 in
+                  let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`2 in
+                  let adlt = set_ltidx sk{2}.`3 j ti in
+                  let lfs = mkseq (fun (u : int) => 
+                                      pkco sk{2}.`2 (set_kpidx (set_typeidx adlt pkcotype) u)
+                                           (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                               cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                                  (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) ti) u)) v))) len)))) l' in
+                    FSSLXMTWES.cons_ap_trh sk{2}.`2 (set_typeidx (set_ltidx sk{2}.`3 j ti) trhxtype) (list2tree lfs) ki)
+            /\ size sigl{2} <= l)
            (l - size sigl{2}).
-  - admit.
+  - move=> ? z.
+    inline 2.
+    wp => /=.
+    while (   (size sapl < d => 
+                   tidx = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) (size sapl)).`1
+                /\ kpidx0 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) (size sapl)).`2)
+           /\ root1
+              = 
+              (if size sapl = 0
+               then nth witness ml (size sigl) 
+               else FSSLXMTWES.val_bt_trh ps1 (set_typeidx (set_ltidx ad1 (size sapl - 1) tidx) trhxtype)
+                                         (list2tree (mkseq (fun (u : int) => 
+                                             pkco ps1 (set_kpidx (set_typeidx (set_ltidx ad1 (size sapl - 1) tidx) pkcotype) u)
+                                                  (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                                      cf ps1 (set_chidx (set_kpidx (set_typeidx (set_ltidx ad1 (size sapl - 1) tidx) chtype) u) v) 0 (w - 1) 
+                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (size sapl - 1)) tidx) u)) v))) len)))) l')) h' 0)
+           /\ (forall (j : int), 0 <= j < size sapl =>
+              (nth witness sapl j).`1
+              =
+              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) j).`1 in
+              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) j).`2 in
+              let adlt = set_ltidx ad1 (j - 1) ti in
+              let rt = (if j = 0
+                        then nth witness ml (size sigl) 
+                        else FSSLXMTWES.val_bt_trh ps1 (set_typeidx adlt trhxtype)
+                                                   (list2tree (mkseq (fun (u : int) => 
+                                                       pkco ps1 (set_kpidx (set_typeidx adlt pkcotype) u)
+                                                            (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                                                cf ps1 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                DBLL.insubd (mkseq (fun (v : int) => 
+                  cf ps1 (set_chidx (set_kpidx (set_typeidx (set_ltidx ad1 j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 j) (ti %/ l')) (ti %% l'))) v))) len))
+            /\ (forall (j : int), 0 <= j < size sapl =>
+                  (nth witness sapl j).`2
+                  =
+                  let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) (j + 1)).`1 in
+                  let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (size sigl, 0) (j + 1)).`2 in
+                  let adlt = set_ltidx ad1 j ti in
+                  let lfs = mkseq (fun (u : int) => 
+                                      pkco ps1 (set_kpidx (set_typeidx adlt pkcotype) u)
+                                           (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                               cf ps1 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
+                                                  (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 j) ti) u)) v))) len)))) l' in
+                    FSSLXMTWES.cons_ap_trh ps1 (set_typeidx (set_ltidx ad1 j ti) trhxtype) (list2tree lfs) ki)
+            /\ size sigl < l
+            /\ size sapl <= d)
+           (d - size sapl).
+    * move => z'.
+      inline 5.
+      wp => /=.
+      while (leaves2
+             =
+             mkseq (fun (u : int) => 
+                      pkco ps2 (set_kpidx (set_typeidx ad2 pkcotype) u)
+                           (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                               cf ps2 (set_chidx (set_kpidx (set_typeidx ad2 chtype) u) v) 0 (w - 1) 
+                                  (val (nth witness (val (nth witness skWOTSl u)) v))) len)))) (size leaves2)
+             /\ size leaves2 <= l')
+            (l' - size leaves2).
+      + move=> z''.
+        inline 2.
+        wp => /=.
+        while (   pkWOTS0
+                  =
+                  mkseq (fun (v : int) => 
+                               cf ps3 (set_chidx ad3 v) 0 (w - 1) 
+                                  (val (nth witness (val skWOTS2) v))) (size pkWOTS0)
+               /\ size pkWOTS0 <= len)
+              (len - size pkWOTS0).
+        - move=> z'''.
+          by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
+        wp; skip => />.
+        progress.
+        rewrite mkseq0 //.
+        smt(ge2_len).
+        smt(ge2_len).
+        rewrite size_rcons mkseqS; 1: smt(size_ge0).
+        do ? congr => /=.
+        do ? congr.
+        rewrite insubdK 1:/#.
+        rewrite H3.
+        by congr => /#.
+        smt(size_rcons).
+        smt(size_rcons).
+      inline 4.
+      wp => /=.
+      while (   sig1
+                =
+                mkseq (fun (v : int) => 
+                         cf ps3 (set_chidx ad3 v) 0 (BaseW.val em.[v]) 
+                            (val (nth witness (val skWOTS2) v))) (size sig1)
+             /\ size sig1 <= len)
+            (len - size sig1).
+      + move => z''.
+        by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
+      wp; skip => />.
+      progress.
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0).
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
+      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
+      rewrite size_rcons.
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite foldS //=.
+      rewrite size_rcons.
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite foldS //=.
+      
+      rewrite ?nth_rcons ?size_rcons (: !size sapl{hr} + 1 = 0) /=; 1: smt(size_ge0).
+      do 2! congr.
+      rewrite H9.
+      congr => /#.
+      rewrite ?nth_rcons ?size_rcons /=.
+      case (j < size sapl{hr}) => ?.
+      by rewrite H0 //.
+      rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
+      congr.
+      rewrite H6.
+      congr => [|/#].
+      rewrite fun_ext => v.
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite ?foldS //=.       
+      rewrite ?nth_rcons ?size_rcons /=.
+      case (j < size sapl{hr}) => ?.
+      by rewrite H1 //.
+      rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
+      congr.
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite ?foldS //=.       
+      congr.
+      rewrite H9.
+      congr => [|/#].
+      rewrite fun_ext => u.
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite ?foldS //=.       
+      move: (H _); 1: smt(size_rcons).
+      move=> [-> _ /=].
+      rewrite ?foldS //=.       
+      smt(size_rcons).
+      smt(size_rcons).
+    wp; skip => />.
+    progress. 
+    rewrite insubdK. smt(size_ge0).
+    rewrite fold0 //=.
+    rewrite fold0 //=.
+    smt(). smt(ge1_l ge1_d). smt(ge1_l ge1_d). smt(ge1_l ge1_d).
+    rewrite ?nth_rcons ?size_rcons.
+    case (i < size sigl{hr}) => ?.
+    by rewrite H //.
+    rewrite (: i = size sigl{hr}) /=; 1: smt(size_rcons).
+    rewrite insubdK 1:/# H4 //=. smt().
+    rewrite ?nth_rcons ?size_rcons.
+    case (i < size sigl{hr}) => ?.
+    by rewrite H0 //.
+    rewrite (: i = size sigl{hr}) /=; 1: smt(size_rcons).
+    rewrite insubdK 1:/# H5 //= /#.
+    smt(size_rcons).
+    by smt(size_rcons).
   wp => /=.
   call (: true); 1: by sim.
   wp; skip => /> &2 nthpkf szpkf allszpkf.
   split => [| sigl]; 1: smt(ge1_l).
   split => [/# | /lezNgt gel_szsigl nthsigl1 nthsigl2 lel_szsigl].
-  by split => *; [rewrite nthsigl1 // | rewrite nthsigl2 //] => /#.
+  by split => *; [rewrite nthsigl1 // | rewrite nthsigl2 //] => // /#.
 inline{1} 14; inline{2} 7.  
 conseq (: _ 
           ==> 
@@ -3746,7 +3856,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
             =
             let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
             let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
-            let adlt = set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti in
+            let adlt = set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} (j - 1) ti in
             let rt = (if j = 0
                       then nth witness (flatten R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) i 
                       else FSSLXMTWES.val_bt_trh R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_typeidx adlt trhxtype)
@@ -3756,13 +3866,13 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                                               cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
                                                                  (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
               DBLL.insubd (mkseq (fun (v : int) => 
-                cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti) chtype) ki) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
-                   (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} j) ti) ki)) v))) len))
+                cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                   (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
       /\ (forall (i j : int), 0 <= i < l => 0 <= j < d =>
             (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} i)) j).`2
             =
-            let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`1 in
-            let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) j).`2 in
+            let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`1 in
+            let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (i, 0) (j + 1)).`2 in
             let adlt = set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j ti in
             let lfs = mkseq (fun (u : int) => 
                                 pkco R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_kpidx (set_typeidx adlt pkcotype) u)
@@ -3785,12 +3895,25 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     by if => //=; auto.    
   inline{1} 2; inline{1} 1.
   wp => /=.
-  while{1} ((forall (j : int), 0 <= j < size sapl{1} =>
+  while{1} ((size sapl{1} < d => 
+                   tidx0{1} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) (size sapl{1})).`1
+                /\ kpidx0{1} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) (size sapl{1})).`2)
+           /\ root{1}
+              = 
+              (if size sapl{1} = 0
+               then m0{1} 
+               else FSSLXMTWES.val_bt_trh ps0{1} (set_typeidx (set_ltidx ad0{1} (size sapl{1} - 1) tidx0{1}) trhxtype)
+                                         (list2tree (mkseq (fun (u : int) => 
+                                             pkco ps0{1} (set_kpidx (set_typeidx (set_ltidx ad0{1} (size sapl{1} - 1) tidx0{1}) pkcotype) u)
+                                                  (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                                                      cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} (size sapl{1} - 1) tidx0{1}) chtype) u) v) 0 (w - 1) 
+                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (size sapl{1} - 1)) tidx0{1}) u)) v))) len)))) l')) h' 0)
+           /\ (forall (j : int), 0 <= j < size sapl{1} =>
               (nth witness sapl{1} j).`1
               =
               let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`1 in
               let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`2 in
-              let adlt = set_ltidx ad0{1} j ti in
+              let adlt = set_ltidx ad0{1} (j - 1) ti in
               let rt = (if j = 0
                         then m0{1} 
                         else FSSLXMTWES.val_bt_trh ps0{1} (set_typeidx adlt trhxtype)
@@ -3800,13 +3923,13 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                                                 cf ps0{1} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
                                                                    (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
                 DBLL.insubd (mkseq (fun (v : int) => 
-                  cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} j ti) chtype) ki) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
-                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} j) ti) ki)) v))) len))
+                  cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
+                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} j) (ti %/ l')) (ti %% l'))) v))) len))
         /\ (forall (j : int), 0 <= j < size sapl{1} =>
               (nth witness sapl{1} j).`2
               =
-              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`1 in
-              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) j).`2 in
+              let ti = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) (j + 1)).`1 in
+              let ki = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx{1}, 0) (j + 1)).`2 in
               let adlt = set_ltidx ad0{1} j ti in
               let lfs = mkseq (fun (u : int) => 
                                   pkco ps0{1} (set_kpidx (set_typeidx adlt pkcotype) u)
@@ -3816,7 +3939,105 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                 FSSLXMTWES.cons_ap_trh ps0{1} (set_typeidx (set_ltidx ad0{1} j ti) trhxtype) (list2tree lfs) ki)
         /\ size sapl{1} <= d)
            (d - size sapl{1}).
-  - admit.
+  - move=> _ z.
+    inline 5.
+    wp => /=.
+    while (leaves1
+           =
+           mkseq (fun (u : int) => 
+                    pkco ps2 (set_kpidx (set_typeidx ad2 pkcotype) u)
+                         (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
+                             cf ps2 (set_chidx (set_kpidx (set_typeidx ad2 chtype) u) v) 0 (w - 1) 
+                                (val (nth witness (val (nth witness skWOTSl u)) v))) len)))) (size leaves1)
+           /\ size leaves1 <= l')
+          (l' - size leaves1).
+    * move=> z''.
+      inline 2.
+      wp => /=.
+      while (   pkWOTS0
+                =
+                mkseq (fun (v : int) => 
+                             cf ps3 (set_chidx ad3 v) 0 (w - 1) 
+                                (val (nth witness (val skWOTS2) v))) (size pkWOTS0)
+             /\ size pkWOTS0 <= len)
+            (len - size pkWOTS0).
+      + move=> z'''.
+        by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
+      wp; skip => />.
+      progress.
+      rewrite mkseq0 //.
+      smt(ge2_len).
+      smt(ge2_len).
+      rewrite size_rcons mkseqS; 1: smt(size_ge0).
+      do ? congr => /=.
+      do ? congr.
+      rewrite insubdK 1:/#.
+      rewrite H3.
+      by congr => /#.
+      smt(size_rcons).
+      smt(size_rcons).
+    inline 4.
+    wp => /=.
+    while (   sig0
+              =
+              mkseq (fun (v : int) => 
+                       cf ps3 (set_chidx ad3 v) 0 (BaseW.val em.[v]) 
+                          (val (nth witness (val skWOTS2) v))) (size sig0)
+           /\ size sig0 <= len)
+          (len - size sig0).
+    * move => z''.
+      by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
+    wp; skip => />.
+    progress.
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0).
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
+    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
+    rewrite size_rcons.
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    rewrite size_rcons.
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    rewrite size_rcons (: ! size sapl{hr} + 1 = 0) /=; 1: smt(size_ge0).
+    do 2! congr.
+    rewrite H8.
+    by congr; smt().
+    rewrite ?nth_rcons ?size_rcons /=.
+    case (j < size sapl{hr}) => ?.
+    by rewrite H0 //.
+    rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
+    congr.
+    rewrite H5.
+    congr => [|/#].
+    rewrite fun_ext => v.
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    rewrite ?nth_rcons ?size_rcons /=.
+    case (j < size sapl{hr}) => ?.
+    by rewrite H1 //.
+    rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
+    congr.
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    congr.
+    rewrite H8.
+    congr => [|/#]. 
+    rewrite fun_ext => u.
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    move: (H _); 1: smt(size_rcons).
+    move=> [-> _ /=].
+    rewrite ?foldS //=.       
+    smt(size_rcons).
+    smt(size_rcons).
   wp => /=.
   while{1} (roots{1} 
             =  
@@ -3851,6 +4072,8 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
   progress. rewrite mkseq0 //.
   smt(ge1_k).
   smt(ge1_k).
+  rewrite fold0 //.
+  rewrite fold0 //.
   smt(ge1_k).
   smt(ge1_k).
   smt(ge1_d).
@@ -3863,7 +4086,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
   split.
   rewrite H0 1:valP // H8 // 1:/#.
   do 2! congr. rewrite fun_ext => v /=.
-  do 5! congr.
+  do ? congr.
   rewrite eq_sym.
   have {1}->:
     val idx{2}
@@ -3879,11 +4102,21 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
       by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
     by rewrite mulrC -divz_eq.
   rewrite nth_flatten.
-  + admit.
-  + admit.
+  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+    by rewrite H2 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
+  + rewrite modz_ge0 /=; 1: smt(ge1_lp). 
+    pose nr := nth _ _ _.
+    move/allP: H3 => /(_ nr) @/nr.
+    rewrite /(\o) mem_nth /=.
+    rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+    by rewrite H2 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+    move=> <-; rewrite ltz_pmod; smt(ge1_lp).
   rewrite H.
-  + admit. admit.
-  do 2! congr. admit.  
+  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+  + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp). 
+  do 2! congr. 
+  + admit.  
   rewrite H5.
   by do 2! congr; smt().
   by rewrite H1 ?valP // H9 // /#.
@@ -3908,12 +4141,21 @@ have {1}->:
     by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
   by rewrite mulrC -divz_eq.
 rewrite nth_flatten.
-+ admit.
-+ admit.
++ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+  by rewrite H0 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
++ rewrite modz_ge0 /=; 1: smt(ge1_lp). 
+  pose nr := nth _ _ _.
+  move/allP: H1 => /(_ nr) @/nr.
+  rewrite /(\o) mem_nth /=.
+  rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+  by rewrite H0 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+  move=> <-; rewrite ltz_pmod; smt(ge1_lp).
 rewrite H4.
++ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+  by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
++ rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
+congr.
 + admit.
-+ admit.
-congr; 1: admit.
 do 2! congr.
 rewrite H6.
 congr; 2: smt().

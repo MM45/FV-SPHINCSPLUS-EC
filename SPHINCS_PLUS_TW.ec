@@ -3125,7 +3125,6 @@ admit.
 qed.
 *)
 
-print EUF_NAGCMA_FLSLXMSSMTTWESNPRF.
 local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV = {
   var skWOTStd : skWOTS list list list
   
@@ -3298,7 +3297,6 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         nth witness (nth witness nodes{2} i) j
                         =
                         let leavesp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaves{2}) in
-                        (*let st = oget (sub_bt (list2tree leaves{2}) (rev (int2bs j (a - (i + 1))))) in*)
                           FTWES.val_bt_trh_gen ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) (size pkFORSlp{2})) (list2tree leavesp) (i + 1) (size skFORS{2} * nr_nodesf (i + 1) + j))
                   /\ size leaves{2} = t 
                   /\ size nodes{2} <= a
@@ -3314,13 +3312,11 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         nth witness (nth witness nodes i) j
                         =
                         let leavesp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaves) in
-                        (* let st = oget (sub_bt (list2tree leaves) (rev (int2bs j (a - (i + 1))))) in *)
                           FTWES.val_bt_trh_gen ps (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt)) (size pkFORSlp)) (list2tree leavesp) (i + 1) (size skFORS * nr_nodesf (i + 1) + j))
                  /\ (forall (j : int),  0 <= j < size nodescl =>
                        nth witness nodescl j
                        =
                        let leavesp = take (2 ^ (size nodes + 1)) (drop (j * (2 ^ (size nodes + 1))) leaves) in 
-                        (*let st =  oget (sub_bt (list2tree leaves) (rev (int2bs j (a - (size nodes + 1))))) in*)
                           FTWES.val_bt_trh_gen ps (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt)) (size pkFORSlp)) (list2tree leavesp) (size nodes + 1) (size skFORS * nr_nodesf (size nodes + 1) + j))                  
                  /\ size leaves = t
                  /\ size nodes < a
@@ -3329,155 +3325,67 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                 (nr_nodesf (size nodes + 1) - size nodescl).
           * move=> z'.
             inline 3.
-            wp; skip => />.
-            progress.
-            rewrite ?nth_rcons.
-            case (j < size nodescl{hr}) => ?.
-            by rewrite H0 //.
-            have eqiszn : j = size nodescl{hr} by smt(size_rcons).
-            rewrite eqiszn /=.
-            rewrite size_cat ?valP /=.
-            case (size nodes{hr} = a - 1) => [eqa1_sz /= |].
-            rewrite eqa1_sz /= -/t -H1 (: size nodescl{hr} = 0) /=.
-            move: H5. 
-            rewrite eqa1_sz /nr_nodesf /= expr0. smt(size_ge0).
-            rewrite drop0 take_size /nr_nodesf /= expr0 /=.
-            rewrite -{3}(cat_take_drop (2 ^ (a - 1)) leaves{hr}).
-            rewrite (list2treeS (a - 1)). smt(ge1_a).
-            rewrite size_take 1:expr_ge0 //=. rewrite H1 /t gt_exprsbde //=; smt(ge1_a).
-             
-            rewrite size_drop 1:expr_ge0 //=. rewrite H1 /t (: 2 ^ a = 2 * 2 ^ (a - 1)) 1:-{2}expr1 1:-exprD_nneg //. smt(ge1_a). 
-            
-            rewrite lez_maxr 1: (: 2 * 2 ^ (a - 1) = 2 ^ (a - 1) + 2 ^ (a - 1)) 1:/# /=. 
-            rewrite addrAC subrr /= 1:expr_ge0 //.
-            smt().
-            rewrite /val_bt_trh_gen /trhi /= /trh /=.
-            congr.
-            smt().
-            smt(). 
-            case (a = 1) => [a1 | an1].
-            rewrite -nth_last eqa1_sz a1 /= expr0 /= (nth_out leaves{hr}).
-            smt(size_ge0).
-            rewrite (: 1 = 0 + 1) // (take_nth witness) // 1:H1 1:expr_gt0 //=.
-            rewrite take0 /= list2tree1 //=.
-            congr.
-            rewrite (drop_nth witness). rewrite H1 /t a1 expr1 //.
-            rewrite drop_oversize. rewrite H1 /t a1 expr1 //.
-            rewrite list2tree1 //.
-            rewrite -nth_last -(nth_change_dfl leaves{hr} witness). smt(size_eq0 size_ge0). rewrite ?H.  smt(size_eq0 size_ge0). rewrite /nr_nodesf /= expr_gt0 //.  smt(size_eq0 size_ge0). rewrite /nr_nodesf /= eqa1_sz exprn_egt1 //.
-            smt(). smt(). simplify.
-            rewrite /val_bt_trh_gen /trhi /trh /= drop0 /=. congr. 
-            rewrite /updhbidx /=. congr. congr. smt().
-            congr. rewrite /nr_nodesf eqa1_sz mulrC. congr. rewrite -{2}expr1.
-            congr. smt().
-             rewrite /updhbidx /=. congr. congr. 
-            rewrite eqa1_sz. rewrite {1}(: 2 ^ (a - 1) = size (drop (2 ^ (a - 1)) leaves{hr})) 1:size_drop 1:expr_ge0 // 1:H1. 
-            rewrite /t (: 2 ^ a = 2 * 2 ^ (a - 1)) 1:-{2}expr1 1:-exprD_nneg //. smt(ge1_a). 
-            
-            rewrite lez_maxr 1: (: 2 * 2 ^ (a - 1) = 2 ^ (a - 1) + 2 ^ (a - 1)) 1:/# /=. 
-            rewrite addrAC subrr /= 1:expr_ge0 //.
-            smt().
-            by rewrite take_size. 
-            
-            rewrite /nr_nodesf eqa1_sz mulrC. congr.  congr.  congr. rewrite -{2}expr1. smt().
-            move => neqa1_szn.
-            have ltaq_szn : size nodes{hr} < a - 1 by smt().
-            
-            rewrite (: 2 ^ (size nodes{hr} + 1) = 2 ^ (size nodes{hr}) + 2 ^ (size nodes{hr})).
-            rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
+            wp; skip => /> &2 nthnds nthndscl eqt_szlfs lta_sznds eqszpksknt eqszpksklp ltnrn_szndscl.
+            split => [j|]; 2: by smt(size_rcons).
+            rewrite ?nth_rcons ?size_rcons => ge0_j ltsznds1_j.
+            case (j < size nodescl{2}) => [?| /lezNgt geszj]; 1: by rewrite nthndscl.
+            have eqszj : j = size nodescl{2} by smt(size_rcons).
+            rewrite eqszj /= size_cat ?valP /= (: 2 ^ (size nodes{2} + 1) = 2 ^ (size nodes{2}) + 2 ^ (size nodes{2})).
+            + by rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
             rewrite take_take_drop_cat 1,2:expr_ge0 //=.
             rewrite drop_drop 1:expr_ge0 //= 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
-            rewrite -nth_last.
-            rewrite (list2treeS (size nodes{hr})) 1:size_ge0 1:size_take 1:expr_ge0 //=.
-            rewrite size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
-            rewrite H1 /t (: 2 ^ a = 2 ^ (a - size nodes{hr}) * 2 ^ (size nodes{hr})). rewrite -exprD_nneg 1:/# //. smt(size_ge0).
-            rewrite mulzDr.
-            rewrite (: 2 ^ (a - size nodes{hr}) * 2 ^ size nodes{hr} - (size nodescl{hr} * 2 ^ size nodes{hr} + size nodescl{hr} * 2 ^ size nodes{hr}) = (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}) * 2 ^ size nodes{hr}) 1:/#.
-            suff t: 2 <= (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}).
-            rewrite lez_maxr 1:mulr_ge0 1:/# 1:expr_ge0 //.
-            have -> //: 2 ^ size nodes{hr} < (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}) * 2 ^ size nodes{hr}.
-            rewrite -ltz_divLR 1:expr_gt0 //= 1:expz_div //= expr0 /#.
-            simplify.
-            rewrite IntOrder.ler_subr_addr /=.
-            rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{hr} + 1) - 1))). smt(). 
-            rewrite mulzDr /=.
-            rewrite /nr_nodesf -{1}expr1 -exprD_nneg //. smt(). smt().
-            rewrite size_take 1:expr_ge0 // size_drop 1:addr_ge0 1:expr_ge0 //= 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
-            rewrite H1 /t (: 2 ^ a = 2 ^ (a - size nodes{hr}) * 2 ^ (size nodes{hr})). rewrite -exprD_nneg 1:/# //. smt(size_ge0).
-            rewrite mulzDr.
-            rewrite (: 2 ^ (a - size nodes{hr}) * 2 ^ size nodes{hr} - (2 ^ size nodes{hr} + (size nodescl{hr} * 2 ^ size nodes{hr} + size nodescl{hr} * 2 ^ size nodes{hr})) = (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr} - 1) * 2 ^ size nodes{hr}) 1:/#.
-            suff /lez_eqVlt [<- /= | gt12a]: 1 <= (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr} - 1).
-            rewrite lez_maxr 1:expr_ge0 //.
-            rewrite lez_maxr 1:mulr_ge0 1:/# 1:expr_ge0 //.            
-            have -> //: 2 ^ size nodes{hr} < (2 ^ (a - size nodes{hr}) - 2 * size nodescl{hr}- 1) * 2 ^ size nodes{hr}.
-            rewrite -{1}(mul1r (2 ^ (size nodes{hr}))) ltr_pmul2r 1:expr_gt0 //=.
-            rewrite ?ler_subr_addr /=.
-            rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{hr} + 1) - 1))). smt(). 
-            rewrite mulzDr /=.
-            rewrite /nr_nodesf -{1}expr1 -exprD_nneg //. smt(). smt().
-            rewrite /val_bt_trh_gen /trhi /trh /=.
-            congr. smt().
-            smt(). 
-            case (nodes{hr} = []) => [dda | dda].
-            rewrite dda /= ?expr0 /=.
-            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness).
-            rewrite size_drop. smt(size_ge0).
-            suff /# : 0 < size leaves{hr} - size nodescl{hr} * 2.
-            rewrite ltr_subr_addr /=.
-            rewrite (IntOrder.ltr_le_trans (nr_nodesf (size nodes{hr} + 1) * 2)) 1:/# -(expr1 2) /nr_nodesf -exprD_nneg 1:/# //. 
-            rewrite H1 /t //. smt(ge1_a size_eq0).
-     
-            
-            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
-            congr => [/#|].
-            rewrite {2}(: 1 = 0 + 1) 1:// (take_nth witness). rewrite size_drop /=. smt(size_ge0).
-            suff /# : 0 < size leaves{hr} - 1 - size nodescl{hr} * 2.
-            rewrite ?ltr_subr_addr /=.
-            rewrite (IntOrder.ltr_le_trans (nr_nodesf (size nodes{hr} + 1) * 2)) 1:/# -(expr1 2) /nr_nodesf -exprD_nneg 1:/# //. 
-            rewrite H1 /t //. smt(ge1_a size_eq0).
-            rewrite take0 /= list2tree1 /= nth_drop //=. smt(size_ge0).
-            congr => /#. 
-            rewrite -(nth_change_dfl leaves{hr} witness). smt(size_eq0 size_ge0).
-            rewrite ?H; 1,3: smt(size_eq0 size_ge0 IntOrder.expr_ge0).
-            rewrite mulr_ge0 //=.
-            rewrite (IntOrder.ltr_le_trans (2 * nr_nodesf (size nodes{hr} + 1))) 1:/# /nr_nodesf -{1}expr1 -exprD_nneg //. smt(size_ge0). smt(size_ge0).
-            split => [|_]; 1: smt(size_ge0).
-            rewrite -ltr_subr_addr /=.
-            
-            rewrite (IntOrder.ler_lt_trans (2 * (nr_nodesf (size nodes{hr} + 1) - 1))) 1:/# mulzDr /nr_nodesf -{1}expr1 /= -exprD_nneg // 1:/#.
-            smt().
-            simplify.
-            rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=. congr.
-            congr. congr. do 3!
-           congr. smt().
-           congr.  rewrite mulzDr. congr.
-           
-           rewrite mulrA mulrAC mulrC. congr. 
-           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
-           smt(ge1_a).
-           smt().
-            congr. congr. do 3!
-           congr. smt().
-           congr.  rewrite mulzDr. 
-           rewrite addrA. congr. congr.
-           rewrite mulrA mulrAC mulrC. congr. 
-           rewrite /nr_nodesf -{2}expr1 -exprD_nneg //=.
-           smt(ge1_a).
-           smt().
-           smt(size_rcons).
-          wp; skip => />.
-          progress.
-          smt().
-          smt().
-          rewrite ?nth_rcons.
-          case (i < size nodes{hr}) => ?.
-          by rewrite H //.
-          have eqiszn : i = size nodes{hr} by smt(size_rcons).
-          
-          rewrite eqiszn /= H6.
-          suff : nr_nodesf (i + 1) <= nr_nodesf (size nodes{hr} + 1). smt(). smt(). trivial.
-          smt(size_rcons).
-          smt(size_rcons).
+            have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodes{2}) - 2 * size nodescl{2} - 1.
+            + rewrite 2!IntOrder.ler_subr_addr /=.
+              rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{2} + 1) - 1))) 1:/#.
+              by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+            rewrite -nth_last (list2treeS (size nodes{2})) 1:size_ge0.
+            + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
+              rewrite eqt_szlfs /t (: 2 ^ a = 2 ^ (a - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              pose szn2 := 2 ^ (size nodes{2}). 
+              rewrite (: 2 ^ (a - size nodes{2}) * szn2 - size nodescl{2} * (szn2 + szn2) = (2 ^ (a - size nodes{2}) - 2 * size nodescl{2}) * szn2) 1:/#.
+              pose mx := max _ _; rewrite (: 2 ^ (size nodes{2}) < mx) // /mx.
+              pose sb := ((_ - _ * _) * _)%Int; rewrite &(IntOrder.ltr_le_trans sb) /sb 2:maxrr.
+              by rewrite ltr_pmull 1:expr_gt0 // /#.
+            + rewrite size_take 1:expr_ge0 1:// size_drop 1:addr_ge0 1:expr_ge0 // 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
+              rewrite eqt_szlfs /t (: 2 ^ a = 2 ^ (a - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              pose szn2 := 2 ^ (size nodes{2}). 
+              rewrite (: 2 ^ (a - size nodes{2}) * szn2 - (szn2 + size nodescl{2} * (szn2 + szn2)) = (2 ^ (a - size nodes{2}) - 2 * size nodescl{2} - 1) * szn2) 1:/#.
+              pose sb := ((_ - _ - _) * _)%Int.
+              move: ge1_2aszn2szncl; rewrite lez_eqVlt => -[eq1_2as | gt1_2as].
+              - by rewrite /sb -eq1_2as /= lez_maxr 1:expr_ge0.
+              rewrite lez_maxr /sb 1:mulr_ge0 2:expr_ge0 //= 1:subr_ge0 1:ler_subr_addr.
+              - rewrite &(IntOrder.ler_trans (1 + 2 * (nr_nodesf (size nodes{2} + 1) - 1))) 1:/#.
+                by rewrite /nr_nodesf mulzDr -{1}(expr1 2) -exprD_nneg // /#.
+              rewrite (: szn2 < (2 ^ (a - size nodes{2}) - 2 * size nodescl{2} - 1) * szn2) //.    
+              by rewrite ltr_pmull 1:expr_gt0.
+            rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; congr => [/# | /# |].
+            case (size nodes{2} = 0) => [eq0_sz | neq0_sz].
+            + rewrite eq0_sz ?expr0 /= (nth_out leaves{2}); 1: smt(size_ge0). 
+              rewrite {4 8}(: 1 = 0 + 1) 1:// ?(take_nth witness) 1,2:size_drop //; 1..4:smt(size_ge0).
+              by rewrite ?take0 /= ?list2tree1 /= ?nth_drop //; smt(size_ge0).
+            rewrite (nth_change_dfl witness leaves{2}); 1: smt(size_ge0).
+            rewrite ?nthnds /=; 1,3: smt(size_ge0).
+            + split => [| _ @/nr_nodesf]; 1: smt(size_ge0).
+              rewrite &(IntOrder.ltr_le_trans (nr_nodesf (size nodes{2}))) /nr_nodesf //.
+              rewrite (: 2 ^ (a - size nodes{2}) = 2 * 2 ^ (a - (size nodes{2} + 1))) 2:/#.
+              by rewrite -{2}expr1 -exprD_nneg // /#.
+            + split => [| _ @/nr_nodesf]; 1: smt(size_ge0).
+              rewrite &(IntOrder.ltr_le_trans (nr_nodesf (size nodes{2}))) /nr_nodesf //.
+              rewrite (: 2 ^ (a - size nodes{2}) = 2 * 2 ^ (a - (size nodes{2} + 1))) 2:/#.
+              by rewrite -{2}expr1 -exprD_nneg // /#.  
+            rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; do 3! congr; 1,3: smt().
+            + congr; rewrite mulzDr; congr; rewrite eq_sym {1}(mulrC (size skFORS{2})) -mulzA.
+              by rewrite /nr_nodesf -{1}expr1 -exprD_nneg // /#.
+            congr; rewrite mulzDr eq_sym -addzA; congr; rewrite {1}(mulrC (size skFORS{2})) -mulzA.
+            by rewrite /nr_nodesf -{1}expr1 -exprD_nneg // /#.
+          wp; skip => /> &2 nthnds eqt_szlfs _ eqszpksknt eqszpksklp lta_sznds.
+          split => [/# | ndscl].
+          split => [/# | /lezNgt gent1_szndscl nthndscl].
+          rewrite -andbA; split => [i j |]; 2: smt(size_rcons).
+          rewrite ?nth_rcons ?size_rcons => ge0_i ltsz1_i ge0_j ltnt1_j.
+          case (i < size nodes{2}) => ?; 1: by rewrite nthnds.
+          have eqiszn : i = size nodes{2} by smt(size_rcons).
+          by rewrite eqiszn /= nthndscl /#.
         wp => /=.
         while (   ={skFORSet}
                /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} = adz
@@ -3492,29 +3400,28 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                /\ size skFORS{2} < k
                /\ size skFORSet{2} <= t).
         - inline{2} 2.
-          wp; rnd; skip => />.
-          progress.
+          wp; rnd; skip => /> &2 lfsdef eqszlfssk ltnt0_szsk ltlp_szsklp ltk_szsk _ ltt_szsket skele skelein.
+          split; 2: smt(size_rcons).
           rewrite size_rcons valP /f mkseqS /=; 1: smt(size_ge0).
-          congr. rewrite {1}H &(eq_in_mkseq) => u rng_u /=. 
-          rewrite /f; congr. rewrite nth_rcons /#.      
-          rewrite nth_rcons /#.      
-          rewrite ?size_rcons // /#. 
-          rewrite ?size_rcons // /#.
-        wp; skip => />.
-        progress. rewrite mkseq0 //. smt(). smt(). smt(ge2_t). smt(ge2_t). smt(ge2_t). smt(ge1_a). smt(ge1_a). 
-        rewrite size_rcons mkseqS; 1:smt(size_ge0).
-        congr. rewrite H size_mkseq //=. 
-        rewrite (: max 0 (size roots{2}) = size roots{2}); 1: smt(size_ge0).
-        rewrite H6. apply eq_in_mkseq => u rng_u /=.
-        do 3! congr; rewrite fun_ext => v. 
-        by congr; rewrite nth_rcons => /#.
-        rewrite H16 //; 1,2: smt(ge1_a IntOrder.expr_gt0).
-        rewrite /val_bt_trh /=. congr. congr.
-        rewrite drop0 (: 2^a = size leaves_R) 1:/# take_size /=.
-        rewrite H10. rewrite nth_rcons H6 /=. congr => /#.
-        by rewrite H6 /nr_nodesf /= expr0.
-        smt(cats1 all_cat allP ge1_a).
-        smt(size_rcons). smt(size_rcons).
+          congr; 2: by rewrite nth_rcons /#. 
+          rewrite {1}lfsdef &(eq_in_mkseq) => u rng_u /=. 
+          by rewrite /f; congr; rewrite nth_rcons /#.      
+        wp; skip => /> &2 rtsdef allskfszt ltnt0szpkf ltlpszpkflp _ eqszpksknt eqszpksklp eqszrtsskf ltk_szsk. 
+        split => [| lfs sfket /lezNgt getszsket _ lfsdef eqszsklfs _ _ let_szskfet]; 1: by rewrite mkseq0 /=; smt(ge2_t).
+        split => [| nds]; 1: smt(ge1_a).
+        split => [/#| /lezNgt gea_sznds nthnds eqt_szlfs lea_sznds].
+        split; 2: smt(size_rcons cats1 all_cat allP ge1_a).
+        rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
+        rewrite nthnds /=; 1,2: smt(ge1_a IntOrder.expr_gt0).
+        rewrite drop0 -/t -eqt_szlfs take_size //=.
+        congr; 1: rewrite {1}rtsdef.
+        - rewrite &(eq_in_mkseq) => u rng_u /=.
+          do 3! congr => [|/#]; rewrite fun_ext => v.
+          rewrite nth_rcons (: u < size skFORS{2}) 1:/# //=.
+          by rewrite eqt_szlfs.
+        rewrite /val_bt_trh; congr => [| @/nr_nodesf /=]; 2: by rewrite expr0 /#.
+        congr; rewrite {1}lfsdef; congr; rewrite fun_ext => u.
+        by rewrite nth_rcons (: ! size roots{2} < size skFORS{2}) 1:/# eqszrtsskf eqt_szlfs //= /#.
       wp; skip => /> &2 nthpkflp ltnt_szpkfnt _ eqszpksknt eqszpksklp ltlp_szskflp.
       split => [| rts skf /lezNgt gek_szskf _ rtsdef allszt_skf _ lek_szrts eqszrtsskf]; 1: by rewrite mkseq0 /=; smt(ge1_k).
       split => [j |]; 2: smt(size_rcons).
@@ -3692,19 +3599,13 @@ seq 10 14: (   #pre
               (len - size pkWOTS0).
         - move=> z'''.
           by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
-        wp; skip => />.
-        progress.
-        rewrite mkseq0 //.
-        smt(ge2_len).
-        smt(ge2_len).
-        rewrite size_rcons mkseqS; 1: smt(size_ge0).
-        do ? congr => /=.
-        do ? congr.
-        rewrite insubdK 1:/#.
-        rewrite H3.
-        by congr => /#.
-        smt(size_rcons).
-        smt(size_rcons).
+        wp; skip => /> &2 lfsdef _ ltlp_szlfs.
+        split => [| pkw]; 1: by rewrite mkseq0 /=; smt(ge2_len).
+        split => [/#| /lezNgt gelen_szpkw pkwdef lelen_szpkw].
+        rewrite -andbA; split; 2: smt(size_rcons).
+        rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
+        do 4! congr => /=; rewrite insubdK 1:/#.
+        by rewrite pkwdef /#.
       inline 4.
       wp => /=.
       while (   sig1
@@ -3716,76 +3617,42 @@ seq 10 14: (   #pre
             (len - size sig1).
       + move => z''.
         by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
-      wp; skip => />.
-      progress.
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0).
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
-      smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
-      rewrite size_rcons.
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite foldS //=.
-      rewrite size_rcons.
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite foldS //=.
-      
-      rewrite ?nth_rcons ?size_rcons (: !size sapl{hr} + 1 = 0) /=; 1: smt(size_ge0).
-      do 2! congr.
-      rewrite H9.
-      congr => /#.
-      rewrite ?nth_rcons ?size_rcons /=.
-      case (j < size sapl{hr}) => ?.
-      by rewrite H0 //.
-      rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
-      congr.
-      rewrite H6.
-      congr => [|/#].
-      rewrite fun_ext => v.
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite ?foldS //=.       
-      rewrite ?nth_rcons ?size_rcons /=.
-      case (j < size sapl{hr}) => ?.
-      by rewrite H1 //.
-      rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
-      congr.
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite ?foldS //=.       
-      congr.
-      rewrite H9.
-      congr => [|/#].
-      rewrite fun_ext => u.
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite ?foldS //=.       
-      move: (H _); 1: smt(size_rcons).
-      move=> [-> _ /=].
-      rewrite ?foldS //=.       
-      smt(size_rcons).
-      smt(size_rcons).
-    wp; skip => />.
-    progress. 
-    rewrite insubdK. smt(size_ge0).
-    rewrite fold0 //=.
-    rewrite fold0 //=.
-    smt(). smt(ge1_l ge1_d). smt(ge1_l ge1_d). smt(ge1_l ge1_d).
-    rewrite ?nth_rcons ?size_rcons.
-    case (i < size sigl{hr}) => ?.
-    by rewrite H //.
-    rewrite (: i = size sigl{hr}) /=; 1: smt(size_rcons).
-    rewrite insubdK 1:/# H4 //=. smt().
-    rewrite ?nth_rcons ?size_rcons.
-    case (i < size sigl{hr}) => ?.
-    by rewrite H0 //.
-    rewrite (: i = size sigl{hr}) /=; 1: smt(size_rcons).
-    rewrite insubdK 1:/# H5 //= /#.
-    smt(size_rcons).
-    by smt(size_rcons).
+      wp; skip => /> &2 idxsdef nthsapl1 nthsapl2 ltl_szsigl _ ltd_szsapl.
+      split => [| sigw]; 1: by rewrite mkseq0 /=; smt(ge2_len).
+      split => [/#| /lezNgt gelen_szsigw sigwdef lelen_szsigw].
+      split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge1_lp).
+      split => [/# | /lezNgt gelp_szlfs lfsdef lelp_szlfs].
+      rewrite ?size_rcons (: ! size sapl{2} + 1 = 0) /=; 1: smt(size_ge0).
+      rewrite foldS 2:/=; 1: smt(size_ge0).
+      move: (idxsdef _); 1: smt().
+      move=> -[-> _] /=.
+      rewrite !andbA -andbA; split; 2: smt().
+      split; 1: split.
+      + do 2! congr; rewrite {1}lfsdef.
+        move: (idxsdef _); 1: smt().
+        by move=> -[-> _] /=; congr => /#. 
+      + move=> j ge0_j ltsz1_j; rewrite ?nth_rcons.
+        case (j < size sapl{2}) => ?; 1: by rewrite nthsapl1.
+        rewrite (: j = size sapl{2}) 1:/# /= sigwdef.
+        do 2! congr => [|/#]; rewrite fun_ext => v.
+        by move: (idxsdef _); 1: smt().
+      move=> j ge0_j ltsz1_j; rewrite ?nth_rcons.
+      case (j < size sapl{2}) => ?; 1: by rewrite nthsapl2.
+      rewrite (: j = size sapl{2}) 1:/# /= foldS /=; 1: smt(size_ge0).
+      do 2! congr; rewrite {1}lfsdef.
+      move: (idxsdef _); 1: smt().
+      by move=> -[-> _] /=; congr => /#.
+    wp; skip => /> &2 nthsigl1 nthsigl2 _ ltl_szsigl.
+    split => [| kpidx sapl tidx]; 1: by rewrite insubdK 2:?fold0 /=; smt(size_ge0 ge1_d).
+    split => [/# | /lezNgt ged_szsapl nthsapl1 nthsapl2 led_szsapl].
+    rewrite ?size_rcons !andbA -andbA; split; 2: smt(size_rcons).
+    split => i j ge0_i ltsz1_i ge0_j ltd_j; rewrite ?nth_rcons.
+    * case (i < size sigl{2}) => ?; 1: by rewrite nthsigl1.
+      rewrite (: i = size sigl{2}) /=; 1: smt(size_rcons).
+      by rewrite insubdK 1:/# nthsapl1 //= /#.
+    case (i < size sigl{2}) => ?; 1: by rewrite nthsigl2.
+    rewrite (: i = size sigl{2}) /=; 1: smt(size_rcons).
+    by rewrite insubdK 1:/# nthsapl2 //= /#.
   wp => /=.
   call (: true); 1: by sim.
   wp; skip => /> &2 nthpkf szpkf allszpkf.
@@ -3963,19 +3830,13 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
             (len - size pkWOTS0).
       + move=> z'''.
         by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
-      wp; skip => />.
-      progress.
-      rewrite mkseq0 //.
-      smt(ge2_len).
-      smt(ge2_len).
-      rewrite size_rcons mkseqS; 1: smt(size_ge0).
-      do ? congr => /=.
-      do ? congr.
-      rewrite insubdK 1:/#.
-      rewrite H3.
-      by congr => /#.
-      smt(size_rcons).
-      smt(size_rcons).
+      wp; skip => /> &2 lfsdef _ ltlp_szlfs.
+      split => [| pkw]; 1: by rewrite mkseq0 /=; smt(ge2_len). 
+      split => [/# | /lezNgt gelen_szpkw pkwdef lelen_szpkw].
+      rewrite size_rcons mkseqS; 1: smt(size_ge0). 
+      rewrite insubdK 1:/#. 
+      do 2! (split => [| /#]).
+      by congr; rewrite {1}pkwdef /=; do 4! congr => /#.
     inline 4.
     wp => /=.
     while (   sig0
@@ -3987,57 +3848,28 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
           (len - size sig0).
     * move => z''.
       by wp; skip => />; smt(size_ge0 size_rcons mkseqS).
-    wp; skip => />.
-    progress.
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0).
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len).
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
-    smt(ge1_l ge1_d size_rcons size_ge0 mkseqS mkseq0 ge2_len ge1_lp).
-    rewrite size_rcons.
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    rewrite size_rcons.
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    rewrite size_rcons (: ! size sapl{hr} + 1 = 0) /=; 1: smt(size_ge0).
-    do 2! congr.
-    rewrite H8.
-    by congr; smt().
-    rewrite ?nth_rcons ?size_rcons /=.
-    case (j < size sapl{hr}) => ?.
-    by rewrite H0 //.
-    rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
-    congr.
-    rewrite H5.
-    congr => [|/#].
-    rewrite fun_ext => v.
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    rewrite ?nth_rcons ?size_rcons /=.
-    case (j < size sapl{hr}) => ?.
-    by rewrite H1 //.
-    rewrite (: j = size sapl{hr}) /=; 1: smt(size_rcons).
-    congr.
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    congr.
-    rewrite H8.
-    congr => [|/#]. 
-    rewrite fun_ext => u.
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    move: (H _); 1: smt(size_rcons).
-    move=> [-> _ /=].
-    rewrite ?foldS //=.       
-    smt(size_rcons).
-    smt(size_rcons).
+    wp; skip => /> &2 idxsdef nthsapl1 nthsapl2 _ ltd_szsapl.
+    split => [| sigw]; 1: by rewrite mkseq0 /=; smt(ge2_len).
+    split => [/#| /lezNgt gelen_szsigw sigwdef lelen_szsigw].
+    split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge1_lp).
+    split => [/#| /lezNgt gelp_szlfs].
+    rewrite ?size_rcons => lfsdef lelp_szlfs.
+    rewrite {1}lfsdef; move: (idxsdef _); 1: smt().
+    move => -> /=; rewrite foldS //=.
+    rewrite (: size sapl{2} + 1 <> 0) /=; 1: smt(size_ge0). 
+    rewrite (: size lfs = l') 1:/#.
+    rewrite !andbA -andbA; split; 2: smt(size_rcons).
+    rewrite -!andbA; split; 1: by congr.
+    split => j ge0_j ltsz1_j; rewrite nth_rcons.
+    * case (j < size sapl{2}) => ?; 1: by rewrite nthsapl1.
+      rewrite (: j = size sapl{2}) /=; 1: smt(size_rcons).
+      rewrite sigwdef; congr; move: (idxsdef _); 1: smt().
+      by move => -> //=; rewrite (: size sigw = len) 1:/#.
+    case (j < size sapl{2}) => ?; 1: by rewrite nthsapl2.
+    rewrite (: j = size sapl{2}) /=; 1: smt(size_rcons).
+    rewrite foldS //=; congr.
+    rewrite lfsdef; move: (idxsdef _); 1: smt().
+    by move => -> //=; rewrite (: size lfs = l') 1:/#. 
   wp => /=.
   while{1} (roots{1} 
             =  
@@ -4068,103 +3900,94 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     rewrite -andbA; split; 2: smt(size_rcons).
     rewrite size_rcons mkseqS /=; 1: smt(size_ge0).
     by do 3! congr; rewrite lfsdef; congr => /#.
-  wp; skip => />.
-  progress. rewrite mkseq0 //.
-  smt(ge1_k).
-  smt(ge1_k).
-  rewrite fold0 //.
-  rewrite fold0 //.
-  smt(ge1_k).
-  smt(ge1_k).
-  smt(ge1_d).
-  smt(ge1_k).
+  wp; skip => /> &2 nthpkfnt nthpksigxl1 nthpksigxl2 eqnt0_szpkfnt allszlppkfnt.
+  split => [| rts]; 1: by rewrite mkseq0 /=; smt(ge1_k).
+  split => [/# | /lezNgt gek_szrts rtsdef lek_szrts].
+  split => [| kpidx sapl tidx]; 1: by rewrite fold0 /=; 1: smt(ge1_d).
+  split => [/#| /lezNgt ged_szsapl nthsapl1 nthsapl2 led_szsapl].
   rewrite &(SAPDL.val_inj) &(eq_from_nth witness) ?valP 1:// insubdK 1:/# => j rng_j.
   suff /#:
-    (nth witness sapl_L j).`1 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`1
+    (nth witness sapl j).`1 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`1
     /\
-    (nth witness sapl_L j).`2 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`2.
+    (nth witness sapl j).`2 = (nth witness (val (nth witness R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.sigFLSLXMSSMTTWl{2} (val idx{2}))) j).`2.
   split.
-  rewrite H0 1:valP // H8 // 1:/#.
-  do 2! congr. rewrite fun_ext => v /=.
-  do ? congr.
-  rewrite eq_sym.
+  rewrite nthsapl1 1:/# nthpksigxl1 1:valP //.
+  do 2! congr; rewrite fun_ext => v /=.
+  do 5! congr; rewrite eq_sym.
   have {1}->:
     val idx{2}
     =
     sumz (map size (take (val idx{2} %/ l') R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) + val idx{2} %% l'.
-  + rewrite StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT/(\o).
+  + rewrite StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT /(\o).
     rewrite (StdBigop.Bigint.BIA.eq_big_seq _ (fun _ => l')) => [pkflp /mem_take pkfin /=|].
-    - move/allP: H3 => /(_ pkflp pkfin) @/(\o) -> //.
+    - move/allP: allszlppkfnt => /(_ pkflp pkfin) @/(\o) -> //.
     rewrite StdBigop.Bigint.big_constz count_predT /= size_take.
     - by rewrite divz_ge0; smt(ge1_lp Index.valP).
     rewrite (: val idx{2} %/ l' < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) 2:/=.
-    - rewrite H2 /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
+    - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
       by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
     by rewrite mulrC -divz_eq.
   rewrite nth_flatten.
   + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite H2 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
+    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
   + rewrite modz_ge0 /=; 1: smt(ge1_lp). 
     pose nr := nth _ _ _.
-    move/allP: H3 => /(_ nr) @/nr.
+    move/allP: allszlppkfnt => /(_ nr) @/nr.
     rewrite /(\o) mem_nth /=.
     rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite H2 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
     move=> <-; rewrite ltz_pmod; smt(ge1_lp).
-  rewrite H.
+  rewrite nthpkfnt.
   + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
     by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
   + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp). 
   do 2! congr. 
   + admit.  
-  rewrite H5.
+  rewrite rtsdef.
   by do 2! congr; smt().
-  by rewrite H1 ?valP // H9 // /#.
-wp; skip => />.
-progress.
-rewrite mkseq0 //. smt(ge1_k). smt().
+  rewrite nthpksigxl2 ?valP // nthsapl2 // /#.
+wp; skip => /> &2 nthpkfnt eqnt0_szpkfnt allszlp_pkfnt nthsigl1 nthsigl2 nthpkfntp msig.
+split => [| rts]; 1: by rewrite mkseq0 /=; 1: smt(ge1_k).
+split => [/# | /lezNgt gek_rts rtsdef lek_szrts].
 pose tad := trco _ _ _; pose npkf := nth _ _ _.
 suff -> //: tad = npkf; rewrite /tad /npkf.
-pose vmco := val (mco _ _).`2.
-rewrite eq_sym.
+pose vmco := val (mco _ _).`2; rewrite eq_sym.
 have {1}->:
   vmco
   =
   sumz (map size (take (vmco %/ l') R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) + vmco %% l'.
-+ rewrite StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT/(\o).
++ rewrite StdBigop.Bigint.sumzE StdBigop.Bigint.BIA.big_mapT /(\o).
   rewrite (StdBigop.Bigint.BIA.eq_big_seq _ (fun _ => l')) => [pkflp /mem_take pkfin /=|].
-  - move/allP: H1 => /(_ pkflp pkfin) @/(\o) -> //.
+  - move/allP: allszlp_pkfnt => /(_ pkflp pkfin) @/(\o) -> //.
   rewrite StdBigop.Bigint.big_constz count_predT /= size_take.
   - by rewrite divz_ge0; smt(ge1_lp Index.valP).
   rewrite (: vmco %/ l' < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) 2:/=.
-  - rewrite H0 /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
+  - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
     by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
   by rewrite mulrC -divz_eq.
 rewrite nth_flatten.
 + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite H0 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
+  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
 + rewrite modz_ge0 /=; 1: smt(ge1_lp). 
   pose nr := nth _ _ _.
-  move/allP: H1 => /(_ nr) @/nr.
+  move/allP: allszlp_pkfnt => /(_ nr) @/nr.
   rewrite /(\o) mem_nth /=.
   rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite H0 /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
   move=> <-; rewrite ltz_pmod; smt(ge1_lp).
-rewrite H4.
+rewrite nthpkfntp.
 + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
   by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
 + rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
 congr.
 + admit.
 do 2! congr.
-rewrite H6.
+rewrite rtsdef.
 congr; 2: smt().
 rewrite fun_ext => u.
 do 3! congr; 1,2:smt().
 rewrite fun_ext => v.
-congr.
-smt().
-congr. smt().
+by congr; 2: congr => /#.
 qed.
 
 (* 

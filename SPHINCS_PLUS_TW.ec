@@ -850,75 +850,260 @@ import WTWES DBLL EmsgWOTS WAddress FC.
 lemma setallchadz_getchidx  (i j u v : int) :
   valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
   get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 1 = v.
-proof. admit. qed.
+proof.
+move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_chidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_hidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladzch_getkpidx (i j u v : int) :
   valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
   get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 2 = u.
-proof. admit. qed.
+proof.
+move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_chidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_hidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladzch_gettypeidx (i j u v : int) :
   valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
   get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 3 = chtype.
-proof. admit. qed.
+proof.
+move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_chidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_hidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladzch_gettidx (i j u v : int) :
   valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
   get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 4 = j.
-proof. admit. qed.
+proof.
+move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_chidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_hidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladzch_getlidx (i j u v : int) :
   valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
   get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 5 = i.
-proof. admit. qed.
+proof.
+move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_chidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_hidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladztrhf_getbidx (i j u v : int) :
   valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
   get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 0 = u * t + v.
-proof. admit. qed.
+proof.
+move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_tidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_thtbidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladztrhf_getkpidx (i j u v : int) :
   valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
   get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 2 = j.
-proof. admit. qed.
+proof.
+move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_tidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_thtbidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladztrhf_gettypeidx (i j u v : int) :
   valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
   get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 3 = trhftype.
-proof. admit. qed.
+proof. 
+move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_tidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_thtbidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma setalladztrhf_gettidx (i j u v : int) :
   valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
   get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 4 = i.
-proof. admit. qed.
+proof.
+move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_tidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_thtbidx insubdK.
++ rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+  by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /get_idx insubdK 2://.
+rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma eq_dbsettype_adztrhf :
   set_typeidx adz trhftype = set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) trhftype.
-proof. admit. qed.
+proof. 
+rewrite /set_typeidx ?insubdK 3:// /valid_adrsidxs /adrs_len /= /valid_idxvals.
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma eq_settype_adztrhfch :
   adz = set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) chtype.
-proof. admit. qed.
+proof.
+rewrite /set_typeidx insubdK 2:// /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
 
 lemma eq_setlttype_adztrhf (i j : int) :
   valid_lidx i => valid_tidx i j => 
   set_typeidx (set_ltidx adz i j) trhxtype 
   =
   set_ltidx (set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) trhxtype) i j.
-proof. admit. qed.
-(*
-          set_typeidx (set_ltidx adz (size sapl{2}) (tidx0{2} %/ l')) chtype =
-set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{2} %/ l')) chtype 
-        *)
-
+proof.
+move=> vali valj. 
+rewrite {1}/set_ltidx insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_typeidx ?insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
++ by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /put /= /set_ltidx insubdK 2:// /valid_adrsidxs /adrs_len /= /valid_idxvals.
+by right; right; left => @/valid_idxvalstrhx /=; smt(ge1_d ge0_hp ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+qed.
  
 lemma getsettrhf_kpidx (ad : adrs) (i j : int) :
-  valid_tidx 0 i => valid_kpidx j =>
-    get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhftype) i) j) = j.
+     valid_tidx (nth witness (val ad) 5) (nth witness (val ad) 4) 
+  => nth witness (val ad) 5 = 0 
+  => valid_tidx 0 i 
+  => valid_kpidx j 
+  => get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhftype) i) j) = j.
 proof.
-admit.
+move => valtidx vallidx vali valj.
+have eq6_szad : size (val ad) = 6 by smt(Adrs.valP).
+rewrite /get_kpidx /set_kpidx valin_getidx_setidx 1:/adrs_len 1,3://. 
+rewrite /set_tidx /set_idx /set_typeidx insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
++ split; 1: by rewrite ?size_put eq6_szad.
+  right; right; right; left => @/valid_idxvalstrhf /=.
+  by rewrite ?nth_put ?size_put ?eq6_szad //=; 1: smt(ge1_d ge1_a ge2_t ge1_k Adrs.valP IntOrder.expr_ge0 IntOrder.expr_gt0).
+rewrite /valid_setidx insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
++ split; 1: by rewrite ?size_put eq6_szad.
+  right; right; right; left => @/valid_idxvalstrhf /=.
+  by rewrite ?nth_put ?size_put ?eq6_szad //=; 1: smt(ge1_d ge1_a ge2_t ge1_k Adrs.valP IntOrder.expr_ge0 IntOrder.expr_gt0).
+split; 1: by rewrite ?size_put eq6_szad.
+right; right; right; left => @/valid_idxvalstrhf /=.
+by rewrite ?nth_put ?size_put ?eq6_szad //=; 1: smt(ge1_d ge1_a ge2_t ge1_k Adrs.valP IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
-
 
 
 (* - Types (3/3) - *)
@@ -2932,6 +3117,7 @@ seq 2 3 : (   #pre
                   trco ps0{2} (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad0{2} trhftype) i) j) trcotype) j) 
                        (flatten (map DigestBlock.val roots)))).
 + while(   skFORSnt0{1} = skFORSs{2}
+        /\ ad0{2} = insubd [0; 0; 0; trhftype; 0; 0]
         /\ (forall (i j : int),
                0 <= i < size pkFORSs{2} => 0 <= j < l' =>
                let roots 
@@ -2950,6 +3136,7 @@ seq 2 3 : (   #pre
   - wp => /=.
     while(   skFORSlp{1} = skFORSl{2}
           /\ skFORSnt0{1} = skFORSs{2}
+          /\ ad0{2} = insubd [0; 0; 0; trhftype; 0; 0]
           /\ (forall (j : int),
                  0 <= j < size pkFORSl{2} =>
                  let roots 
@@ -3012,7 +3199,12 @@ seq 2 3 : (   #pre
       rewrite ?nth_rcons eqszskpkl; case (j < size pkFORSl{2}) => [ltsz | geqsz].
       + by rewrite nthpkf 1:// /#.
       rewrite (: j = size pkFORSl{2}) 1:/# /= eqszskpknt.
-      do 2! congr; 1: by rewrite getsettrhf_kpidx 3://; smt(size_ge0).
+      do 2! congr. 
+      + rewrite getsettrhf_kpidx 5://; 3,4: smt(size_ge0).
+        - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+          by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+        rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+        by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
       congr; rewrite rsdef (: size rs = k) 1:/#; congr.
       rewrite fun_ext => u.
       by do 3! congr; rewrite fun_ext => v /#.
@@ -3163,7 +3355,11 @@ seq 21 16 : (   ={m'}
       + rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge1_lp). 
         by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d).
       do 2! congr; 1: by rewrite eq_dbsettype_adztrhf.
-      + rewrite getsettrhf_kpidx 3:// 1:/valid_tidx 2:/valid_kpidx.
+      + rewrite getsettrhf_kpidx 5:// /valid_tidx /valid_kpidx.
+        - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+        - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
         - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
           by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
         by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).         
@@ -3237,7 +3433,11 @@ set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{
     by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
   - by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).   
   congr => //=.
-  - rewrite eq_dbsettype_adztrhf getsettrhf_kpidx // 1:/valid_tidx 2:/valid_kpidx.
+  - rewrite eq_dbsettype_adztrhf getsettrhf_kpidx 5:// /valid_tidx /valid_kpidx.
+    * rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+      by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
+    * rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+      by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
     * rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
       by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
     by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).
@@ -4111,7 +4311,11 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
   + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp). 
   do 2! congr. search get_kpidx.
-  + rewrite getsettrhf_kpidx 1:/valid_tidx 2:/valid_kpidx 3://.
+  + rewrite getsettrhf_kpidx /valid_tidx /valid_kpidx 5://.
+    - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+    - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
     - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
       by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
     by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).  
@@ -4152,7 +4356,11 @@ rewrite nthpkfntp.
   by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
 + rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
 congr.
-+ rewrite getsettrhf_kpidx 1:/valid_tidx 2:/valid_kpidx 3://.
++ rewrite getsettrhf_kpidx /valid_tidx /valid_kpidx 5://.
+  - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
+    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
   - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
     by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
   by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).

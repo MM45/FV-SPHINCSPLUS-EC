@@ -733,12 +733,13 @@ op extract_coll_bt_ap_trh (ps : pseed)
   FL-SL-XMSS-MT-TW addresses
   Only used to select arbitrary valid FL-SL-XMSS-MT-TW 
   address in security notion/reductions
-*)
+
 clone import Subtype as XHA with
   type T <= adrs,
     op P ad <= valid_xadrs ad. 
   
 type xadrs = XHA.sT.
+*)
 
 lemma validxadrs_validwadrs_setallch (i j u v : int) (ad : adrs) :
      valid_xadrs ad
@@ -748,31 +749,39 @@ lemma validxadrs_validwadrs_setallch (i j u v : int) (ad : adrs) :
   => valid_chidx v
   => valid_wadrs (set_chidx (set_kpidx (set_typeidx (set_ltidx ad i j) chtype) u) v).
 proof.
-rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp.
-move=> [#] szval valgp vt vlidx vtidx vkpidx vchidx.
-have gt0al : 0 < size (val ad) by smt(ge6_adrslen).
-have gt1al : 1 < size (val ad) by smt(ge6_adrslen).
-have gt2al : 2 < size (val ad) by smt(ge6_adrslen).
-have gt3al : 3 < size (val ad) by smt(ge6_adrslen).
-have gt4al : 4 < size (val ad) by smt(ge6_adrslen).
-have gt5al : 5 < size (val ad) by smt(ge6_adrslen).
-have gt0alif : 0 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-have gt1alif : 1 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-have gt2alif : 2 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-have gt3alif : 3 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-have gt4alif : 4 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-have gt5alif : 5 < if 6 < size (val ad) then 6 else size (val ad) by smt(ge6_adrslen).
-apply validwadrs_setchidx => //. 
-rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals.
-rewrite ?nth_drop ?nth_take // drop_drop //=.
-rewrite ?insubdK /valid_adrsidxs /valid_idxvals ?size_put 
-        ?valid_xidxvals_idxvals /= /valid_xidxvals ?drop_putK //
-        ?take_put /= ?valgp /= /valid_xidxvalslp /valid_xidxvalslpch 
-        /valid_xidxvalslppkco /valid_xidxvalslptrh ?nth_put ?size_put 
-        ?size_take //= ?nth_take //=; 1..7: smt(val_w ge2_len ge1_lp nth_take).
-rewrite szval vkpidx vtidx vlidx /= /valid_widxvalslp.
-by rewrite ?nth_put ?size_put ?size_take //=; smt(val_w ge2_len).
-qed.
+move=> @/valid_xadrs @/valid_xadrsidxs [eqal_szad @/valid_xidxvals [valgpad @/valid_xidxvalslp vallpad]].
+have gtl6_szad : forall i, i < 6 => i < adrs_len by smt(ge6_adrslen).
+have gtif_szad : forall i, i < 6 => i < if 6 < adrs_len then 6 else adrs_len by smt(ge6_adrslen).
+move=> vali valj valu valv @/set_ltidx @/set_typeidx.
++ rewrite insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
+  rewrite /valid_xidxvals ?drop_putK 1,2:// valgpad /= /valid_xidxvalslp.
+  move: vallpad => @/valid_xidxvalslpch @/valid_xidxvalslppkco @/valid_xidxvalslptrh.
+  by rewrite ?take_put /= ?nth_put ?size_put ?size_take ?eqal_szad
+              1,3,5,7,9,11,13,15,17,19,21,23:// 1..12:gtif_szad 1..24:// /= /#.
+rewrite /set_kpidx /set_idx insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
++ rewrite /valid_xidxvals ?drop_putK 1..6:// valgpad /= /valid_xidxvalslp.
+  (* move: vallpad => @/valid_xidxvalslpch @/valid_xidxvalslppkco @/valid_xidxvalslptrh. *)
+  left.
+  by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71:// 1..36:gtif_szad 1..72:// /=; smt(val_w ge2_len ge1_lp).
+rewrite /set_chidx /set_idx insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
++ rewrite /valid_xidxvals ?drop_putK 1..7:// valgpad /= /valid_xidxvalslp.
+  left.
+  by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len ge1_lp).
+rewrite /valid_wadrs insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
++ rewrite /valid_xidxvals ?drop_putK 1..8:// valgpad /= /valid_xidxvalslp.
+  left.
+  by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95:// 1..48:gtif_szad 1..96:// /=; smt(val_w ge2_len ge1_lp).
+rewrite /valid_wadrsidxs ?size_put eqal_szad /= /valid_widxvals drop_drop 1,2://.
+rewrite ?nth_drop 1..8:// /= ?nth_put ?size_put ?eqal_szad ?gtl6_szad 1..64:// /=.
+rewrite ?drop_putK 1..8:// valgpad /= ?take_put /= /valid_widxvalslp.
+by rewrite ?nth_put ?size_put ?size_take ?eqal_szad 1,3,5,7,9,11:// /=; smt(val_w). 
+qed. 
 
 
 
@@ -2629,11 +2638,10 @@ qed.
 
 
 local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
-(* hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
-          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC.ads = [] 
+  hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
+          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
           ==> 
-          all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) 
-              R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC.ads] => *)
+          all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads] =>
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
   Pr[M_EUF_GCMA_WOTSTWESNPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A), O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).main() @ &m : res]
@@ -2642,13 +2650,58 @@ local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
   +
   Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
+move=> allntads.
 have ->:
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   =
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.main() @ &m : res].
 + by byequiv (Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_Orig_V).
 rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_WOTSTWES] RealOrder.ler_add.
-+ admit.
++ byequiv=> //. 
+  proc.
+  inline{2} 5; inline{2} 4.
+  swap{1} 3.
+  inline{1} 2; inline{2} 3; inline{2} 2; inline{2} 8.
+  swap{2} 4 7.
+  seq 5 10 : (   ={glob A, ps}
+              /\ O_THFC_Default.pp{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
+              /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
+              /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}
+              /\ ml{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2}
+              /\ all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}).
+  - call (:   ={glob A, arg}
+           /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
+           /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}
+           /\ R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2} = []
+           ==>
+              ={glob A, res}
+           /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
+           /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}
+           /\ all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}).
+    * conseq (: ={glob A, arg} /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2} 
+                ==> 
+                ={glob A, res} /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2})
+             _
+             allntads => //.
+      proc (O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}) => //.  
+      proc; inline{2} 1.
+      by wp; skip. print O_MEUFGCMA_WOTSTWESNPRF. 
+    by wp; rnd; skip.
+  (*
+  seq 7 7 : (   #pre
+             /\ ad{1} = adz
+             /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
+             /\ ) 
+  forall i j u, 
+    nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)
+    =
+    (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u, 
+     if i = 0
+     then nth witness ml{2} (j * t + u)
+     else nth witness (nth witness (nth witness rootstd (i - 1)) j) u) 
+   * + 
+  *)
+  admit.
 rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_TCRPKCO] RealOrder.ler_add.
 + admit.
 admit.
@@ -2656,6 +2709,10 @@ qed.
 
 
 lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
+  hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
+          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
+          ==> 
+          all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads] =>
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
   (w - 2)%r
@@ -2670,8 +2727,9 @@ lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
   +
   Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
-move: (MEUFGCMA_WOTSTWESNPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)) _ _ &m) 
-      (EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m); 3: smt(). 
+move=> allntds.
+move: (MEUFGCMA_WOTSTWESNPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)) _ _ &m)
+      (EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m allntds); 3: smt(). 
 + move=> O OC Oll OCll.
   proc; inline *.
   wp.

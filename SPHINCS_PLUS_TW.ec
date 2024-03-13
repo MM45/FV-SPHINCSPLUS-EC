@@ -537,6 +537,19 @@ op set_thtbidx (ad : adrs) (i j : int) : adrs =
   insubd (put (put (val ad) 0 j) 1 i).
 
 
+(* -- Getters -- *)
+(*
+op get_typeidx (ad : adrs) : int =
+  get_idx ad 3.
+
+lemma neq_from_typeidx (ad ad' : adrs) :
+  get_typeidx ad <> get_typeidx ad' => ad <> ad'.
+proof.
+rewrite -eq_adrs_idxsq negb_forall /get_typeidx => neqtypeidx.
+by exists 3 => /= @/eq_idx.
+qed.
+*)
+            
 (* -- Keyed hash functions -- *)
 (* Secret key element generation function *)
 op skg : sseed -> (pseed * adrs) -> dgstblock.
@@ -831,6 +844,80 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
   
 import DBHPL SAPDL.
 import WTWES DBLL EmsgWOTS WAddress FC.
+
+
+(* -- Auxiliary address properties -- *)
+lemma setallchadz_getchidx  (i j u v : int) :
+  valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
+  get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 1 = v.
+proof. admit. qed.
+
+lemma setalladzch_getkpidx (i j u v : int) :
+  valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
+  get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 2 = u.
+proof. admit. qed.
+
+lemma setalladzch_gettypeidx (i j u v : int) :
+  valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
+  get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 3 = chtype.
+proof. admit. qed.
+
+lemma setalladzch_gettidx (i j u v : int) :
+  valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
+  get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 4 = j.
+proof. admit. qed.
+
+lemma setalladzch_getlidx (i j u v : int) :
+  valid_lidx i => valid_tidx i j => valid_kpidx u => valid_chidx v =>
+  get_idx (set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0) 5 = i.
+proof. admit. qed.
+
+lemma setalladztrhf_getbidx (i j u v : int) :
+  valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
+  get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 0 = u * t + v.
+proof. admit. qed.
+
+lemma setalladztrhf_getkpidx (i j u v : int) :
+  valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
+  get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 2 = j.
+proof. admit. qed.
+
+lemma setalladztrhf_gettypeidx (i j u v : int) :
+  valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
+  get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 3 = trhftype.
+proof. admit. qed.
+
+lemma setalladztrhf_gettidx (i j u v : int) :
+  valid_tidx 0 i => valid_kpidx j => valid_tbfidx 0 (u * t + v) =>
+  get_idx (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) i) j) 0 (u * t + v)) 4 = i.
+proof. admit. qed.
+
+lemma eq_dbsettype_adztrhf :
+  set_typeidx adz trhftype = set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) trhftype.
+proof. admit. qed.
+
+lemma eq_settype_adztrhfch :
+  adz = set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) chtype.
+proof. admit. qed.
+
+lemma eq_setlttype_adztrhf (i j : int) :
+  valid_lidx i => valid_tidx i j => 
+  set_typeidx (set_ltidx adz i j) trhxtype 
+  =
+  set_ltidx (set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) trhxtype) i j.
+proof. admit. qed.
+(*
+          set_typeidx (set_ltidx adz (size sapl{2}) (tidx0{2} %/ l')) chtype =
+set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{2} %/ l')) chtype 
+        *)
+
+ 
+lemma getsettrhf_kpidx (ad : adrs) (i j : int) :
+  valid_tidx 0 i => valid_kpidx j =>
+    get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhftype) i) j) = j.
+proof.
+admit.
+qed.
 
 
 
@@ -1255,7 +1342,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
       
       pkFORS <- nth witness (nth witness pkFORSnt tidx) kpidx;
       
-      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, set_typeidx ad chtype), pkFORS, idx);
       
       return (mk, sigFORSTW, sigFLSLXMSSMTTW);
     }
@@ -1305,13 +1392,13 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
       and compute the corresponding leaves.
     *)
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx (set_typeidx ad chtype) (d - 1) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
+    root <- val_bt_trh ps (set_ltidx (set_typeidx ad trhxtype) (d - 1) 0) (list2tree leaves) h' 0;
     
 
     (* Ask adversary to forge *)
@@ -1322,6 +1409,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
     return (m', (mk', sigFORSTW'));
   }
 }.
+ 
 
 (*
 module R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF = {
@@ -2293,14 +2381,15 @@ inline{2} 2; inline{1} 5; wp 6 18.
 seq 3 16 : (   ={pk, m', sig'}
             /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_SKGPRF_EUFCMA)); 2: by sim.
 inline{1} 1; inline{2} 1.
-seq 8 14 : (   ={glob A, ad} 
-             /\ SKG_PRF.O_PRF_Default.b{2}
-             /\ ss{1} = SKG_PRF.O_PRF_Default.k{2}
-             /\ ms{1} = R_SKGPRF_EUFCMA.ms{2} 
-             /\ ps{1} = R_SKGPRF_EUFCMA.ps{2} 
-             /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
-             /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}
-             /\ R_SKGPRF_EUFCMA.qs{2} = []).
+seq 8 14 : (   ={glob A, ad}
+            /\ ad{2} = adz
+            /\ SKG_PRF.O_PRF_Default.b{2}
+            /\ ss{1} = SKG_PRF.O_PRF_Default.k{2}
+            /\ ms{1} = R_SKGPRF_EUFCMA.ms{2} 
+            /\ ps{1} = R_SKGPRF_EUFCMA.ps{2} 
+            /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
+            /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}
+            /\ R_SKGPRF_EUFCMA.qs{2} = []).
 + sp 0 2 => />.
   while (   SKG_PRF.O_PRF_Default.b{2}
          /\ (forall (psad : pseed * adrs),
@@ -2317,6 +2406,7 @@ seq 8 14 : (   ={glob A, ad}
          /\ #post).
   - wp => />; 1: smt().
     while (  ={skWOTSnt}
+           /\ ad{2} = adz
            /\ SKG_PRF.O_PRF_Default.b{2}
            /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
            /\ (forall (psad : pseed * adrs),
@@ -2336,6 +2426,7 @@ seq 8 14 : (   ={glob A, ad}
            /\ size skWOTSnt{1} <= nr_trees (size skWOTStd{1})).
     * wp => />; 1: smt().
       while (  ={skWOTSnt, skWOTSlp}
+             /\ ad{2} = adz
              /\ SKG_PRF.O_PRF_Default.b{2}
              /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
              /\ (forall (psad : pseed * adrs),
@@ -2359,6 +2450,7 @@ seq 8 14 : (   ={glob A, ad}
              /\ size skWOTSlp{1} <= l').
       + wp => /=.
         while (  ={skWOTSnt, skWOTSlp, skWOTS}
+               /\ ad{2} = adz
                /\ SKG_PRF.O_PRF_Default.b{2}
                /\ skWOTStd{1} = R_SKGPRF_EUFCMA.skWOTStd{2}  
                /\ (forall (psad : pseed * adrs),
@@ -2390,20 +2482,44 @@ seq 8 14 : (   ={glob A, ad}
           * auto => /> &2 bt mdom *.
             pose psad := (_, set_hidx _ _).
             move/iffLR /contra: (mdom psad) => -> //=.
-            rewrite ?negb_or; split.
+            have adsz : forall (x : adrs), size (val x) = adrs_len by smt(Adrs.valP).  
+            rewrite ?negb_or; split.            
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              (*
+              rewrite negb_exists => i /=.
+              rewrite negb_exists => j /=.
+              rewrite negb_exists => u /=. 
+              rewrite negb_exists => v /=.
+              rewrite ?negb_and -?implybE => rng_i rng_j rng_u rng_v @/psad /=.
+              *)
+              (*
+                (0 <= i && i < size skWOTStd{m0}) /\
+                (0 <= j && j < nr_trees i) /\
+                (0 <= u && u < l') /\
+                (0 <= v && v < len) 
+                valid_typeidx i => valid_typeidx j => i <> j => set_typeidx ad i <> get_typeidx ad' j. 
+                set_hidx, set_chidx, set_kpidx, set_ltidx, set_tidx maintain type idx set_typeidx. 
+                get_typeidx (set_typeidx ad i) = i 
+              *)
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 3 => @/eq_idx.
+              rewrite setalladzch_gettypeidx 1..4:// setalladztrhf_gettypeidx //; 2: smt(Top.dist_adrstypes). 
+              rewrite /valid_tbfidx /nr_nodesf /=; split => [/# | _].
+              by rewrite (: k = k - 1 + 1) // mulzDl /= -/t ler_lt_add 1:ler_pmul 4://; smt(ge2_t).               
             split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 5 => @/eq_idx.
+              by rewrite ?setalladzch_getlidx 1..8:// /#. 
             split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 4 => @/eq_idx.
+              by rewrite ?setalladzch_gettidx 1..8:// /valid_tidx /#.        
             split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 2 => @/eq_idx.
+              by rewrite ?setalladzch_getkpidx 1..8:// /valid_tidx /#.
             do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-            by admit.
+            rewrite -eq_adrs_idxsq negb_forall /=; exists 1 => @/eq_idx.
+            by rewrite ?setallchadz_getchidx 1..8:// /valid_tidx /#.  
           wp; rnd; wp; skip => /> &2 bt mdom *.
           rewrite -!andbA andbA; split; 2: smt(size_rcons).
           rewrite get_set_sameE oget_some /= => psad.
@@ -2430,6 +2546,7 @@ seq 8 14 : (   ={glob A, ad}
     by split => *; smt(size_rcons size_ge0).
   wp => /=.
   while (   SKG_PRF.O_PRF_Default.b{2}
+         /\ ad{2} = adz
          /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
          /\ (forall (psad : pseed * adrs),
               psad \in SKG_PRF.O_PRF_Default.m{2}
@@ -2440,6 +2557,7 @@ seq 8 14 : (   ={glob A, ad}
          /\ size skFORSnt{1} <= nr_trees 0).
   - wp => /=.
     while (   ={skFORSlp} 
+           /\ ad{2} = adz
            /\ SKG_PRF.O_PRF_Default.b{2}
            /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
            /\ (forall (psad : pseed * adrs),
@@ -2455,7 +2573,8 @@ seq 8 14 : (   ={glob A, ad}
            /\ size skFORSnt{1} < nr_trees 0
            /\ size skFORSlp{1} <= l').
     * wp => /=.
-      while (   ={skFORSlp, skFORS} 
+      while (   ={skFORSlp, skFORS}
+             /\ ad{2} = adz 
              /\ SKG_PRF.O_PRF_Default.b{2}
              /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
              /\ (forall (psad : pseed * adrs),
@@ -2477,6 +2596,7 @@ seq 8 14 : (   ={glob A, ad}
              /\ size skFORS{1} <= k).
       + wp => /=.
         while (   ={skFORSlp, skFORS, skFORSet} 
+               /\ ad{2} = adz
                /\ SKG_PRF.O_PRF_Default.b{2}
                /\ skFORSnt{1} = R_SKGPRF_EUFCMA.skFORSnt{2}
                /\ (forall (psad : pseed * adrs),
@@ -2509,17 +2629,50 @@ seq 8 14 : (   ={glob A, ad}
             move/iffLR /contra: (mdom psad) => -> //=.
             rewrite ?negb_or; split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 4 => @/eq_idx.
+              rewrite ?setalladztrhf_gettidx 1,2,5:// 2,4:/#.
+              - rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+                rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+                by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+              rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+              rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+              by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
             split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 2 => @/eq_idx.
+              rewrite ?setalladztrhf_getkpidx 1,2,4:// 2,4:/#.
+              - rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+                rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+                by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+              rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+              rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+              by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
             split.
             + do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-              by admit.
+              rewrite -eq_adrs_idxsq negb_forall /=; exists 0 => @/eq_idx.              
+              rewrite ?setalladztrhf_getbidx 1,2,4,5://.
+              - rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+                rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+                by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+              - rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+                rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+                by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+              rewrite neq_ltz; right.
+              rewrite (: size skFORS{m0} = size skFORS{m0} - 1 + 1) 1:// mulzDl /= -addrA.
+              rewrite ler_lt_add 1:ler_pmul 4://; 1..3: smt(ge1_a).
+              by rewrite -addr0 ltr_le_add; 1: smt(size_ge0).
             do ? (rewrite negb_exists => ? /=); rewrite ?negb_and -?implybE => * @/psad /=.
-            by admit.
+            rewrite -eq_adrs_idxsq negb_forall /=; exists 0 => @/eq_idx.      
+            rewrite ?setalladztrhf_getbidx 1,2,4,5://.
+            + rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+              rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+              by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+            + rewrite /valid_tbfidx; split => [| _]; 1: smt(size_ge0).
+              rewrite /nr_nodesf /= -/t (: k = k - 1 + 1) 1:// mulzDl /=.
+              by rewrite ler_lt_add 1:ler_pmul 4://; smt(size_ge0 ge2_t).
+            by rewrite neq_ltz; right; rewrite ler_lt_add 1:// /#.
           wp; rnd; wp; skip => /> *.
-          by rewrite get_set_sameE oget_some /=; smt(size_rcons size_ge0 mem_set).  
+          by rewrite get_set_sameE oget_some /=; smt(size_rcons size_ge0 mem_set).
         wp; skip => /> *. 
         split => *; 1: smt(ge2_t).
         by split; smt(size_rcons size_ge0). 
@@ -2633,7 +2786,6 @@ by sim : (={leaves}).
 qed.
 
 
-print SPHINCS_PLUS_TW.
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
   var valid_MFORSTWESNPRF : bool
   
@@ -2860,7 +3012,7 @@ seq 2 3 : (   #pre
       rewrite ?nth_rcons eqszskpkl; case (j < size pkFORSl{2}) => [ltsz | geqsz].
       + by rewrite nthpkf 1:// /#.
       rewrite (: j = size pkFORSl{2}) 1:/# /= eqszskpknt.
-      do 2! congr; 1: admit. 
+      do 2! congr; 1: by rewrite getsettrhf_kpidx 3://; smt(size_ge0).
       congr; rewrite rsdef (: size rs = k) 1:/#; congr.
       rewrite fun_ext => u.
       by do 3! congr; rewrite fun_ext => v /#.
@@ -2927,6 +3079,7 @@ seq 21 16 : (   ={m'}
          /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`4 = O_CMA_MFORSTWESNPRF.sk{2}.`2
          /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`3 = R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd{2}
          /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1}.`4 = R_MFORSTWESNPRFEUFCMA_EUFCMA.ps{2}
+         /\ O_CMA_MFORSTWESNPRF.sk{2}.`3 = insubd [0; 0; 0; trhftype; 0; 0]
          /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ad{2} = insubd [0; 0; 0; trhftype; 0; 0]
          /\ (forall (i j : int),
                0 <= i < nr_trees 0 => 0 <= j < l' =>
@@ -2969,7 +3122,7 @@ seq 21 16 : (   ={m'}
       seq 1 1 : (#pre /\ sigFORSTW{1} = sigFORSTW0{2}).
       + call (: true); 1: by sim.
         skip => /> &2 nthpkfnt.
-        by admit.
+        by rewrite eq_dbsettype_adztrhf.
       inline{1} 1.
       wp => /=.
       while{1} (roots{1} 
@@ -3009,10 +3162,17 @@ seq 21 16 : (   ={m'}
       rewrite nthpkfnt 2:modz_ge0 3:ltz_pmod 4://; 2,3: smt(ge1_lp).
       + rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge1_lp). 
         by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d).
-      do 2! congr; 1,2: admit.
+      do 2! congr; 1: by rewrite eq_dbsettype_adztrhf.
+      + rewrite getsettrhf_kpidx 3:// 1:/valid_tidx 2:/valid_kpidx.
+        - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
+          by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+        by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).         
       congr; rewrite rsdef (: size rs = k) 1:/#; congr.
-      rewrite fun_ext => u /=; do 3! congr; 1: admit.
-      by rewrite fun_ext => v /=; do 4! congr; admit.
+      rewrite fun_ext => u /=; do 3! congr; 1: by rewrite eq_dbsettype_adztrhf.
+      by rewrite fun_ext => v /=; rewrite eq_dbsettype_adztrhf.
+    call (: true); 1: by sim.
+    by skip => />; rewrite eq_settype_adztrhfch.
+    (*
     inline{1} 1; inline{2} 1.
     swap{1} 7 -1; swap{2} 7 -1.
     wp => /=.
@@ -3036,7 +3196,11 @@ seq 21 16 : (   ={m'}
       call (: true); 1: by sim.
       wp; skip => /> &2 _ ltd_szsapl.
       split => [| eqkpad sigw].
-      + congr; admit.
+      + congr.
+        (*
+          set_typeidx (set_ltidx adz (size sapl{2}) (tidx0{2} %/ l')) chtype =
+set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{2} %/ l')) chtype 
+        *) admit.
       split => [| lfs /lezNgt gelp_szlfs _ *].
       + rewrite andbA; split; 2: smt(ge1_lp). 
         split; admit.
@@ -3045,6 +3209,7 @@ seq 21 16 : (   ={m'}
       + do 2! congr; admit.
       admit.
     by wp; skip => />; smt(ge1_d).
+  *)
   inline{1} 2; inline{2} 11.
   wp => /=.
   while (   ={skWOTSl}   
@@ -3058,24 +3223,28 @@ seq 21 16 : (   ={m'}
     by wp; skip => />; smt(size_rcons).
   wp; skip => /> &2 nthpkf.
   split => [| lfs /lezNgt gelp_szlfs _ eqadch eqadpkco lelp_szlfs].
-  - admit.
-  split => [| eqvbt msig]. 
-  - congr. 
-    admit.
+  - by rewrite -eq_settype_adztrhfch /=; smt(ge1_lp).
+  split => [| eqvbt msig].
+  - rewrite eq_setlttype_adztrhf 3://; 1: smt(ge1_d).
+    by rewrite /valid_tidx /nr_trees expr_gt0.
   split => [| roots]; 1: by rewrite mkseq0 /=; smt(ge1_k).
   split => [/# | /lezNgt gek_szrs valrs lek_szrs].
-  split => [| eqadtrhfs pkf].
-  - do 2! congr.
-    admit.
+  split => [| eqadtrhfs pkf]; 1: by rewrite eq_dbsettype_adztrhf.
   pose tad := trco _ _ _; pose npkf := nth _ _ _.
   suff -> //: tad = npkf; rewrite /tad /npkf.
-  rewrite nthpkf. admit. admit.
+  rewrite nthpkf. 
+  - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
+    by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+  - by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).   
   congr => //=.
-  - admit. 
+  - rewrite eq_dbsettype_adztrhf getsettrhf_kpidx // 1:/valid_tidx 2:/valid_kpidx.
+    * rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
+      by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+    by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).
   rewrite valrs; do 3! congr => [|/#].
   rewrite fun_ext => u; congr.
   do 2! congr; rewrite fun_ext => v; congr.
-  admit.
+  by rewrite eq_dbsettype_adztrhf.
 conseq (: _ ==> ={is_fresh}) => //.
 seq 2 0 : #pre; [conseq (: _ ==> true) => // | by sim].
 inline{1} 1.
@@ -3941,8 +4110,11 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
   + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
     by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
   + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp). 
-  do 2! congr. 
-  + admit.  
+  do 2! congr. search get_kpidx.
+  + rewrite getsettrhf_kpidx 1:/valid_tidx 2:/valid_kpidx 3://.
+    - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+      by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+    by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).  
   rewrite rtsdef.
   by do 2! congr; smt().
   rewrite nthpksigxl2 ?valP // nthsapl2 // /#.
@@ -3977,10 +4149,13 @@ rewrite nth_flatten.
   move=> <-; rewrite ltz_pmod; smt(ge1_lp).
 rewrite nthpkfntp.
 + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
+  by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
 + rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
 congr.
-+ admit.
++ rewrite getsettrhf_kpidx 1:/valid_tidx 2:/valid_kpidx 3://.
+  - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
+    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+  by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).
 do 2! congr.
 rewrite rtsdef.
 congr; 2: smt().

@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr DList StdOrder StdBigop IntDiv RealExp FinType BitEncoding.
+require import AllCore List Distr DList DMap StdOrder StdBigop IntDiv RealExp FinType BitEncoding.
 (*---*) import BS2Int BitChunking.
 (*---*) import IntOrder Bigint BIA.
 
@@ -2637,6 +2637,294 @@ by wp; skip => />; smt(Top.ge1_l).
 qed.
 
 
+local module O_MEUFGCMA_WOTSTWESNPRF_V = {
+  include var O_MEUFGCMA_WOTSTWESNPRF [-query]
+  
+  proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
+    var skWOTS_ele : dgstblock;
+    var pkWOTS : dgstblock list;
+    var pkWOTS_ele : dgstblock;
+    var sigWOTS : dgstblock list;
+    var sigWOTS_ele : dgstblock;
+    var em : emsgWOTS;
+    var em_ele : int;
+    
+    em <- encode_msgWOTS m;
+    
+    pkWOTS <- [];
+    sigWOTS <- [];
+    while (size pkWOTS < len) {
+      em_ele <- val em.[size pkWOTS];
+      
+      skWOTS_ele <$ ddgstblock;
+      
+      sigWOTS_ele <- cf ps (set_chidx (val wad) (size pkWOTS)) 0 em_ele (val skWOTS_ele); 
+      pkWOTS_ele <- cf ps (set_chidx (val wad) (size pkWOTS)) em_ele (w - 1 - em_ele) (val sigWOTS_ele);
+      
+      pkWOTS <- rcons pkWOTS pkWOTS_ele;
+      sigWOTS <- rcons sigWOTS sigWOTS_ele; 
+    }
+    
+    O_MEUFGCMA_WOTSTWESNPRF.qs <- rcons O_MEUFGCMA_WOTSTWESNPRF.qs (val wad, m, DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);
+    
+    return (DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);  
+  } 
+}.
+
+local clone DMap.DMapSampling as DMS with  
+  type t1 <- dgstblock list, 
+  type t2 <- skWOTS.
+  
+local clone DList.Program as DLP with
+  type t <- dgstblock,
+    op d <- ddgstblock.
+print DLP.
+local module O_MEUFGCMA_WOTSTWESNPRF_DMSDLP = {
+  import var O_MEUFGCMA_WOTSTWESNPRF
+  
+  proc query_dms(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
+    var skWOTS : skWOTS;
+    var skWOTS_ele : dgstblock;
+    var pkWOTS : dgstblock list;
+    var pkWOTS_ele : dgstblock;
+    var sigWOTS : dgstblock list;
+    var sigWOTS_ele : dgstblock;
+    var em : emsgWOTS;
+    var em_ele : int;
+    
+    skWOTS <@ DMS.S.sample(ddgstblockl, DBLL.insubd);
+    
+    pkWOTS <- [];
+    while (size pkWOTS < len) {
+      skWOTS_ele <- nth witness (val skWOTS) (size pkWOTS);
+      pkWOTS_ele <- cf ps (set_chidx (val wad) (size pkWOTS)) 0 (w - 1) (val skWOTS_ele);
+      
+      pkWOTS <- rcons pkWOTS pkWOTS_ele;
+    }
+    
+    em <- encode_msgWOTS m;
+    sigWOTS <- [];
+    while (size sigWOTS < len) {
+      skWOTS_ele <- nth witness (val skWOTS) (size sigWOTS);
+      em_ele <- val em.[size sigWOTS];
+      sigWOTS_ele <- cf ps (set_chidx (val wad) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
+      
+      sigWOTS <- rcons sigWOTS sigWOTS_ele;
+    }     
+    
+    O_MEUFGCMA_WOTSTWESNPRF.qs <- rcons O_MEUFGCMA_WOTSTWESNPRF.qs (val wad, m, DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);
+    
+    return (DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);  
+  }
+  
+  proc query_dlp(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
+    var skWOTS : dgstblock list;
+    var skWOTS_ele : dgstblock;
+    var pkWOTS : dgstblock list;
+    var pkWOTS_ele : dgstblock;
+    var sigWOTS : dgstblock list;
+    var sigWOTS_ele : dgstblock;
+    var em : emsgWOTS;
+    var em_ele : int;
+    
+    skWOTS <@ DLP.Sample.sample(len);
+    
+    pkWOTS <- [];
+    while (size pkWOTS < len) {
+      skWOTS_ele <- nth witness skWOTS (size pkWOTS);
+      pkWOTS_ele <- cf ps (set_chidx (val wad) (size pkWOTS)) 0 (w - 1) (val skWOTS_ele);
+      
+      pkWOTS <- rcons pkWOTS pkWOTS_ele;
+    }
+    
+    em <- encode_msgWOTS m;
+    sigWOTS <- [];
+    while (size sigWOTS < len) {
+      skWOTS_ele <- nth witness skWOTS (size sigWOTS);
+      em_ele <- val em.[size sigWOTS];
+      sigWOTS_ele <- cf ps (set_chidx (val wad) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
+      
+      sigWOTS <- rcons sigWOTS sigWOTS_ele;
+    }     
+    
+    O_MEUFGCMA_WOTSTWESNPRF.qs <- rcons O_MEUFGCMA_WOTSTWESNPRF.qs (val wad, m, DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);
+    
+    return (DBLL.insubd pkWOTS, DBLL.insubd sigWOTS);  
+  } 
+}.
+
+local equiv Eqv_O_MEUFGCMA_WOTSTWESNPRF_query_Orig_V :
+   O_MEUFGCMA_WOTSTWESNPRF.query ~ O_MEUFGCMA_WOTSTWESNPRF_V.query :
+     ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, arg} ==> ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, res}.
+proof.
+transitivity O_MEUFGCMA_WOTSTWESNPRF_DMSDLP.query_dms 
+             (={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, arg}
+              ==>
+              ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, res})
+             (={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, arg}
+              ==>
+              ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, res}) => [/# | // | |].
++ proc.
+  inline{1} 2; inline{1} 1.
+  swap{1} 3 -2.
+  seq 1 1 : (#pre /\ skWOTS0{1} = skWOTS{2}) => />.
+  - inline{2} 1.
+    by wp; rnd; wp; skip.
+  inline{1} 3.
+  sp 5 0 => />.
+  seq 2 2 : (#pre /\ pkWOTS0{1} = pkWOTS{2}) => />.
+  - while (#pre /\ #post); 1: by wp.
+    by wp.
+  sp 8 1; wp => />.
+  conseq (: _ ==> sig0{1} = sigWOTS{2}) => //.
+  while (#pre /\ #post); 1: by wp.
+  by wp.
+transitivity O_MEUFGCMA_WOTSTWESNPRF_DMSDLP.query_dlp 
+             (={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, arg}
+              ==>
+              ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, res})
+             (={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, arg}
+              ==>
+              ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, res}) => [/# | // | |].
++ proc. 
+  seq 1 1 : (#pre /\ val skWOTS{1} = skWOTS{2}).
+  - inline{1} 1; inline{2} 1.
+    wp; rnd DBLL.val DBLL.insubd.
+    wp; skip => />. 
+    split => [skl sklin | insdk]; 1: by rewrite insubdK 2://; smt(ge2_len supp_dlist_size).
+    split => [skl sklin | eqmu1 sk /supp_dmap [skv [skvin ->]]]; 2: by rewrite insubdK 2://; smt(ge2_len supp_dlist_size).
+    move: (insdk skl sklin) => {1}->.
+    rewrite (in_dmap1E_can _ _ DBLL.val) 3://; 1: by rewrite insubdK 2://; smt(ge2_len supp_dlist_size).
+    by move=> y yin <-; 1: by rewrite insubdK 2://; smt(ge2_len supp_dlist_size).
+  wp => /=.
+  conseq (: _ 
+            ==> 
+            ={O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, pkWOTS, sigWOTS}) => // />.
+  while (={sigWOTS, em, wad, O_MEUFGCMA_WOTSTWESNPRF.ps} /\ val skWOTS{1} = skWOTS{2}).
+  - by wp; skip.
+  wp => /=.
+  while (={pkWOTS, wad, O_MEUFGCMA_WOTSTWESNPRF.ps} /\ val skWOTS{1} = skWOTS{2}).
+  - by wp; skip.
+  by wp; skip.
+proc.
+rewrite equiv[{1} 1 DLP.Sample_LoopSnoc_eq].
+inline{1} 1.
+seq 5 4 : (   #pre
+           /\ em{2} = encode_msgWOTS m{2}
+           /\ pkWOTS{2}
+              =
+              mkseq (fun (i : int) =>
+                      cf O_MEUFGCMA_WOTSTWESNPRF.ps{2} (set_chidx (val wad{2}) i) 0 (w - 1) (val (nth witness skWOTS{1} i))) len
+           /\ sigWOTS{2}
+              =
+              mkseq (fun (i : int) =>
+                      cf O_MEUFGCMA_WOTSTWESNPRF.ps{2} (set_chidx (val wad{2}) i) 0 (BaseW.val em{2}.[i]) (val (nth witness skWOTS{1} i))) len
+           /\ size skWOTS{1} = len).
++ wp => /=.
+  while (   i{1} = size pkWOTS{2}
+         /\ pkWOTS{2}
+            =
+            mkseq (fun (i : int) =>
+                    cf O_MEUFGCMA_WOTSTWESNPRF.ps{2} (set_chidx (val wad{2}) i) 0 (w - 1) (val (nth witness l{1} i))) (size pkWOTS{2})
+         /\ sigWOTS{2}
+            =
+            mkseq (fun (i : int) =>
+                    cf O_MEUFGCMA_WOTSTWESNPRF.ps{2} (set_chidx (val wad{2}) i) 0 (BaseW.val em{2}.[i]) (val (nth witness l{1} i))) (size sigWOTS{2})
+         /\ size pkWOTS{2} <= len
+         /\ size pkWOTS{2} = size sigWOTS{2}
+         /\ size l{1} = size sigWOTS{2}
+         /\ n{1} = len).
+  - wp; rnd; wp; skip => /> &1 &2 pkwdef sigwdef _ eqszpksig eqszlsig ltlen_szpk sk_ele skelein.
+    rewrite ?size_rcons /= ?mkseqS /=; 1,2: smt(size_ge0).
+    rewrite andbA; split; 2: smt(size_cat).
+    split; congr.
+    * rewrite {1}pkwdef &(eq_in_mkseq) => j rng_j /=. 
+      by rewrite nth_cat (: j < size l{1}) 1:/#.
+    * rewrite nth_cat eqszlsig -eqszpksig /= {-1}(: w - 1 = val em{2}.[size pkWOTS{2}] + (w - 1 - val em{2}.[size pkWOTS{2}])) 1:/#.
+      rewrite eq_sym /cf ch_comp 3,7:// 2:valP 2:// 4:/#; 2,3: smt(BaseW.valP).
+      rewrite /set_chidx /set_idx /valid_wadrs /valid_wadrsidxs; split; 1: smt(Adrs.valP).
+      rewrite /valid_widxvals insubdK 1:valid_wadrsidxs_adrsidxs /valid_wadrsidxs; split; 1: smt(size_put Adrs.valP).
+      + move: (WAddress.valP (wad{2})). 
+        rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
+        rewrite ?drop_putK 1:// ?nth_drop 1..8:// /=.
+        rewrite drop_drop 1,2:// /= take_put /= => -> -> -> ->  -> /= vallp.
+        by rewrite /valid_widxvalslp ?nth_put 1,2:size_take ?szadl 1,3:// /=; smt(ge6_adrslen size_ge0 ge2_len).
+      + move: (WAddress.valP (wad{2})). 
+        rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
+        by rewrite ?drop_putK 1:// ?nth_drop 1..8:// /=.
+      move: (WAddress.valP (wad{2})). 
+      rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
+      by rewrite /valid_widxvalslp ?nth_take 1..8:// ?nth_put /=; smt(size_ge0 ge6_adrslen Adrs.valP). 
+    * rewrite {1}sigwdef &(eq_in_mkseq) => j rng_j /=. 
+      by rewrite nth_cat (: j < size l{1}) 1:/#.
+    by rewrite nth_cat eqszlsig -eqszpksig.
+  wp; skip => /> &2.
+  by rewrite 2!mkseq0 /=; smt(ge2_len).
+wp => /=.
+while{1} (sigWOTS{1}
+          =
+          mkseq (fun (i : int) =>
+                  cf O_MEUFGCMA_WOTSTWESNPRF.ps{1} (set_chidx (val wad{1}) i) 0 (BaseW.val em{1}.[i]) (val (nth witness skWOTS{1} i))) (size sigWOTS{1})
+          /\ size sigWOTS{1} <= len)
+         (len - size sigWOTS{1}).
++ move=> _ z.
+  wp; skip => /> &1 sigwdef _ ltlen_szsigw.
+  by rewrite ?size_rcons mkseqS 2:{1}sigwdef /=; smt(size_ge0).
+wp => /=. 
+while{1} (pkWOTS{1}
+          =
+          mkseq (fun (i : int) =>
+                  cf O_MEUFGCMA_WOTSTWESNPRF.ps{1} (set_chidx (val wad{1}) i) 0 (w - 1) (val (nth witness skWOTS{1} i))) (size pkWOTS{1})
+          /\ size pkWOTS{1} <= len)
+         (len - size pkWOTS{1}).
++ move=> _ z.
+  wp; skip => /> &1 pkwdef _ ltlen_szpkw.
+  by rewrite ?size_rcons mkseqS 2:{1}pkwdef /=; smt(size_ge0).
+by wp; skip => /> &1 &2 eqlen_szsk; smt(mkseq0 ge2_len).
+qed.
+
+local lemma EqPr_MEUFGCMAWOTSTWESNPRF_Orig_V &m :
+  Pr[M_EUF_GCMA_WOTSTWESNPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A), O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).main() @ &m : res]
+  =
+  Pr[M_EUF_GCMA_WOTSTWESNPRF(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A), O_MEUFGCMA_WOTSTWESNPRF_V, FC.O_THFC_Default).main() @ &m : res].
+proof.
+byequiv => //.
+proc.
+seq 4 4 : (={glob A, glob R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, ps, O_MEUFGCMA_WOTSTWESNPRF.qs, FC.O_THFC_Default.tws}); 2: by sim.
+inline{1} 4; inline{2} 4.
+while (#post /\ ={O_MEUFGCMA_WOTSTWESNPRF.ps, FC.O_THFC_Default.pp}).
++ wp => /=.
+  while (={R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad, R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd, O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, FC.O_THFC_Default.pp, FC.O_THFC_Default.tws, rootsnt, rootsntp, leavesnt, sigWOTSnt, pkWOTSnt}).
+  - wp => /=.
+    while (={R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad, R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd, FC.O_THFC_Default.pp, FC.O_THFC_Default.tws, nodes, pkWOTSnt, pkWOTSlp, leaveslp}).
+    * by sim.
+    wp => /=.
+    while (={R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad, R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd, O_MEUFGCMA_WOTSTWESNPRF.ps, O_MEUFGCMA_WOTSTWESNPRF.qs, FC.O_THFC_Default.pp, FC.O_THFC_Default.tws, pkWOTSnt, rootsntp, leaveslp, sigWOTSlp, pkWOTSlp}).
+    * wp => /=.
+      call (: ={glob FC.O_THFC_Default}); 1: by sim.
+      call Eqv_O_MEUFGCMA_WOTSTWESNPRF_query_Orig_V.
+      by wp; skip.
+    by wp; skip.
+  by wp; skip.
+wp => />.
+call (: ={R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.xs, R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads, FC.O_THFC_Default.tws, FC.O_THFC_Default.pp}); 1: by sim.
+inline *.
+by wp; rnd; skip.
+qed.
+
+local equiv Eqv_Choose_V_Orig :
+  A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF_V, FC.O_THFC_Default).O_THFC).choose 
+  ~
+  A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
+     ={glob A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF_V, FC.O_THFC_Default).O_THFC)} 
+    ==> 
+     ={glob A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF_V, FC.O_THFC_Default).O_THFC)}.
+proof.
+proc (={R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.xs, R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads, FC.O_THFC_Default.tws, FC.O_THFC_Default.pp}) => //.
+proc; inline *.
+by wp; skip.
+qed. 
+
 local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
   hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
           R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
@@ -2657,7 +2945,8 @@ have ->:
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.main() @ &m : res].
 + by byequiv (Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_Orig_V).
 rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_WOTSTWES] RealOrder.ler_add.
-+ byequiv=> //. 
++ rewrite EqPr_MEUFGCMAWOTSTWESNPRF_Orig_V.
+  byequiv=> //. 
   proc.
   inline{2} 5; inline{2} 4.
   swap{1} 3.
@@ -2682,10 +2971,13 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_WOTSTWES
                 ==> 
                 ={glob A, res} /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2})
              _
-             allntads => //.
+             (: R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
+                ==>
+                 all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads) => //.
+      + conseq Eqv_Choose_V_Orig allntads => /#.
       proc (O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}) => //.  
       proc; inline{2} 1.
-      by wp; skip. print O_MEUFGCMA_WOTSTWESNPRF. 
+      by wp; skip.  
     by wp; rnd; skip.
   (*
   seq 7 7 : (   #pre

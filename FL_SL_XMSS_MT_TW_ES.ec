@@ -1347,13 +1347,16 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     var sig' : sigFLSLXMSSMTTW;
     var idx' : index;
     var root, root' : dgstblock;
-    var roots' : dgstblock list;
+    var rootstd' : dgstblock list;
     var tidx, kpidx : int;
     var tkpidxs : (int * int) list;
-    var leaf' : dgstblock;
+    var leaf, leaf' : dgstblock;
     var leaves : dgstblock list;
     var forgeryfs : bool list; 
-    var ffidx, forgeryidx : int;
+    var cidx, fidx : int;
+    var pkWOTSs, pkWOTSs' : pkWOTS list;
+    var rootss, rootss' : dgstblock list;
+    var valid_WOTSTWES, valid_TCRPKCO, valid_TCRTRH : bool;
     
     (* Sign adversary-chosen messages using computed leaves/signatures *)
     sigl <- [];
@@ -1383,10 +1386,19 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     (m', sig', idx') <@ A(O_THFC).forge((root, ps, ad), sigl);
     
     (tidx, kpidx) <- (val idx', 0);
-    tkpidxs <- [];
     root' <- m';
-    roots' <- [];
-    forgeryfs <- [];
+    tkpidxs <- [];
+    pkWOTSs <- [];
+    rootss <- [];
+    pkWOTSs' <- [];
+    rootss' <- [];
+    (* forgeryfs <- []; *)
+(*
+    valid_WOTSTWES <- false;
+    valid_TCRPKCO <- false;
+    valid_TCRTRH <- false;
+    cidx <- d;
+*)
     (* 
       For each WOTS-TW signature/authentication path pair in the forgery, check whether
       the signature is valid on the previous root (first one being the forgery's message),
@@ -1394,25 +1406,43 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
       compressing the WOTS-TW public key derived from the signature.
       Keep track of the intermediate roots and tree/keypair indices. 
     *)
-    while (size forgeryfs < d) {
+    while (size pkWOTSs' < d) {
       (tidx, kpidx) <- edivz tidx l';
       
-      (sigWOTS', ap') <- nth witness (val sig') (size forgeryfs);
+      (sigWOTS', ap') <- nth witness (val sig') (size pkWOTSs');
       
       pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
-                                                     (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) chtype) kpidx));
-      pkWOTS <- nth witness (nth witness (nth witness pkWOTStd (size forgeryfs)) tidx) kpidx;
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) chtype) kpidx));
+      pkWOTS <- nth witness (nth witness (nth witness pkWOTStd (size pkWOTSs')) tidx) kpidx;
       
-      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size forgeryfs) tidx) pkcotype) kpidx) 
-                   (flatten (map DigestBlock.val (val pkWOTS'))); 
-      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size forgeryfs) tidx) trhtype) ;
-      roots' <- rcons roots' root';
-      
-      forgeryfs <- rcons forgeryfs (pkWOTS' = pkWOTS);
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) pkcotype) kpidx) 
+                    (flatten (map DigestBlock.val (val pkWOTS')));
+(*
+      leaf <- nth witness (nth witness (nth witness leavestd (size pkWOTSs')) tidx) kpidx;
+*)    
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) trhtype); 
+      root <- nth witness (nth witness rootstd (size pkWOTSs')) tidx;
+
+(*      
+      if (! valid_WOTSTWES /\ ! valid_TCRPKCO /\ valid_TCRTRH) {
+        valid_WOTSTWES <- pkWOTS' = pkWOTS;
+        valid_TCRPKCO <- pkWOTS' <> pkWOTS /\ leaf' = leaf;
+        valid_TCRTRH <- leaf' <> leaf /\ root' = root;
+       
+        if (valid_WOTSTWES \/ valid_TCRPKCO \/ valid_TCRTRH) {
+          cidx <- size pkWOTSs';
+        }
+      }
+*)    
       tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      pkWOTSs <- rcons pkWOTSs pkWOTS;
+      rootss <- rcons rootss root;
+      pkWOTSs' <- rcons pkWOTSs' pkWOTS';
+      rootss' <- rcons rootss' root';
     }
     
-    (* Get index of the first valid WOTS-TW signature in the forgery *)
+    
+    (* Get index of the first valid WOTS-TW signature in the forgery
     ffidx <- find ((=) true) forgeryfs;
     
     (* Get tree and key pair index corresponding to first WOTS-TW signature forgery *)    
@@ -1420,12 +1450,25 @@ module (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) 
     
     (* Compute index in the challenge oracle's query list of the forgery *)
     forgeryidx <- bigi predT (fun i => nr_trees i) 0 ffidx * l' + tidx * l' + kpidx; 
-    
+        
     (* Get root and WOTS-TW sigature forming a forgery *)
     root' <- nth witness roots' ffidx;
     sigWOTS' <- (nth witness (val sig') ffidx).`1;
+    *)
+    cidx <- find (fun (x : ((_ *  _) * _) * _) => x.`1.`1.`1 = x.`1.`1.`2 /\ x.`1.`2 <> x.`2) 
+                 (zip (zip (zip pkWOTSs' pkWOTSs) (m' :: rootss')) (nth witness ml (val idx') :: rootss));
+        
+    (* Get tree and key pair index corresponding to first WOTS-TW signature forgery *)    
+    (tidx, kpidx) <- nth witness tkpidxs cidx;
     
-    return (forgeryidx, root', sigWOTS');
+    (* Compute index in the challenge oracle's query list of the forgery *)
+    fidx <- bigi predT (fun i => nr_trees i) 0 cidx * l' + tidx * l' + kpidx; 
+        
+    (* Get root and WOTS-TW sigature forming a forgery *)
+    root' <- nth witness (m' :: rootss') cidx;
+    sigWOTS' <- (nth witness (val sig') cidx).`1;
+    
+    return (fidx, root', sigWOTS');
   }
 }.
 
@@ -2030,6 +2073,9 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C = {
     var leavestd', rootstd' : dgstblock list;
     var tidx, kpidx : int;
     var tkpidxs : (int * int) list;
+    var pkWOTSs, pkWOTSs' : pkWOTS list;
+    var leavess, leavess' : dgstblock list;
+    var rootss, rootss' : dgstblock list; 
     var forgeryfs, tclfs, tcrfs : bool list;
     var cidx : int;
         
@@ -2151,6 +2197,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C = {
     *)
     is_fresh <- m' <> nth witness ml (val idx'); 
     
+    (*
     (* Additional checks *)
     (tidx, kpidx) <- (val idx', 0);
     root' <- m';
@@ -2210,7 +2257,73 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C = {
       tcrfs <- rcons tcrfs (root' = root);
 *)
     }    
+*)
+    (tidx, kpidx) <- (val idx', 0);
+    root' <- m';
+    tkpidxs <- [];
+    pkWOTSs <- [];
+    leavess <- [];
+    rootss <- [];
+    pkWOTSs' <- [];
+    leavess' <- [];
+    rootss' <- [];
+    (* forgeryfs <- []; *)
+(*
+    valid_WOTSTWES <- false;
+    valid_TCRPKCO <- false;
+    valid_TCRTRH <- false;
+    cidx <- d;
+*)
+    (* 
+      For each WOTS-TW signature/authentication path pair in the forgery, check whether
+      the signature is valid on the previous root (first one being the forgery's message),
+      then compute the next root using the authentication path and the leaf resulting from
+      compressing the WOTS-TW public key derived from the signature.
+      Keep track of the intermediate roots and tree/keypair indices. 
+    *)
+    while (size pkWOTSs' < d) {
+      (tidx, kpidx) <- edivz tidx l';
+      
+      (sigWOTS', ap') <- nth witness (val sig') (size pkWOTSs');
+      
+      pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) chtype) kpidx));
+      pkWOTSins <- nth witness (nth witness (nth witness pkWOTStd (size pkWOTSs')) tidx) kpidx;
+      
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) pkcotype) kpidx) 
+                    (flatten (map DigestBlock.val (val pkWOTS')));
+      leaf <- nth witness (nth witness (nth witness leavestd (size pkWOTSs')) tidx) kpidx;
+         
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) trhtype); 
+      root <- nth witness (nth witness rootstd (size pkWOTSs')) tidx;
+
+(*      
+      if (! valid_WOTSTWES /\ ! valid_TCRPKCO /\ valid_TCRTRH) {
+        valid_WOTSTWES <- pkWOTS' = pkWOTS;
+        valid_TCRPKCO <- pkWOTS' <> pkWOTS /\ leaf' = leaf;
+        valid_TCRTRH <- leaf' <> leaf /\ root' = root;
+       
+        if (valid_WOTSTWES \/ valid_TCRPKCO \/ valid_TCRTRH) {
+          cidx <- size pkWOTSs';
+        }
+      }
+*)    
+      tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      pkWOTSs <- rcons pkWOTSs pkWOTSins;
+      rootss <- rcons rootss root;
+      leavess <- rcons leavess leaf;
+      pkWOTSs' <- rcons pkWOTSs' pkWOTS';
+      rootss' <- rcons rootss' root';
+      leavess' <- rcons leavess' leaf';
+    }
     
+    valid_WOTSTWES <- exists (i : int), 0 <= i < d /\ nth witness pkWOTSs' i = nth witness pkWOTSs i 
+                                                   /\ nth witness (m' :: rootss') i <> nth witness (nth witness ml (val idx') :: rootss) i;
+    valid_TCRPKCO <- exists (i : int), 0 <= i < d /\ nth witness leavess' i = nth witness leavess i 
+                                                  /\ nth witness pkWOTSs' i <> nth witness pkWOTSs i;
+    valid_TCRTRH <- exists (i : int), 0 <= i < d /\ nth witness (m' :: rootss') (i + 1) = nth witness (nth witness ml (val idx') :: rootss) (i + 1)
+                                                 /\ nth witness leavess' i <> nth witness leavess i;
+           
     return is_valid /\ is_fresh; 
   }
 }.
@@ -2222,7 +2335,7 @@ proof.
 proc.
 seq 7 14 : (={glob A, sigl, pk, ml}); last first. 
 + wp.
-  while{2} (true) (d - size pkWOTStd'{2}).
+  while{2} (true) (d - size pkWOTSs'{2}).
   - move=> ? z.
     inline *.
     wp.
@@ -2704,6 +2817,9 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     var tidx, kpidx : int;
     var tkpidxs : (int * int) list;
     var forgeryfs, tclfs, tcrfs : bool list;
+    var pkWOTSs', pkWOTSs : pkWOTS list;
+    var leavess', leavess : dgstblock list;
+    var rootss', rootss : dgstblock list;
     var pkWOTStd' : pkWOTS list;
     var leavestd', rootstd' : dgstblock list;
     var cidx : int;
@@ -2824,7 +2940,8 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     is_fresh <- ! m' \in take (size sigl) ml;
     *)
     is_fresh <- m' <> nth witness ml (val idx'); 
-    
+
+(*    
     (* Additional checks *)
     (tidx, kpidx) <- (val idx', 0);
     root' <- m';
@@ -2884,8 +3001,75 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
       tcrfs <- rcons tcrfs (root' = root);
 *)
     }
+*)
+
+       (tidx, kpidx) <- (val idx', 0);
+    root' <- m';
+    tkpidxs <- [];
+    pkWOTSs <- [];
+    leavess <- [];
+    rootss <- [];
+    pkWOTSs' <- [];
+    leavess' <- [];
+    rootss' <- [];
+    (* forgeryfs <- []; *)
+(*
+    valid_WOTSTWES <- false;
+    valid_TCRPKCO <- false;
+    valid_TCRTRH <- false;
+    cidx <- d;
+*)
+    (* 
+      For each WOTS-TW signature/authentication path pair in the forgery, check whether
+      the signature is valid on the previous root (first one being the forgery's message),
+      then compute the next root using the authentication path and the leaf resulting from
+      compressing the WOTS-TW public key derived from the signature.
+      Keep track of the intermediate roots and tree/keypair indices. 
+    *)
+    while (size pkWOTSs' < d) {
+      (tidx, kpidx) <- edivz tidx l';
+      
+      (sigWOTS', ap') <- nth witness (val sig') (size pkWOTSs');
+      
+      pkWOTS' <@ WOTS_TW_ES_NPRF.pkWOTS_from_sigWOTS(root', sigWOTS', ps, 
+                                                     (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) chtype) kpidx));
+      pkWOTSins <- nth witness (nth witness (nth witness pkWOTStd (size pkWOTSs')) tidx) kpidx;
+      
+      leaf' <- pkco ps (set_kpidx (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) pkcotype) kpidx) 
+                    (flatten (map DigestBlock.val (val pkWOTS')));
+      leaf <- nth witness (nth witness (nth witness leavestd (size pkWOTSs')) tidx) kpidx;
+         
+      root' <- val_ap_trh ap' kpidx leaf' ps (set_typeidx (set_ltidx ad (size pkWOTSs') tidx) trhtype); 
+      root <- nth witness (nth witness rootstd (size pkWOTSs')) tidx;
+
+(*      
+      if (! valid_WOTSTWES /\ ! valid_TCRPKCO /\ valid_TCRTRH) {
+        valid_WOTSTWES <- pkWOTS' = pkWOTS;
+        valid_TCRPKCO <- pkWOTS' <> pkWOTS /\ leaf' = leaf;
+        valid_TCRTRH <- leaf' <> leaf /\ root' = root;
+       
+        if (valid_WOTSTWES \/ valid_TCRPKCO \/ valid_TCRTRH) {
+          cidx <- size pkWOTSs';
+        }
+      }
+*)    
+      tkpidxs <- rcons tkpidxs (tidx, kpidx);
+      pkWOTSs <- rcons pkWOTSs pkWOTSins;
+      rootss <- rcons rootss root;
+      leavess <- rcons leavess leaf;
+      pkWOTSs' <- rcons pkWOTSs' pkWOTS';
+      rootss' <- rcons rootss' root';
+      leavess' <- rcons leavess' leaf';
+    }
     
-    is_valid <- root' = root;
+    valid_WOTSTWES <- exists (i : int), 0 <= i < d /\ nth witness pkWOTSs' i = nth witness pkWOTSs i 
+                                                   /\ nth witness (m' :: rootss') i <> nth witness (nth witness ml (val idx') :: rootss) i;
+    valid_TCRPKCO <- exists (i : int), 0 <= i < d /\ nth witness leavess' i = nth witness leavess i 
+                                                  /\ nth witness pkWOTSs' i <> nth witness pkWOTSs i;
+    valid_TCRTRH <- exists (i : int), 0 <= i < d /\ nth witness (m' :: rootss') (i + 1) = nth witness (nth witness ml (val idx') :: rootss) (i + 1)
+                                                 /\ nth witness leavess' i <> nth witness leavess i;
+  
+    is_valid <- nth witness (m' :: rootss') d = nth witness (nth witness ml (val idx') :: rootss) d;
     
     return is_valid /\ is_fresh; 
   }
@@ -2896,14 +3080,14 @@ local equiv Eqv_EUFNAGCMA_FLSLXMSSMTTWESNPRF_C_V :
     ={glob A} ==> ={res}.
 proof.
 proc.
-swap{1} 16 12. 
+swap{1} 16 14. 
 conseq (: _ ==> ={is_valid, is_fresh}) => //.
 swap{1} [11..12] 2; swap{2} [11..12] 2.
 seq 12 12 : (={glob A, ps, ad, ml, sigl, rootstd}); 1: by sim.
-seq 15 4 : (   ={is_fresh, ps, ad, m', sig', idx'}
+seq 14 4 : (   ={is_fresh, ps, ad, m', sig', idx'}
             /\ pk{1} = (nth witness (nth witness rootstd (d - 1)) 0, ps, ad){2}).
 + while{1} (true)
-           (d - size pkWOTStd'{1}).
+           (d - size pkWOTSs'{1}).
   - move => ? z.
     inline 3.
     wp => /=.
@@ -2913,22 +3097,42 @@ seq 15 4 : (   ={is_fresh, ps, ad, m', sig', idx'}
     by wp; skip => />; smt(size_rcons).
   wp; call (: true). 
   by wp; skip => /> /#.
+sp 3 0.
 inline{1} 1; inline{1} 6 => />.
 wp.
-while (   i{1} = size pkWOTStd'{2}
-       /\ ps1{1} = ps{2}
-       /\ ad1{1} = ad{2}
-       /\ tidx0{1} = tidx{2}
-       /\ kpidx0{1} = kpidx{2}
-       /\ 0 <= tidx{2}
-       /\ (size pkWOTStd'{2} < d => 
-             tidx{2} < nr_nodes_ht (size pkWOTStd'{2}) 0)
-       /\ sig1{1} = sig'{2}
-       /\ root0{1} = (nth witness (nth witness rootstd{2} (d - 1)) 0)
-       /\ root1{1} = root'{2}
-       /\ (size pkWOTStd'{2} = d => 
-             root0{1} = root{2})
-       /\ size pkWOTStd'{2} <= d).
+while(   i{1} = size pkWOTSs'{2}
+      /\ ps1{1} = ps{2}
+      /\ ad1{1} = ad{2}
+      /\ tidx0{1} = tidx{2}
+      /\ kpidx0{1} = kpidx{2}
+      /\ sig1{1} = sig'{2}
+      /\ root1{1} = root'{2}
+      /\ root'{2} = nth witness (m'{2} :: rootss'{2}) (size pkWOTSs'{2})
+      /\ 0 <= tidx{2}
+      /\ (size pkWOTSs'{2} < d => 
+            tidx{2} < nr_nodes_ht (size pkWOTSs'{2}) 0)
+      /\ (size pkWOTSs'{2} < d =>
+            tidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size pkWOTSs'{2})).`1)
+      /\ (0 < size pkWOTSs'{2} < d => 
+             tidx{2} = (nth witness tkpidxs{2} (size pkWOTSs'{2} - 1)).`1)  
+      /\ (0 < size pkWOTSs'{2} =>
+           root{2} = nth witness (nth witness rootstd{2} (size pkWOTSs'{2} - 1)) (nth witness tkpidxs{2} (size pkWOTSs'{2} - 1)).`1)
+      /\ (0 < size pkWOTSs'{2} =>
+           nth witness rootss{2} (size pkWOTSs'{2} - 1) 
+           = 
+           nth witness (nth witness rootstd{2} (size pkWOTSs'{2} - 1)) (nth witness tkpidxs{2} (size pkWOTSs'{2} - 1)).`1)
+      /\ (0 < size pkWOTSs'{2} < d =>
+             0 <= (nth witness tkpidxs{2} (size pkWOTSs'{2} - 1)).`1 < nr_nodes_ht (size pkWOTSs'{2} - 1) 0)
+      /\ (forall (i : int), 0 <= i < size pkWOTSs'{2} =>
+            0 <= (nth witness tkpidxs{2} i).`1 < nr_nodes_ht i 0 %/ l')
+      /\ (0 < size pkWOTSs'{2} =>
+              (nth witness tkpidxs{2} 0).`1 = val idx'{2} %/ l')
+      /\ (forall (i : int), 1 <= i < size pkWOTSs'{2} =>
+            (nth witness tkpidxs{2} i).`1 = (nth witness tkpidxs{2} (i - 1)).`1 %/ l')
+      /\ size rootss{2} = size pkWOTSs'{2}
+      /\ size rootss'{2} = size pkWOTSs'{2}
+      /\ size tkpidxs{2} = size pkWOTSs'{2}
+      /\ size pkWOTSs'{2} <= d).
 + inline{1} 3; inline{2} 3.
   wp => /=.
   while (   ={em0}
@@ -2937,27 +3141,42 @@ while (   i{1} = size pkWOTStd'{2}
          /\ pkWOTS1{1} = pkWOTS0{2}
          /\ sig2{1} = sig0{2}). 
   - by wp; skip.
-  wp; skip => /> &2 ge0_tidx ltnht eqrt _ ltd_szpk pkw /lezNgt geszpkw _.
-  rewrite size_rcons /=; split; 1: by rewrite divz_ge0 2://; smt(ge1_lp).
-  split => [ltdpkw1 |].
+  wp; skip => /> &2 ge0_ti ubti tidef tirel rtrel rtlrel rngtkp rngtkpdv 
+                    fitkp sqtkp eqszpkrs eqszpkrsp eqsztkppk  _ ltdszpk pk _ /lezNgt geszpk_len.
+  rewrite ?nth_rcons ?size_rcons eqsztkppk eqszpkrs eqszpkrsp /=.
+  have ge0_tdvl : 0 <= tidx{2} %/ l' by rewrite divz_ge0; 1: smt(ge1_lp).
+  rewrite ge0_tdvl (: size pkWOTSs'{2} + 1 <> 0) 2:/=; 1:smt(size_ge0).
+  rewrite foldS 1:size_ge0 /=; split => [ltd_pk1 |].
   - rewrite ltz_divLR; 1: smt(ge1_lp).
-    move: (ltnht _); 1: by smt().
+    move: (ubti _); 1: smt().
     rewrite /nr_nodes_ht /nr_trees /nr_nodes /l'.
-    rewrite -?exprD_nneg; smt(ge0_hp size_rcons).
-    split => [eqd1_szpk|/#].
-    have szpkd1 : size pkWOTStd'{2} = d - 1 by smt(size_rcons).
-    congr; 1: by rewrite szpkd1.
-    suff /#: 0 <= tidx{2} %/ l' < 1.
-    rewrite divz_ge0 2:ltz_divLR /=; 1,2: smt(ge1_lp).
-    rewrite ge0_tidx /=; move: (ltnht _); 1: by rewrite szpkd1 /#.
-    rewrite /nr_nodes_ht /nr_trees /nr_nodes.
-    by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp).
+    by rewrite /= -?exprD_nneg ?addr_ge0 ?mulr_ge0 ?ge0_hp; smt(ge0_hp size_rcons).
+  split => [/#|]; split => [/#|].
+  split => [i ge0_i ltszpk1_i |].
+  - rewrite ?nth_rcons; case (i < size tkpidxs{2}) => [/# | ?].
+    rewrite (: i = size tkpidxs{2}) 1:/# ge0_tdvl /=.
+    rewrite ltz_divLR 2:divzK; 1,3: smt(ge1_lp).
+    by rewrite /nr_nodes_ht /nr_nodes dvdz_mull dvdzz.
+  split => [?|]; 1: case (0 < size pkWOTSs'{2}) => [//|?].
+  - rewrite (tidef _); 1: smt(ge1_d).
+    by rewrite -(: 0 = size pkWOTSs'{2}) 1:/# /= fold0.
+  split=> [i ge1_i ltsz1_i /= | /#].
+  by rewrite ?nth_rcons; case (i < size tkpidxs{2}) => /#.
 wp; skip => /> &2.
-split => [|/#].
-split; 1: smt(Index.valP).
-split; 2: smt(ge1_d).
-rewrite /nr_nodes_ht /nr_trees /nr_nodes /= -exprD_nneg 1:mulr_ge0; 1..3: smt(ge0_hp ge1_d).
-by rewrite mulrDr /= mulrN1 addrAC -addrA subrr /=; smt(Index.valP).
+split => [| pk r rs ts' tidx tkpi /lezNgt ged_szpk _ ge0_ti rtrel rtsrel rngtkpi fitkpi sqtkpi eqszpkrs eqszpkrsp eqszpktkpi led_szpk]. 
++ rewrite /nr_nodes_ht /nr_trees /nr_nodes /= -exprD_nneg 1:mulr_ge0; 1..3: smt(ge0_hp ge1_d).
+  by rewrite mulrDr /= mulrN1 addrAC -addrA subrr /= -/l fold0 /=; smt(ge1_d Index.valP).
+have eqd_szpk : size pk = d by smt().
+move: rtsrel; rewrite eqd_szpk (: 0 < d) 2:(: d <> 0) 3:/=; 1,2: smt(ge1_d).
+move=> ->; do 2! congr.
+case (d = 1) => [eq1d | neq1d].
++ by rewrite eq1d /= (fitkpi _) 1:/# pdiv_small 2://; smt(Index.valP). 
+suff /#: 0 <= (nth witness tkpi (d - 1)).`1 < 1.
+move: (rngtkpi (d - 1) _); 1: smt(ge1_d).
+move=> -[-> /=]; rewrite (: nr_nodes_ht (d - 1) 0 %/ l' = 1) 2://.
+rewrite eq_sym -{1}(expr0 2) /nr_nodes_ht /nr_trees /nr_nodes /=.
+rewrite -exprD_nneg 1:mulr_ge0; 1..3: smt(ge0_hp ge1_d).
+by rewrite /l' expz_div 2://; smt(ge0_hp).
 qed.
 
 local module O_MEUFGCMA_WOTSTWESNPRF_V = {
@@ -3001,7 +3220,7 @@ local clone DMap.DMapSampling as DMS with
 local clone DList.Program as DLP with
   type t <- dgstblock,
     op d <- ddgstblock.
-print DLP.
+
 local module O_MEUFGCMA_WOTSTWESNPRF_DMSDLP = {
   import var O_MEUFGCMA_WOTSTWESNPRF
   
@@ -3317,35 +3536,36 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
              /\ (forall (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS),
                    admpksig \in O_MEUFGCMA_WOTSTWESNPRF.qs{2}
                    <=>
-                   (exists (i j u : int),
-                     0 <= i < d /\ 0 <= j < nr_trees i /\ 0 <= u < l' 
-                     /\
-                     admpksig
-                     =
-                     (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u))
-                     /\
-                     admpksig
-                     =
-                     (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u,
-                      (if i = 0
-                       then nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (j * l' + u)
-                       else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) j), 
-                      nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) j) u, 
-                      nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2} i) j) u)))
-             (*/\ uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWESNPRF.qs{2})*)
+                   (exists (i j u : int), 0 <= i < d /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\
+                     admpksig = (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u))))
+             /\ (forall (i j u : int), 0 <= i < d => 0 <= j < nr_trees i => 0 <= u < l' => 
+                   nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)
+                   =
+                   (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u,
+                    (if i = 0
+                     then nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (j * l' + u)
+                     else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) j), 
+                    nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) j) u, 
+                    nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2} i) j) u))
              /\ all (fun (admpksig : _ * _ * _ * _) => get_typeidx admpksig.`1 = chtype) O_MEUFGCMA_WOTSTWESNPRF.qs{2}
+             /\ uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWESNPRF.qs{2})
              /\ size O_MEUFGCMA_WOTSTWESNPRF.qs{2} = bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d).
   - admit.
   swap{1} [1..2] 2.
   sp 0 1.
   seq 2 2 : (#pre /\ ={sigl}); 1: by conseq />; sim.
-  inline{2} 21; inline{2} 20; inline{2} 19; inline{2} 18; inline{2} 15.
-  wp => /=.
-  conseq (: is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} => is_valid{2} /\ m'{2} <> m{2} /\ 0 <= i{2} && i{2} < size O_MEUFGCMA_WOTSTWESNPRF.qs{2}).
-  - move=> />; progress. 
-    smt(size_ge0). 
-    rewrite H2 //. smt(). smt(). smt(). smt(). 
-    admit.
+  inline{2} 23; inline{2} 22; inline{2} 21; inline{2} 20; inline{2} 17.
+  wp 15 19 => /=.
+  conseq (: is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} => 
+              is_valid{2} /\ m'{2} <> m{2} /\ 0 <= i{2} && i{2} < size O_MEUFGCMA_WOTSTWESNPRF.qs{2}).
+  - move=> /> &2; rewrite (: d <> 0) 2:/=; 1: smt(ge1_d). 
+    move=> allnchtws qsmem qsnth allchqs uqwgpqs szqs vw isf rs rs' i isv m m' + eqnthrs isfT vwT. 
+    rewrite isfT vwT size_ge0 szqs /= => [#] -> -> -> -> /=.
+    rewrite lez_eqVlt /= /disj_wgpidxs -map_comp /get_wgpidxs /(\o) /disj_lists hasPn => ls.
+    rewrite 2!mapP => -[admpksig] [admpksigin /= lsval].
+    rewrite negb_exists => ad /=; rewrite negb_and -implybE => adin. 
+    rewrite lsval /= &(neq_from_nth witness _ _ 1). 
+    by rewrite ?nth_drop //=; smt(allP).
 (*
     rewrite /uniq_wgpidxs -map_comp /get_wgpidxs /(\o).
     rewrite map_inj_in_uniq //.
@@ -3383,29 +3603,84 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
   print nthP.
         admit.
 *)
-    rewrite /disj_wgpidxs -map_comp /get_wgpidxs /(\o) /disj_lists hasPn => ls.
-    rewrite 2!mapP => -[admpksig] [admpksigin /= lsval].
-    rewrite negb_exists => ad /=; rewrite negb_and -implybE => adin. 
-    rewrite lsval /=. apply (neq_from_nth witness (drop 2 (val admpksig.`1)) (drop 2 (val ad)) 1). 
-    rewrite ?nth_drop //=.
-    smt(allP).
+  seq 15 18 : (is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} =>  
+                m'{2} <> m{2} /\ 0 <= i{2} < size O_MEUFGCMA_WOTSTWESNPRF.qs{2} /\
+                  pkWOTS{2} 
+                  = 
+                  DBLL.insubd (mkseq (fun (i : int) => 
+                      cf ps{2} (set_chidx ad{2} i) (BaseW.val (encode_msgWOTS m'{2}).[i]) 
+                               (w - 1 - BaseW.val (encode_msgWOTS m'{2}).[i]) (val (nth witness (val sig'{2}) i))) len)).
+  - admit.
   (*
-  seq 7 7 : (   #pre
-             /\ ad{1} = adz
-             /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
-             /\ ) 
-  forall i j u, 
-    nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)
-    =
-    (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u, 
-     if i = 0
-     then nth witness ml{2} (j * t + u)
-     else nth witness (nth witness (nth witness rootstd (i - 1)) j) u) 
-   * + 
+    wp => /=.
+    while (   #pre
+           /\ ={root', tidx, kpidx, idx'}
+           /\ sig'{1} = sig'0{2}
+           /\ ps{1} = ps0{2}
+           /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
+           /\ ={pkWOTStd', rootstd', tidx, kpidx, cidx}
+           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} = valid_WOTSTWES{2}
+           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO{1} = valid_TCRPKCO{2}
+           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH{1} = valid_TCRTRH{2}
+           /\ (forall (i : int), 0 <= i < size pkWOTStd'{2} =>
+                 nth witness pkWOTStd'{2} i
+                 =
+                 DBLL.insubd (mkseq (fun (j : int) => 
+                           cf ps0{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} i (nth witness tkpidxs{2} i).`1) chtype) (nth witness tkpidxs{2} i).`2) j)
+                              (val (encode_msgWOTS (if i = 0 then m'0{2} else nth witness rootstd'{2} (i - 1))).[j])
+                              (w - 1 - val (encode_msgWOTS (if i = 0 then m'0{2} else nth witness rootstd'{2} (i - 1))).[j])
+                              (val (nth witness (val (nth witness (val sig'0{2}) i).`1) j))) len))
+           /\ (valid_WOTSTWES{2} =>
+                 0 <= cidx{2} < d 
+               /\ (if cidx{2} = 0
+                   then m'0{2} <> nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (val idx'{2})
+                   else nth witness rootstd'{2} (cidx{2} - 1) <> nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (cidx{2} - 1)) (nth witness tkpidxs{2} cidx{2}).`1) 
+                /\ nth witness pkWOTStd'{2} cidx{2} = nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} cidx{2}) (nth witness tkpidxs{2} cidx{2}).`1) (nth witness tkpidxs{2} cidx{2}).`2)
+          /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>  
+                   (nth witness tkpidxs{2} i).`1 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`1 
+                /\ (nth witness tkpidxs{2} i).`2 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`2)
+          /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>  
+                   0 <= (nth witness tkpidxs{2} i).`1 < nr_trees i
+                /\ 0 <= (nth witness tkpidxs{2} i).`2 < l')
+          /\ (size tkpidxs{2} < d =>  
+                   tidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size tkpidxs{2})).`1 
+                /\ kpidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size tkpidxs{2})).`2)
+          /\ size pkWOTStd'{1} = size pkWOTStd'{2}
+          /\ size pkWOTStd'{2} <= d
+          /\ size pkWOTStd'{2} = size rootstd'{2}
+          /\ size pkWOTStd'{2} = size tkpidxs{2}).
+    * admit.
+    admit.
   *)
-  admit.
-rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V.valid_TCRPKCO] RealOrder.ler_add.
+  inline{2} 1; inline{2} 7.
+  wp.
+  while{2} (pkWOTS3{2}
+            =
+            mkseq (fun (i : int) => 
+                      cf ps3{2} (set_chidx ad1{2} i) (BaseW.val em{2}.[i]) 
+                                (w - 1 - BaseW.val em{2}.[i]) (val (nth witness (val sig2{2}) i))) (size pkWOTS3{2})
+            /\ size pkWOTS3{2} <= len)
+           (len - size pkWOTS3{2}).
+  - move=> ? z.
+    by wp; skip => />; smt(size_rcons size_ge0 mkseqS).
+  wp; skip => /> &1 &2 opre.
+  split => [| pkw]; 1: by rewrite mkseq0; smt(ge2_len).
+  split => [/#| /lezNgt gelen_szpkw + lelen_szpkw isf vwT]. 
+  by move: (opre _); [rewrite isf vwT | smt() ].
+rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler_add.
 + admit.
+rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH] RealOrder.ler_naddr.
++ rewrite RealOrder.ler_eqVlt; left.
+  byphoare => //.
+  proc.
+  swap 16 10.
+  wp.
+  conseq (: _ ==> false); 2: by hoare.
+  move=> _ _ idx' lfs lfs' m' ml pkw pkw' rs rs'.
+  rewrite -3!andbA; split => //.
+  rewrite negP 2!negb_and -2!implybE.
+  move=> + nrs0; have : 0 <= d by smt(ge1_d).
+  by elim: d => /#.
 admit.
 qed.
 

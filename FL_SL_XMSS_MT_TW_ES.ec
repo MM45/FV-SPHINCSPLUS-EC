@@ -3525,7 +3525,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
       proc (O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2} /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2} /\ R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2} = FC.O_THFC_Default.tws{2}) => //.  
       proc; inline{2} 1.
       by wp; skip.
-    by wp; rnd; skip. 
+    by wp; rnd; skip.
   seq 7 7 : (   #pre
              /\ ad{1} = adz
              /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
@@ -3544,7 +3544,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                    (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u,
                     (if i = 0
                      then nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (j * l' + u)
-                     else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) j), 
+                     else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) (j * l' + u)), 
                     nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) j) u, 
                     nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2} i) j) u))
              /\ all (fun (admpksig : _ * _ * _ * _) => get_typeidx admpksig.`1 = chtype) O_MEUFGCMA_WOTSTWESNPRF.qs{2}
@@ -3610,7 +3610,76 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                   DBLL.insubd (mkseq (fun (i : int) => 
                       cf ps{2} (set_chidx ad{2} i) (BaseW.val (encode_msgWOTS m'{2}).[i]) 
                                (w - 1 - BaseW.val (encode_msgWOTS m'{2}).[i]) (val (nth witness (val sig'{2}) i))) len)).
-  - admit.
+  - wp => /=.
+    while (   ={pkWOTSs, rootss, pkWOTSs', rootss', tkpidxs, tidx, kpidx, root'}
+           /\ ps{1} = ps0{2}
+           /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
+           /\ pkWOTStd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}
+           /\ rootstd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2}
+           /\ sig'{1} = sig'0{2}
+           /\ (forall (i : int), 0 <= i < size pkWOTSs{2} =>
+                 nth witness pkWOTSs{2} i 
+                 =
+                 nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) (nth witness tkpidxs{2} i).`1) (nth witness tkpidxs{2} i).`2)
+           /\ (forall (i : int), 0 <= i < size rootss{2} =>
+                 nth witness rootss{2} i 
+                 =
+                 nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} i) (nth witness tkpidxs{2} i).`1)
+           /\ (forall (i : int), 0 <= i < size pkWOTSs'{2} =>
+                 nth witness pkWOTSs'{2} i 
+                 =
+                 DBLL.insubd (mkseq (fun (j : int) => 
+                      cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} i (nth witness tkpidxs{2} i).`1) chtype) (nth witness tkpidxs{2} i).`2) j) 
+                               (BaseW.val (encode_msgWOTS (nth witness (m'{2} :: rootss'{2}) i)).[j]) 
+                               (w - 1 - BaseW.val (encode_msgWOTS (nth witness (m'{2} :: rootss'{2}) i)).[j]) 
+                               (val (nth witness (val (nth witness (val sig'0{2}) i).`1) j))) len))
+           /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>
+                 (nth witness tkpidxs{2} i).`1 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`1 /\
+                 (nth witness tkpidxs{2} i).`2 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`2)
+           /\ size pkWOTSs'{2} = size pkWOTSs{2}
+           /\ size pkWOTSs'{2} = size rootss{2}
+           /\ size pkWOTSs'{2} = size rootss'{2}
+           /\ size pkWOTSs'{2} = size tkpidxs{2}
+           /\ size pkWOTSs'{2} <= d).
+    * admit.
+    wp => /=.
+    call (: true).
+    wp; skip => />.
+    progress.
+    smt().
+    smt().
+    smt().
+    smt().
+    smt().
+    smt(ge1_d). 
+    pose zs := zip _ _; pose cidx := find _ _.
+    have hascidx :
+      has (fun (x : ((pkWOTS * pkWOTS) * msgFLSLXMSSMTTW) * msgFLSLXMSSMTTW) =>
+                x.`1.`1.`1 = x.`1.`1.`2 /\ x.`1.`2 <> x.`2)
+             zs.
+    * rewrite -(has_nthP _ _ (((witness, witness), witness), witness)) /=.
+      exists i1.
+      rewrite -(: d = size zs) 1:/zs 1:?size_zip /= 1:/#.
+      split => [/#|].
+      rewrite /zs ?nth_zip_cond ?size_zip ?lez_minl 1..7:/#.
+      by rewrite (: i1 < size pkWOTSs'_R) 1:/# //.
+    have ge0_cidx : 0 <= cidx by rewrite find_ge0.
+    have ltd_cidx : cidx < d.
+    * by rewrite /cidx (: d = size zs) 1:/zs 1:?size_zip /= 1:/# -has_find.
+    move /(nth_find (((witness, witness), witness), witness)): (hascidx) => /= @-/cidx.
+    rewrite /zs ?nth_zip_cond ?size_zip ?lez_minl 1..7:/#.
+    rewrite (: cidx < size pkWOTSs'_R) 1:/# /= => -[eqpk].
+    rewrite H1 1://. admit. admit.
+    case (cidx = 0) => [eq0_cidx | neq0_cidx].     
+    * move: (H10 cidx _); 1: smt().
+      by move=> [-> ->]; rewrite eq0_cidx foldS 1:// fold0 /= -divz_eq.
+    rewrite H8 1:/#.
+    move: (H10 cidx _); 1:smt().
+    move => [-> ->].
+    by rewrite foldS 1:// /= -divz_eq (H10 (cidx - 1) _) 1:/# //.
+    admit.
+    admit.
+    admit.
   (*
     wp => /=.
     while (   #pre
@@ -3689,7 +3758,7 @@ lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
   hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
           R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
           ==> 
-          all (fun (ad : adrs) => get_typeidx ad <> chtype \/ get_typeidx ad <> pkcotype \/ get_typeidx ad <> trhtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads] =>
+          all (fun (ad : adrs) => get_typeidx ad <> chtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads] =>
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(A, O_THFC_Default).main() @ &m : res]
   <=
   (w - 2)%r
@@ -3740,7 +3809,7 @@ move: (MEUFGCMA_WOTSTWESNPRF (R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A)) _ _ &m)
 move => O OC.
 proc; inline *.
 wp => /=.
-while (true) (d - size pkWOTStd').
+while (true) (d - size pkWOTSs').
 + move=> z.
   wp.
   while (true) (len - size pkWOTS0).

@@ -3566,43 +3566,6 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
     rewrite negb_exists => ad /=; rewrite negb_and -implybE => adin. 
     rewrite lsval /= &(neq_from_nth witness _ _ 1). 
     by rewrite ?nth_drop //=; smt(allP).
-(*
-    rewrite /uniq_wgpidxs -map_comp /get_wgpidxs /(\o).
-    rewrite map_inj_in_uniq //.
-    move=> ad1 ad2 /= /H0 [i j u [#] ? ? ? ? ? ? adnth -> /=].
-    move=> /H0 [i' j' u' [#] ? ? ? ? ? ? adnth' -> /=]. 
-    print eq_from_nth.
-    move=> t.
-    suff [#] -> -> -> //: i = i' /\ j = j' /\ u = u'. 
-    move: t. apply contraLR. rewrite ?negb_and.
-    case; 2: case.
-    move=> neqi. apply (neq_from_nth witness _ _ 3).
-    rewrite ?nth_drop //=.
-    rewrite /set_ltidx /set_typeidx ?(Adrs.insubdK (put (put (val adz) 4 j) 5 i)). 
-    rewrite /valid_adrsidxs ?size_put; split; 1: smt(Adrs.valP). 
-    rewrite valid_xidxvals_idxvals /valid_xidxvals.
-    rewrite ?drop_putK 1,2:// ?take_put /= /valid_xidxvalslp.
-    admit. admit.
-    admit.
-    admit.
-    rewrite nth_uniq => i j rngi rngj neqij.
-    move/iffLR: (H0 (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} i)) => /(_ _). admit.  
-    suff /#: (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} i).`1 <> (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} j).`1.
-    
-    smt(all_nthP).
-    search valid_idxvals.
-    print valid_idxvals.
-    insubdK. admit. print insubdK.
-        print HA.
-    rewrite eq_adrs_idxsq.
-     Adrs.
-    admit.
-    search uniq.
-    rewrite nth_uniq size_map => i j rngi rngj neqij.
-    rewrite ?(nth_map witness) // /=.
-  print nthP.
-        admit.
-*)
   seq 15 18 : (is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} =>  
                 m'{2} <> m{2} /\ 0 <= i{2} < size O_MEUFGCMA_WOTSTWESNPRF.qs{2} /\
                   pkWOTS{2} 
@@ -3617,6 +3580,13 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
            /\ pkWOTStd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}
            /\ rootstd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2}
            /\ sig'{1} = sig'0{2}
+           /\ root'{2} = nth witness (m'0{2} :: rootss'{2}) (size rootss'{2})
+           /\ 0 <= tidx{2}
+           /\ (size pkWOTSs'{2} < d =>
+                 tidx{2} < nr_trees (size pkWOTSs'{2}) * l')
+           /\ (size pkWOTSs'{2} < d =>
+                  tidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size pkWOTSs'{2})).`1 /\
+                  kpidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size pkWOTSs'{2})).`2)
            /\ (forall (i : int), 0 <= i < size pkWOTSs{2} =>
                  nth witness pkWOTSs{2} i 
                  =
@@ -3629,98 +3599,108 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                  nth witness pkWOTSs'{2} i 
                  =
                  DBLL.insubd (mkseq (fun (j : int) => 
-                      cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} i (nth witness tkpidxs{2} i).`1) chtype) (nth witness tkpidxs{2} i).`2) j) 
-                               (BaseW.val (encode_msgWOTS (nth witness (m'{2} :: rootss'{2}) i)).[j]) 
-                               (w - 1 - BaseW.val (encode_msgWOTS (nth witness (m'{2} :: rootss'{2}) i)).[j]) 
+                      cf ps0{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} i (nth witness tkpidxs{2} i).`1) 
+                                                                  chtype) (nth witness tkpidxs{2} i).`2) j) 
+                               (BaseW.val (encode_msgWOTS (nth witness (m'0{2} :: rootss'{2}) i)).[j]) 
+                               (w - 1 - BaseW.val (encode_msgWOTS (nth witness (m'0{2} :: rootss'{2}) i)).[j]) 
                                (val (nth witness (val (nth witness (val sig'0{2}) i).`1) j))) len))
            /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>
                  (nth witness tkpidxs{2} i).`1 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`1 /\
                  (nth witness tkpidxs{2} i).`2 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`2)
+           /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>
+                 0 <= (nth witness tkpidxs{2} i).`1 < nr_trees i /\ 
+                 0 <= (nth witness tkpidxs{2} i).`2 < l')
            /\ size pkWOTSs'{2} = size pkWOTSs{2}
            /\ size pkWOTSs'{2} = size rootss{2}
            /\ size pkWOTSs'{2} = size rootss'{2}
            /\ size pkWOTSs'{2} = size tkpidxs{2}
            /\ size pkWOTSs'{2} <= d).
-    * admit.
+    * inline{1} 3; inline{2} 3.
+      wp => /=.
+      while (   ={ad0}
+             /\ ps0{1} = ps2{2}
+             /\ pkWOTS0{1} = pkWOTS2{2}
+             /\ sig0{1} = sig1{2}
+             /\ em0{1} = em{2}
+             /\ pkWOTS2{2} 
+                =
+                mkseq (fun (i : int) => 
+                    cf ps2{2} (set_chidx ad0{2} i) (BaseW.val em{2}.[i]) 
+                       (w - 1 - BaseW.val em{2}.[i]) (val (nth witness (val sig1{2}) i))) (size pkWOTS2{2})
+             /\ size pkWOTS2{2} <= len).
+      + wp; skip => /> &2 pkwdef _ ltlen_szpkw.
+        by rewrite size_rcons mkseqS 1:size_ge0 /= {1}pkwdef; smt(size_rcons).
+      wp; skip => /> &2 ge0_ti ltnt_ti tkpicdef pkwrel rsrel pkwpdef tkpidef tkpirng eqszpkwp eqszpkwprs eqszpkwprsp eqszpkwptkpi _ ltd_szpkwp.
+      split => [| pkwc _ /lezNgt ltlen_szpkwc pkwcdef lelen_szpkwc]; 1: by rewrite mkseq0 /=; smt(ge2_len).
+      rewrite ?nth_rcons ?size_rcons !andbA -4!andbA; split => [|/#].
+      rewrite -!andbA; split => [/= |]; 1: by smt(size_ge0).
+      split; 1: by rewrite divz_ge0; smt(ge1_lp).
+      split => [ltd_szpk1 |].
+      + rewrite ltz_divLR; 1: smt(ge1_lp).
+        move: (ltnt_ti _); 1: smt().
+        rewrite /nr_nodes_ht /nr_trees /nr_nodes /l'.
+        by rewrite /= -?exprD_nneg ?addr_ge0 ?mulr_ge0 ?ge0_hp; smt(ge0_hp).
+      split => [ltd_szpk1 |]; 1: by rewrite foldS 1:// /= /#.
+      split => [j ge0_j ltsz1_j |].
+      + rewrite ?nth_rcons -eqszpkwp -eqszpkwptkpi.
+        by case (j < size pkWOTSs'{2}) => /#.
+      split => [j ge0_j ltsz1_j |].
+      + rewrite ?nth_rcons -eqszpkwprs -eqszpkwptkpi.
+        by case (j < size pkWOTSs'{2}) => /#.
+      split => [j ge0_j ltsz1_j |].
+      + rewrite ?nth_rcons -eqszpkwptkpi.
+        case (j < size pkWOTSs'{2}) => [ltszpkj /= | nltszpkj].
+        - rewrite pkwpdef 1://; do 2! congr; rewrite fun_ext => k.
+          by case (j = 0) => [// | /#]. 
+        rewrite (: j = size pkWOTSs'{2}) 1:/# pkwcdef -eqszpkwprsp /=.
+        do 2! congr => [| /#].
+        rewrite fun_ext => k.
+        by case (size pkWOTSs'{2} = 0) => [// | /#].
+      split => j ge0_j ltsz1_j; rewrite ?nth_rcons -eqszpkwptkpi.
+      + case (j < size pkWOTSs'{2}) => [/# | nltszpkj].
+        by rewrite (: j = size pkWOTSs'{2}) 1:/# /= foldS 1:// /= /#.
+      case (j < size pkWOTSs'{2}) => [/# | nltszpkj].
+      rewrite (: j = size pkWOTSs'{2}) 1:/# /= divz_ge0 2:modz_ge0 3:ltz_pmod 4:/=; 1..3: smt(ge1_lp).
+      by rewrite ge0_ti /= ltz_divLR; smt(ge1_lp).
     wp => /=.
     call (: true).
-    wp; skip => />.
-    progress.
-    smt().
-    smt().
-    smt().
-    smt().
-    smt().
-    smt(ge1_d). 
+    wp; skip => /> &2 allnchtws qsdef qsnth allchqs uqwgpqs szqs msigidx.
+    split => [| pkw pkw' rs rs' ti tkpi /lezNgt ged_szpkw _ ge0ti].
+    * rewrite /nr_trees /= andbA; split; 2: smt(ge1_d fold0).
+      split => [| gt0_d]; 1: smt(Index.valP).
+      move: (Index.valP (msigidx.`3)) => [_ @/l @/h @/l'].
+      by rewrite -exprD_nneg ?mulr_ge0; smt(ge0_hp).    
+    move=> pkwrel rsrel pkwpdef tkpidef tkpirng eqszpkwp eqszpkwrs eqszpkwrsp eqszpkwtkpi led_szpkw neqm i ge0_i ltd_i eqipkw neqimrs.
     pose zs := zip _ _; pose cidx := find _ _.
     have hascidx :
       has (fun (x : ((pkWOTS * pkWOTS) * msgFLSLXMSSMTTW) * msgFLSLXMSSMTTW) =>
-                x.`1.`1.`1 = x.`1.`1.`2 /\ x.`1.`2 <> x.`2)
-             zs.
+                    x.`1.`1.`1 = x.`1.`1.`2 /\ x.`1.`2 <> x.`2) zs.
     * rewrite -(has_nthP _ _ (((witness, witness), witness), witness)) /=.
-      exists i1.
-      rewrite -(: d = size zs) 1:/zs 1:?size_zip /= 1:/#.
+      exists i; rewrite -(: d = size zs) 1:/zs 1:?size_zip /= 1:/#.
       split => [/#|].
       rewrite /zs ?nth_zip_cond ?size_zip ?lez_minl 1..7:/#.
-      by rewrite (: i1 < size pkWOTSs'_R) 1:/# //.
+      by rewrite (: i < size pkw') 1:/# //.
     have ge0_cidx : 0 <= cidx by rewrite find_ge0.
     have ltd_cidx : cidx < d.
     * by rewrite /cidx (: d = size zs) 1:/zs 1:?size_zip /= 1:/# -has_find.
     move /(nth_find (((witness, witness), witness), witness)): (hascidx) => /= @-/cidx.
     rewrite /zs ?nth_zip_cond ?size_zip ?lez_minl 1..7:/#.
-    rewrite (: cidx < size pkWOTSs'_R) 1:/# /= => -[eqpk].
-    rewrite H1 1://. admit. admit.
-    case (cidx = 0) => [eq0_cidx | neq0_cidx].     
-    * move: (H10 cidx _); 1: smt().
-      by move=> [-> ->]; rewrite eq0_cidx foldS 1:// fold0 /= -divz_eq.
-    rewrite H8 1:/#.
-    move: (H10 cidx _); 1:smt().
-    move => [-> ->].
-    by rewrite foldS 1:// /= -divz_eq (H10 (cidx - 1) _) 1:/# //.
-    admit.
-    admit.
-    admit.
-  (*
-    wp => /=.
-    while (   #pre
-           /\ ={root', tidx, kpidx, idx'}
-           /\ sig'{1} = sig'0{2}
-           /\ ps{1} = ps0{2}
-           /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
-           /\ ={pkWOTStd', rootstd', tidx, kpidx, cidx}
-           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES{1} = valid_WOTSTWES{2}
-           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO{1} = valid_TCRPKCO{2}
-           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH{1} = valid_TCRTRH{2}
-           /\ (forall (i : int), 0 <= i < size pkWOTStd'{2} =>
-                 nth witness pkWOTStd'{2} i
-                 =
-                 DBLL.insubd (mkseq (fun (j : int) => 
-                           cf ps0{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} i (nth witness tkpidxs{2} i).`1) chtype) (nth witness tkpidxs{2} i).`2) j)
-                              (val (encode_msgWOTS (if i = 0 then m'0{2} else nth witness rootstd'{2} (i - 1))).[j])
-                              (w - 1 - val (encode_msgWOTS (if i = 0 then m'0{2} else nth witness rootstd'{2} (i - 1))).[j])
-                              (val (nth witness (val (nth witness (val sig'0{2}) i).`1) j))) len))
-           /\ (valid_WOTSTWES{2} =>
-                 0 <= cidx{2} < d 
-               /\ (if cidx{2} = 0
-                   then m'0{2} <> nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (val idx'{2})
-                   else nth witness rootstd'{2} (cidx{2} - 1) <> nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (cidx{2} - 1)) (nth witness tkpidxs{2} cidx{2}).`1) 
-                /\ nth witness pkWOTStd'{2} cidx{2} = nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} cidx{2}) (nth witness tkpidxs{2} cidx{2}).`1) (nth witness tkpidxs{2} cidx{2}).`2)
-          /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>  
-                   (nth witness tkpidxs{2} i).`1 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`1 
-                /\ (nth witness tkpidxs{2} i).`2 = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (i + 1)).`2)
-          /\ (forall (i : int), 0 <= i < size tkpidxs{2} =>  
-                   0 <= (nth witness tkpidxs{2} i).`1 < nr_trees i
-                /\ 0 <= (nth witness tkpidxs{2} i).`2 < l')
-          /\ (size tkpidxs{2} < d =>  
-                   tidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size tkpidxs{2})).`1 
-                /\ kpidx{2} = (fold (fun (idxs : _ * _) => edivz idxs.`1 l') (val idx'{2}, 0) (size tkpidxs{2})).`2)
-          /\ size pkWOTStd'{1} = size pkWOTStd'{2}
-          /\ size pkWOTStd'{2} <= d
-          /\ size pkWOTStd'{2} = size rootstd'{2}
-          /\ size pkWOTStd'{2} = size tkpidxs{2}).
-    * admit.
-    admit.
-  *)
+    rewrite (: cidx < size pkw') 1:/# /= => -[eqpk neqrs].
+    rewrite qsnth 1:// 1,2:tkpirng 1,2:/# /=.
+    split; 1: rewrite ?tkpidef 1,2:/# 1:// foldS 1:// /= -divz_eq.
+    * case (cidx = 0) => [-> /= | neq0_cidx]; 1: by rewrite fold0.
+      move: neqrs; rewrite neq0_cidx /=.
+      by rewrite -(tkpidef (cidx - 1) _) 1:/# 1:// /= rsrel 1:/#.
+    split; last by rewrite -pkwrel 1:/# -eqpk pkwpdef 1:/#.
+    rewrite szqs; split => [| _].    
+    * by rewrite ?addr_ge0 ?mulr_ge0 ?sumr_ge0 => [j | | | |]; rewrite ?expr_ge0 // /#.
+    rewrite mulr_suml /nr_nodes_ht /nr_nodes /= -/l'.
+    rewrite (big_cat_int cidx 0 d) 1:// 1:/#.
+    rewrite -addrA ltr_add2l (IntOrder.ltr_le_trans (nr_trees cidx * l')).
+    * rewrite (: nr_trees cidx * l' = (nr_trees cidx - 1) * l' + l') 1:/#.
+      by rewrite ler_lt_add 1:ler_wpmul2r; smt(ge1_lp).
+    rewrite (big_cat_int (cidx + 1)) 1,2:/# big_int1 /= ler_addl sumr_ge0 => j _ /=.
+    by rewrite mulr_ge0 expr_ge0.
   inline{2} 1; inline{2} 7.
   wp.
   while{2} (pkWOTS3{2}

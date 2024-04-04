@@ -3003,7 +3003,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     }
 *)
 
-       (tidx, kpidx) <- (val idx', 0);
+    (tidx, kpidx) <- (val idx', 0);
     root' <- m';
     tkpidxs <- [];
     pkWOTSs <- [];
@@ -3498,6 +3498,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
   inline{1} 2; inline{2} 3; inline{2} 2; inline{2} 8.
   swap{2} 4 7.
   seq 5 10 : (   ={glob A, ps}
+              /\ ps{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
               /\ O_THFC_Default.pp{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
               /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
               /\ O_THFC_Default.tws{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads{2}
@@ -3550,7 +3551,129 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
              /\ all (fun (admpksig : _ * _ * _ * _) => get_typeidx admpksig.`1 = chtype) O_MEUFGCMA_WOTSTWESNPRF.qs{2}
              /\ uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWESNPRF.qs{2})
              /\ size O_MEUFGCMA_WOTSTWESNPRF.qs{2} = bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d).
-  - admit.
+  - while (   ={ps}
+           /\ ps{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
+           /\ O_THFC_Default.pp{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
+           /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
+           /\ ad{1} = adz
+           /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
+           /\ pkWOTStd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}
+           /\ sigWOTStd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2}
+           /\ leavestd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.leavestd{2}
+           /\ rootstd{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2}
+           /\ (forall (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS),
+                 admpksig \in O_MEUFGCMA_WOTSTWESNPRF.qs{2}
+                 <=>
+                 (exists (i j u : int), 0 <= i < size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\
+                   admpksig = (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u))))
+           /\ (forall (i j u : int), 0 <= i < size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} => 0 <= j < nr_trees i => 0 <= u < l' => 
+                 nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)
+                 =
+                 (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u,
+                  (if i = 0
+                   then nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (j * l' + u)
+                   else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) (j * l' + u)), 
+                  nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) j) u, 
+                  nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2} i) j) u))
+           /\ all (fun (ad0 : adrs) => get_typeidx ad0 <> chtype) FC.O_THFC_Default.tws{2}
+           /\ all (fun (admpksig : _ * _ * _ * _) => get_typeidx admpksig.`1 = chtype) O_MEUFGCMA_WOTSTWESNPRF.qs{2}
+           /\ uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWESNPRF.qs{2})
+           /\ size O_MEUFGCMA_WOTSTWESNPRF.qs{2} = bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2})
+           /\ size skWOTStd{1} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}
+           /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.leavestd{2}
+           /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2}
+           /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2}
+           /\ size skWOTStd{1} <= d).
+    * wp => /=. 
+      while (   ={ps, pkWOTSnt, sigWOTSnt, leavesnt, rootsnt}
+             /\ ps{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
+             /\ O_THFC_Default.pp{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
+             /\ O_THFC_Default.pp{1} = FC.O_THFC_Default.pp{2}
+             /\ ad{1} = adz
+             /\ ad{1} = R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2}
+             /\ (forall (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS),
+                   admpksig \in O_MEUFGCMA_WOTSTWESNPRF.qs{2}
+                   <=>
+                   (exists (i j u : int), 0 <= i < size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} /\ 0 <= j < nr_trees i /\ 0 <= u < l' /\
+                     admpksig = (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)))
+                   \/ 
+                   (exists (j u : int), 0 <= j < size pkWOTSnt{2} /\ 0 <= u < l' /\
+                     admpksig = (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} 
+                                     (bigi predT (fun (m : int) => nr_trees m) 0 (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}) * l' + j * l' + u))))
+             /\ (forall (i j u : int), 0 <= i < size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} => 0 <= j < nr_trees i => 0 <= u < l' => 
+                   nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} (bigi predT (fun (m : int) => nr_trees m) 0 i * l' + j * l' + u)
+                   =
+                   (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u,
+                    (if i = 0
+                     then nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ml{2} (j * l' + u)
+                     else nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2} (i - 1)) (j * l' + u)), 
+                    nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} i) j) u, 
+                    nth witness (nth witness (nth witness R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2} i) j) u))
+             /\ (forall (j u : int), 0 <= j < size pkWOTSnt{2} => 0 <= u < l' => 
+                   nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} 
+                       (bigi predT (fun (m : int) => nr_trees m) 0 (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}) * l' + j * l' + u)
+                   =
+                   (set_kpidx (set_typeidx (set_ltidx adz (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}) j) chtype) u,
+                    nth witness rootsnt{2} (j * l' + u), 
+                    nth witness (nth witness pkWOTSnt{2} j) u, 
+                    nth witness (nth witness sigWOTSnt{2} j) u))
+             /\ all (fun (ad0 : adrs) => get_typeidx ad0 <> chtype) FC.O_THFC_Default.tws{2}
+             /\ all (fun (admpksig : _ * _ * _ * _) => get_typeidx admpksig.`1 = chtype) O_MEUFGCMA_WOTSTWESNPRF.qs{2}
+             /\ uniq_wgpidxs (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) => admpksig.`1) O_MEUFGCMA_WOTSTWESNPRF.qs{2})
+             /\ size O_MEUFGCMA_WOTSTWESNPRF.qs{2} 
+                = 
+                bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2})
+                +
+                size pkWOTSnt{2} * l'
+             /\ size skWOTSnt{1} = size pkWOTSnt{2}
+             /\ size pkWOTSnt{2} = size leavesnt{2}
+             /\ size pkWOTSnt{2} = size sigWOTSnt{2}
+             /\ size pkWOTSnt{2} = size rootsnt{2}
+             /\ size skWOTStd{1} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}
+             /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.leavestd{2}
+             /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.sigWOTStd{2}
+             /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} = size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.rootstd{2}
+             /\ size skWOTSnt{1} <= nr_trees (size skWOTStd{1})
+             /\ size skWOTStd{1} < d).
+      + admit.
+      wp; skip => />.
+      progress.
+      smt().
+      smt().
+      smt().
+      rewrite expr_ge0 //.
+      rewrite expr_gt0 //.
+      rewrite expr_gt0 //.
+      move/iffLR: (H14 admpksig) => /(_ H26) [[i j u] | [j u]]; smt(size_ge0 size_rcons).
+      rewrite H14; smt(size_rcons).
+      smt(nth_rcons size_rcons).
+      
+      
+       smt(size_rcons).
+      
+      
+      smt().
+    wp; skip => />. 
+    progress. 
+    smt().
+    smt(). 
+    rewrite big_geq //.
+    smt(ge1_d).
+    smt().
+    search mem size.
+    rewrite (nthP witness).
+    exists (bigi predT nr_trees 0 i0 * l' + j * l' + u).
+    rewrite H7 /=; split => [| _].    
+    * by rewrite ?addr_ge0 ?mulr_ge0 ?sumr_ge0 => [? | | | |]; rewrite ?expr_ge0 // /#.
+    rewrite mulr_suml /nr_nodes_ht /nr_nodes /= -/l'.
+    rewrite (big_cat_int i0 _ (size pkWOTStd_R)) 1:// 1:/#.
+    rewrite -addrA ltr_add2l (IntOrder.ltr_le_trans (nr_trees i0 * l')).
+    * rewrite (: nr_trees i0 * l' = (nr_trees i0 - 1) * l' + l') 1:/#.
+      by rewrite ler_lt_add 1:ler_wpmul2r; smt(ge1_lp).
+    rewrite (big_cat_int (i0 + 1)) 1,2:/# big_int1 /= ler_addl sumr_ge0 => ? _ /=.
+    by rewrite mulr_ge0 expr_ge0.
+    smt().
+    smt().
   swap{1} [1..2] 2.
   sp 0 1.
   seq 2 2 : (#pre /\ ={sigl}); 1: by conseq />; sim.

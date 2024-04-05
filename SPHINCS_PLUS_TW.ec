@@ -3666,7 +3666,8 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         nth witness (nth witness nodes{2} i) j
                         =
                         let leavesp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaves{2}) in
-                          FTWES.val_bt_trh_gen ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) (size pkFORSlp{2})) (list2tree leavesp) (i + 1) (size skFORS{2} * nr_nodesf (i + 1) + j))
+                          FTWES.val_bt_trh_gen ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2})) (size pkFORSlp{2})) 
+                                               (list2tree leavesp) (i + 1) (size skFORS{2} * nr_nodesf (i + 1) + j))
                   /\ size leaves{2} = t 
                   /\ size nodes{2} <= a
                   /\ size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2} = size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt{2}
@@ -3682,7 +3683,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
                         =
                         let leavesp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaves) in
                           FTWES.val_bt_trh_gen ps (set_kpidx (set_tidx (set_typeidx adz trhftype) (size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt)) (size pkFORSlp)) (list2tree leavesp) (i + 1) (size skFORS * nr_nodesf (i + 1) + j))
-                 /\ (forall (j : int),  0 <= j < size nodescl =>
+                 /\ (forall (j : int), 0 <= j < size nodescl =>
                        nth witness nodescl j
                        =
                        let leavesp = take (2 ^ (size nodes + 1)) (drop (j * (2 ^ (size nodes + 1))) leaves) in 

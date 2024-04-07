@@ -768,7 +768,7 @@ rewrite /set_kpidx /set_idx insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /=
              57,59,61,63,65,67,69,71:// 1..36:gtif_szad 1..72:// /=; smt(val_w ge2_len ge2_lp).
 rewrite /valid_wadrs insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
 + rewrite /valid_xidxvals ?drop_putK 1..7:// valgpad /= /valid_xidxvalslp.
-  left. pragma Goals:printall.
+  left.
   by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
              57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 1..42:gtif_szad 1..85:// /=; smt(val_w ge2_len ge2_lp).
@@ -899,18 +899,22 @@ qed.
 
 lemma ltbignrt_i (i i' j j' u u' : int) :
      0 <= i < i'
-  => j <= j'
-  => u <= u'
+  => 0 <= j < nr_trees i
+  => 0 <= j'
+  => 0 <= u < l'
+  => 0 <= u'
   => bigi predT (fun (d' : int) => nr_trees d') 0 i * l' + j * l' + u 
      <
      bigi predT (fun (d' : int) => nr_trees d') 0 i' * l' + j' * l' + u'. 
 proof.
-move=> [ge0_i ltip_i] lejp_j leup_u.
-rewrite -2!addrA ltr_le_add 2:ler_add 3://; 2: smt(ge2_lp). 
-rewrite ltr_pmul2r; 1: smt(ge2_lp).
-rewrite (big_cat_int i _ i') 1:// 1:/# ltr_addl big_ltn 1:// /=.
-suff /#: 0 < nr_trees i /\ 0 <= bigi predT nr_trees (i + 1) i'.
-by rewrite expr_gt0 1:// /= sumr_ge0 => ?; rewrite expr_ge0. 
+move=> [ge0_i ltip_i] [ge0_j lenti_j] ge0_jp [ge0_u ltlp_u] ge0_up.
+rewrite -(addr0 u) addrA -(addrA _ (j' * l') u') ltr_le_add 2:/#.
+rewrite (big_cat_int i _ i') 1:// 1:/# -addrA mulrDl ltr_add2l.
+rewrite big_ltn 1:// /= mulrDl.
+suff /#: j * l' + u < nr_trees i * l' /\ 0 <= bigi predT nr_trees (i + 1) i'.
+rewrite sumr_ge0 => [? | /=]; 1: by rewrite expr_ge0.
+rewrite (: nr_trees i = nr_trees i - 1 + 1) 1:// mulrDl /=.
+by rewrite ler_lt_add 1:/#.
 qed. 
 
 lemma neqlidx_setallch (i i' j u : int) (ad : adrs)  :
@@ -3961,6 +3965,8 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                         let leaveslpp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaveslp{2}) in
                           val_bt_trh_gen FC.O_THFC_Default.pp{2} (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad{2} (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2}) (size pkWOTSnt{2})) trhtype) 
                                          (list2tree leaveslpp) (i + 1) j)
+                  /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2} < d
+                  /\ size pkWOTSnt{2} < nr_trees (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd{2})
                   /\ size leaveslp{2} = l'
                   /\ size nodes{2} <= h')
                  (h' - size nodes{2}).
@@ -3981,21 +3987,21 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                         let leaveslpp = take (2 ^ (size nodes + 1)) (drop (j * (2 ^ (size nodes + 1))) leaveslp) in
                           val_bt_trh_gen FC.O_THFC_Default.pp (set_typeidx (set_ltidx R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.ad (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd) (size pkWOTSnt)) trhtype) 
                                          (list2tree leaveslpp) (size nodes + 1) j)
+                 /\ size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd < d
+                 /\ size pkWOTSnt < nr_trees (size R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.pkWOTStd)
                  /\ size leaveslp = l'
                  /\ size nodescl <= nr_nodes (size nodes + 1)
                  /\ size nodes < h')
                 (nr_nodes (size nodes + 1) - size nodescl).
           * move=> z'.
             inline 3.
-            wp; skip => /> &2.
-            progress.
-            rewrite -cats1 all_cat H /=.
-            admit. (* typeidx <> chtype *)
-            rewrite ?nth_rcons.
-            case (j < size nodescl{2}) => [/# | neqszj].
+            wp; skip => /> &2 allnchtws nthnds ntndscl ltd_szpktd ltnt_szpknt eqt_szlfslp _ lthp_sznds ltnn_szndscl.
+            rewrite size_rcons -cats1 all_cat allnchtws /= -!andbA andbA; split => [| /#].
+            rewrite gettype_setalltrh 1:valx_adz; 1..4: smt(size_ge0).
+            split => [| j ge0_j ltszndscl1_j]; 1: smt(dist_adrstypes).
+            rewrite nth_rcons; case (j < size nodescl{2}) => [/# | neqszj].
             have eqszj : j = size nodescl{2} by smt(size_rcons).
-            rewrite eqszj /=.
-            rewrite size_cat ?valP /= (: 2 ^ (size nodes{2} + 1) = 2 ^ (size nodes{2}) + 2 ^ (size nodes{2})).
+            rewrite eqszj /= size_cat ?valP /= (: 2 ^ (size nodes{2} + 1) = 2 ^ (size nodes{2}) + 2 ^ (size nodes{2})).
             + by rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
             rewrite take_take_drop_cat 1,2:expr_ge0 //=.
             rewrite drop_drop 1:expr_ge0 //= 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //=.
@@ -4005,14 +4011,14 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
               by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
             rewrite -nth_last (list2treeS (size nodes{2})) 1:size_ge0.
             + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
-              rewrite H2 (* eqt_szlfs *) /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              rewrite eqt_szlfslp /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
               pose szn2 := 2 ^ (size nodes{2}). 
               rewrite (: 2 ^ (h' - size nodes{2}) * szn2 - size nodescl{2} * (szn2 + szn2) = (2 ^ (h' - size nodes{2}) - 2 * size nodescl{2}) * szn2) 1:/#.
               pose mx := max _ _; rewrite (: 2 ^ (size nodes{2}) < mx) // /mx.
               pose sb := ((_ - _ * _) * _)%Int; rewrite &(IntOrder.ltr_le_trans sb) /sb 2:maxrr.
               by rewrite ltr_pmull 1:expr_gt0 // /#.
             + rewrite size_take 1:expr_ge0 1:// size_drop 1:addr_ge0 1:expr_ge0 // 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
-              rewrite H2 (* eqt_szlfs *) /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              rewrite eqt_szlfslp /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
               pose szn2 := 2 ^ (size nodes{2}). 
               rewrite (: 2 ^ (h' - size nodes{2}) * szn2 - (szn2 + size nodescl{2} * (szn2 + szn2)) = (2 ^ (h' - size nodes{2}) - 2 * size nodescl{2} - 1) * szn2) 1:/#.
               pose sb := ((_ - _ - _) * _)%Int.
@@ -4029,7 +4035,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
               rewrite {4 7}(: 1 = 0 + 1) 1:// ?(take_nth witness) 1,2:size_drop //; 1..4:smt(size_ge0).
               by rewrite ?take0 /= ?list2tree1 /= ?nth_drop //; smt(size_ge0).
             rewrite (nth_change_dfl witness leaveslp{2}); 1: smt(size_ge0).
-            rewrite ?H0 (* ?nthnds *) /=; 1,3: smt(size_ge0).
+            rewrite ?nthnds /=; 1,3: smt(size_ge0).
             + split => [| _ @/nr_nodes]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodes (size nodes{2}))) /nr_nodes //.
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
@@ -4039,17 +4045,8 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
               by rewrite -{2}expr1 -exprD_nneg // /#.  
             rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; do 3! congr; 1: smt().
-            do 3! congr; by ring.
-            smt(size_rcons).
-            smt(size_rcons).
-          wp; skip => />.
-          progress.
-          smt().
-          rewrite expr_ge0 //.
-          smt().
-          case (i0 < size nodes{hr}); smt(nth_rcons size_rcons).
-          smt(nth_rcons size_rcons).
-          smt(nth_rcons size_rcons).
+            by do 3! congr; ring.
+          by wp; skip => /> &2; smt(expr_ge0 nth_rcons size_rcons).
         wp => /=.
         while (   ={ps, pkWOTSlp, sigWOTSlp, leaveslp, rootsntp}
                /\ ps{1} = O_MEUFGCMA_WOTSTWESNPRF.ps{2}
@@ -4138,21 +4135,57 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
                  /\ size skWOTSlp{1} = size pkWOTSlp{2}
                  /\ size skWOTS{1} <= len).
           - by wp; rnd; wp; skip => />; smt(size_rcons).
-          wp; skip => />.
-          progress.
-          smt().
-          rewrite insubdK. admit. 
-          trivial.
-          smt(ge2_len).
-          congr. rewrite /pkco.
-          rewrite insubdK 1:/#.
-          congr.
-          rewrite size_flatten -map_comp sumzE /= big_map /(\o) /predT /= -/predT.
-          search big. print eq_bigr.
-          rewrite (eq_bigr _ _ (fun (_ : DigestBlock.sT) => 8 * n)) 1:/=.
-          move=> ? _; rewrite valP //.
-          rewrite big_constz count_predT /#.
-          smt().
+          wp; skip => /> &1 &2 qsdef qsnth qsnth1 qsnth2 allnchtws allchqs uqswgpqs szqs eqszpksklp eqszpklfslp eqszpksiglp 
+                               eqszpksknt eqszpklfsnt eqszpksignt eqszpkrtsnt eqszpksktd eqszpklfstd eqszpksigtd eqszpkrtstd 
+                               _ ltnt_szsknt ltd_szsktd ltlp_szsklp ltlp_szpklp.
+          split => [| skw pkw sigw /lezNgt gelen_szskw /lezNgt gelen_szpkw eq_em eqadw_ad eqszskpkw eqszpksigw lelen_szskw].
+          - by rewrite eqszpksknt eqszpksklp /= insubdK 1:validxadrs_validwadrs_setallboch 1:valx_adz 4:/=; smt(size_ge0 ge2_len).
+          rewrite !andbA -6!andbA; split; 2: by rewrite ?size_rcons /#.
+          rewrite -!andbA; split.
+          - rewrite size_flatten -map_comp sumzE /= big_map /(\o) /predT /= -/predT.
+            rewrite (eq_bigr _ _ (fun (_ : DigestBlock.sT) => 8 * n)) 1:/=.
+            * by move=> ? _; rewrite valP.
+            by rewrite insubdK 1:/# big_constz count_predT /#.
+          rewrite /nr_nodes_ht /nr_nodes /= -/l' -mulr_suml in szqs.
+          split => [admpksig |]; 1: rewrite mem_rcons size_rcons /=; 1: split.
+          - elim => [-> | /qsdef].
+            * right; right; exists (size pkWOTSlp{2}).
+              by split; [smt(size_ge0) | rewrite nth_rcons /#].
+            elim => [[i j u [ir] [jr] [ur adval]]|].
+            * by left; exists i j u; rewrite ir jr ur /= nth_rcons szqs ltbignrt_i.
+            elim => [[j u [jr] [ur adval]]|].
+            * right; left; exists j u; rewrite jr ur /= nth_rcons szqs.
+              pose igl := _ + j * l' + _; pose igr := _ + size pkWOTSnt{2} * l' + _.
+              rewrite (: igl < igr) /igl /igr 2://.
+              rewrite -2!addrA ler_lt_add 1://.
+              suff /#: j * l' + u < size pkWOTSnt{2} * l' /\ 0 <= size pkWOTSlp{2}.
+              by rewrite size_ge0 /= (: size pkWOTSnt{2} = size pkWOTSnt{2} - 1 + 1) 1:// mulrDl ler_lt_add 2:// /#.
+            elim => [u [ur adval]].
+            * right; right; exists u; split; 1: smt(size_ge0).
+              by rewrite nth_rcons szqs /#.
+          - admit.
+          split => [* | ]; 1: by rewrite nth_rcons szqs ltbignrt_i // /= qsnth.
+          split => [j u * | ]; 1: rewrite nth_rcons szqs.
+          - pose igl := _ + j * l' + _; pose igr := _ + size pkWOTSnt{2} * l' + _.
+            rewrite (: igl < igr) /igl /igr 2:/= 2:qsnth1 //.
+            rewrite -2!addrA ler_lt_add 1://.
+            suff /#: j * l' + u < size pkWOTSnt{2} * l' /\ 0 <= size pkWOTSlp{2}.
+            by rewrite size_ge0 /= (: size pkWOTSnt{2} = size pkWOTSnt{2} - 1 + 1) 1:// mulrDl ler_lt_add 2:// /#. 
+          split => [u | ]; 1: rewrite size_rcons ?nth_rcons szqs => ge0_u ltsz1_u.
+          - rewrite -eqszpksiglp; case (u < size pkWOTSlp{2}) => [ltszpk_u | nltszpk_u]. 
+            + by rewrite qsnth2 // /#.
+            rewrite (: u = size pkWOTSlp{2}) 1:/# /= insubdK 2://.
+            by rewrite validxadrs_validwadrs_setallboch 1:valx_adz; smt(size_ge0).
+          split.
+          (* Continue here *)
+          admit.
+            
+              => [/# | ].
+            
+           /#.
+            
+          re
+          move=> ?.
           move: H30. rewrite mem_rcons /=.
           elim => [-> |].
           right; right.

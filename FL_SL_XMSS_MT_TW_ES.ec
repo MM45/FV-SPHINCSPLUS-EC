@@ -4863,95 +4863,40 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
                      (w - 1 - i0{2}).
             * move=> _ z.
               inline 1.
-              wp; skip => /> &2.
-              progress.
-              admit.
-              smt().
-              congr; 1: smt().
-              
-              rewrite valP /=.  admit.
-              rewrite -cats1 all_cat /= H0 /=. 
-              search get_typeidx.
-              admit.
-              smt().
-              smt().
-              smt().
-              rewrite valP /=.  admit.
-              smt().
-              smt().
-              rewrite -cats1 all_cat /= H0 /=. 
-              admit.
-              smt().
-              smt().              
-              smt().              
-            wp; rnd; wp; skip => />.
-            progress.
-            rewrite /cf ch0 1:validxadrs_validwadrs_setallch 7:// 1:valx_adz.
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            rewrite valP //.
-            rewrite valKd nth_rcons -H0 /= //.
-            smt().
+              wp; skip => /> &2 ifsig allnpkcotws ltlen_szpk ltlp_szsklp ltnt_szsknt ltd_szsktd ge0_i _ ltw1_i.
+              rewrite valP /=.
+              rewrite /cf (chS _ _ _ _ (i0{2} + 1)) 1:validxadrs_validwadrs_setallch 2..5,7:// 1:valx_adz 1:valP 1:// 1,2:/# /f /=. 
+              split => [eqem_i01 | neqem_i01]; rewrite -!andbA 2!andbA; split => [|/#||/#].
+              + split; 2: rewrite -cats1 all_cat allnpkcotws /=; last first. 
+                - admit.
+                split => [ltem_i1 /# | /lezNgt geem_i1].
+                have ltem_i: i0{2} < val em{2}.[size pkWOTS0{2}] by smt().
+                move: ifsig; rewrite ltem_i => -> /=; congr.
+                by rewrite -eqem_i01 (chS _ _ _ _ (i0{2} + 1)) 1:validxadrs_validwadrs_setallch 2..5,7:// 1:valx_adz 1:valP 1:// 1,2:/# /f /=.
+              split; 2: rewrite -cats1 all_cat allnpkcotws /=; last first.
+              + admit.
+              split => [ltem_i1 /# | /lezNgt geem_i1].
+              have nltem_i: ! i0{2} < val em{2}.[size pkWOTS0{2}] by smt().
+              by move: ifsig; rewrite nltem_i => -> /=; congr.
+            wp; rnd; wp; skip => /> &1 &2 allnpkcotws eqszskpk ezsksig eqszsksktd eqszsksknt eqszsksklp _ ltlp_szsklp ltnt_szsknt ltd_szsktd tllen_szsk skwele skwelein.
+            rewrite -eqszskpk; split => [-> /= | neq0_em].
+            + rewrite /cf ch0 1:validxadrs_validwadrs_setallch 1:valx_adz 5:valP 5,6://; 1..4: smt(size_ge0). 
+              rewrite valKd /= ?nth_rcons /=; split; 1: smt(val_w). 
+              move=> tws i sigw />.
+              split => [/#| /lezNgt gew1_i + allnpkcotwsp _ _ _ _ ge0_i lew1_i].
+              rewrite (: ! i < 0) 1:/# /= => ->.
+              rewrite /cf ch0 1:validxadrs_validwadrs_setallch 1:valx_adz 5:valP 5,6://; 1..4: smt(size_ge0). 
+              by rewrite valKd /= ?size_rcons /#.
+            rewrite /cf ch0 1:validxadrs_validwadrs_setallch 1:valx_adz 5:valP 5,6://; 1..4: smt(size_ge0). 
+            rewrite valKd /= ?nth_rcons /=; split; 1: smt(BaseW.valP val_w). 
+            move=> tws i sigw />.
+            split => [/#| /lezNgt gew1_i + allnpkcotwsp _ _ _ _ ge0_i lew1_i].
+            rewrite (: ! i < val em{2}.[size skWOTS{2}]); 1: smt(BaseW.valP).
+            rewrite ?size_rcons eqszsksktd eqszsksknt eqszsksklp => -> /=.
+            split; 2: smt(size_rcons).
             congr.
-            rewrite /cf ch0 1:validxadrs_validwadrs_setallch 7:// 1:valx_adz.
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            rewrite valP //. smt().
-            
-            rewrite valKd nth_rcons -H0 /= //.
-            smt().
-            smt().
-            smt().
-            smt().
-            
-            smt(val_w).
-            smt(val_w).
-            move: H13.
-            rewrite (: ! i0_R < val em{2}.[size pkWOTS0{2}]) 1:/#.
-            move => ->.
-            congr.
-            rewrite nth_rcons -H0 /= /#.
-            congr.
-            admit.
-            smt(size_rcons).
-            smt(size_rcons).
-            smt(size_rcons).
-            rewrite /cf ch0 1:validxadrs_validwadrs_setallch 7:// 1:valx_adz.
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            smt(size_ge0).
-            rewrite valP //.
-            rewrite valKd nth_rcons -H0 /= //.
-            smt(BaseW.valP).
-            smt(BaseW.valP).
-            smt(BaseW.valP).
-            smt(BaseW.valP).
-            smt(BaseW.valP).
-            smt(val_w BaseW.valP).
-            smt(BaseW.valP).
-            move: H13.
-            rewrite (: ! i0_R < val em{2}.[size pkWOTS0{2}]); 1: 
-            smt(val_w BaseW.valP).
-            move => ->.
-            congr.
-            rewrite nth_rcons -H0 /= /#.
-            congr.
-            admit.
-            
-            smt(size_rcons).
-            move: H13.
-            rewrite (: ! i0_R < val em{2}.[size pkWOTS0{2}]); 1: 
-            smt(val_w BaseW.valP).
-            move => ->.
-            
-            smt(size_rcons).
-            smt(size_rcons).
-            (* by wp; rnd; wp; skip => />; smt(size_rcons). *)
+            rewrite (: i = val em{2}.[size skWOTS{2}] + (w - 1 - val em{2}.[size skWOTS{2}])) 1:/#.
+            by rewrite (ch_comp _ _ _ 0) 1:validxadrs_validwadrs_setallch 1:valx_adz 5:valP 4,5://; 1..7: smt(size_ge0 BaseW.valP val_w).                        
           wp; skip => /> &1 &2 lfsnth lfsnth1 lfsnth2 tsdef tsnth tsnth1 tsnth2 allpkcots allnpkcotws uqunz1ts szts 
                                eqszskpklp eqszsklfslp eqszsksiglp eqszsksknt eqszskpknt eqszsklfsnt eqszsksignt eqszskrsnt 
                                eqszsksktd eqszskpktd eqszsklfstd eqszsksigtd eqszskrstd _ ltnt_szsknt ltd_szsktd ltlp_szsklp.

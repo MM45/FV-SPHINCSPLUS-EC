@@ -381,3 +381,52 @@ have sz_s2: size s2 = 2 ^ e.
   by rewrite lez_maxr // StdOrder.IntOrder.expr_ge0.
 by rewrite (list2treeS e) //= fun_if2.
 qed.
+
+
+lemma subbt_list2tree_takedrop (ls : 'a list) (e i j : int) :
+      0 <= i <= e
+   => 0 <= j < 2 ^ (e - i)
+   => size ls = 2 ^ e
+   => oget (sub_bt (list2tree ls) (rev (int2bs (e - i) j)))
+      = 
+      list2tree (take (2 ^ i) (drop (j * (2 ^ i)) ls)).
+proof.
+move=> [ge0_i lee_i] []; have ge0_e: 0 <= e by smt().
+elim: e ge0_e ls i j ge0_i lee_i => /= [ls i j ? ? ? |]. 
++ rewrite (: i = 0) 1:/# /= expr0 size_eq1 => lt1_j -[x ->].
+  by rewrite (: j = 0) 1:/# /= int2bs0s rev_nil list2tree0.
+move=> e ge0_e ih ls i j ge0_i lte1_i.
+case (i = e + 1) => [->  /= |].
++ rewrite expr0 int2bs0s rev_nil /= => ? ? <-.
+  by rewrite (: j = 0) 1:/# /= drop0 take_size subbt_empty oget_some.
+move=> neqe1_i ge0_j; rewrite -addrA (addrC 1) addrA => lt2ei1_j szls.
+rewrite int2bsS 1:/# rev_rcons.
+rewrite (subbt_list2tree_cons _ _ _ (e + 1)) 1:/# 1:// 1:size_rev 1:size_int2bs 1:/#. 
+have szlsd2: size ls %/ 2 = 2 ^ e by rewrite -{1}(expr1 2) szls expz_div 1:/#.
+case (j %/ 2 ^ (e - i) %% 2 <> 0) => /= [msb1 | msb0].
++ rewrite -int2bs_mod ih 1:// 1:/# 1:modz_ge0 2:ltz_pmod; 1,2: smt(StdOrder.IntOrder.expr_gt0). 
+  - rewrite size_drop 1:divz_ge0 1:// 1:szls 1:StdOrder.IntOrder.expr_ge0 1://.
+    rewrite szlsd2 szls exprD_nneg 1,2:// expr1; smt(StdOrder.IntOrder.expr_ge0).
+  rewrite drop_drop 1:StdOrder.IntOrder.mulr_ge0 1:modz_ge0 2:StdOrder.IntOrder.expr_ge0 3:divz_ge0 2..4://; 1: smt(StdOrder.IntOrder.expr_gt0).
+  do 3! congr; rewrite szlsd2. 
+  rewrite {2}(divz_eq j (2 ^ (e - i))) mulrDl /= addrC; congr. 
+  suff: j %/ 2 ^ (e - i) = 1 by move=> -> /=; rewrite -exprD_nneg 1:/# 1:// /#. 
+  by admit.
+have lt2e1_j : j < 2 ^ (e - i) by admit.
+have ltszlsd2 : size ls %/ 2 < size ls.
++ rewrite szlsd2 szls exprD_nneg 1,2://.
+  by rewrite StdOrder.IntOrder.ltr_pmulr 1:StdOrder.IntOrder.expr_gt0 1:// expr1.
+rewrite ih 1:// 1:/# 1,2:// 1:size_take 1:divz_ge0 1:// 1:size_ge0 1:ltszlsd2 1://.
+rewrite -{3}(cat_take_drop (size ls %/ 2) ls) drop_cat 1:size_take 1:divz_ge0 1:// 1:size_ge0.
+rewrite ltszlsd2 /= szlsd2 (: j * 2 ^ i < 2 ^ e) 2:/=.
++ rewrite (: 2 ^ e = 2 ^ (e - i) * 2 ^ i) 1:-exprD_nneg 1:/# 1:// 1:/#.
+  by rewrite StdOrder.IntOrder.ltr_pmul2r 1:StdOrder.IntOrder.expr_gt0.
+rewrite take_cat 1:size_drop 1:StdOrder.IntOrder.mulr_ge0 2:StdOrder.IntOrder.expr_ge0 1,2://.
+have le2ei_j2i: j * 2 ^ i <= 2 ^ e - 2 ^ i by admit.
+rewrite lez_maxr 1:size_take 1:StdOrder.IntOrder.expr_ge0 1:// 1:/#.
+rewrite size_take 1:StdOrder.IntOrder.expr_ge0 1:// -szlsd2 ltszlsd2 /= szlsd2.
+case (2 ^ i < 2 ^ e - j * 2 ^ i) => [// | /lezNgt ge2ej2i_2i].
+rewrite (: 2 ^ e - j * 2 ^ i = 2 ^ i) 1:/# /= take0 cats0.
+pose dr := drop _ _; rewrite (: 2 ^ i = size dr) 2:take_size 2://.
+by rewrite size_drop 1:/# size_take 1:StdOrder.IntOrder.expr_ge0 1:// /#.
+qed.

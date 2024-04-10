@@ -119,6 +119,7 @@ lemma ecbtabp_props (trh : 'b -> 'a -> 'a -> 'a)
   => vallf_subbt bt bs = Some leaf'
   => let (x1, x1', x2, x2', ct', l, r, bs') = extract_collision_bt_ap trh updct bt ap bs leaf ct in
           height l = height r
+       /\ height l = size bs'
        /\ height l < height bt
        /\ size bs' < size bs.
 proof.

@@ -5648,23 +5648,111 @@ seq 7 8 : (   #pre
                /\ size nodescl <= nr_nodes (size nodes + 1)
                /\ size nodes < h')
               (nr_nodes (size nodes + 1) - size nodescl).
-        * admit.
-        wp; skip => /> &2. progress. smt().
-        smt().
-        smt().
-        smt(expr_ge0).
-        smt(expr_ge0).
-        admit.
-        admit.
-        smt(size_ge0 expr_ge0 nth_rcons size_rcons).
-        rewrite H20 size_rcons -addrA. congr.
-        by rewrite eq_sym big_int_recr; smt(size_ge0).
-        rewrite nth_rcons; case (u < size nodes{2}) => [ltszu /# | nltszu].
-        rewrite (: u = size nodes{2}) 2:/=; 1: smt(size_rcons).
-        smt().
-        admit.        
-        smt(size_ge0 expr_ge0 nth_rcons size_rcons).
-        smt(size_ge0 expr_ge0 nth_rcons size_rcons).
+        * move=> z'.
+          inline 3.
+          wp; skip => /> &2 tsdef tsnth tsnth1 tsnth2 tsnth3 alltrhts uqunz1ts 
+                            szts nthnds nthndscl ltd_szskw ltnt_szskwnt 
+                            eqlp_szlfslp _ lthp_sznds ltnn_szndscl.
+          rewrite ?size_rcons !andbA -andbA; split => [| /#]. 
+          rewrite -!andbA; split => [adx | ].
+          + rewrite mem_rcons /=; split.
+            - elim => [-> | /tsdef].
+              * right; right; right; exists (size nodescl{2}).
+                by split; [smt(size_ge0) | rewrite nth_rcons /#].
+              elim => [[i j u v [ir] [jr] [ur [vr adval]]]|].
+              * left; exists i j u v; rewrite ir jr ur vr /= nth_rcons szts.
+                admit. (* ltbignrt_i. *)
+              elim => [[j u v [jr] [ur [vr adval]]]|].
+              * right; left; exists j u v; rewrite jr ur vr /= nth_rcons szts.
+                pose igl := _ + j * _ + _ + _; pose igr := _ + size skWOTSnt{2} * _ + _ + _.
+                rewrite (: igl < igr) /igl /igr 2://.
+                rewrite -4!addrA ler_lt_add 1://.
+                suff /#: 
+                  j * (2 ^ h' - 1) + (bigi predT nr_nodes 1 (u + 1) + v) < size skWOTSnt{2} * (2 ^ h' - 1)
+                  /\
+                  0 <= bigi predT nr_nodes 1 (size nodes{2} + 1) + size nodescl{2}.
+                rewrite addr_ge0 3:/= 2:size_ge0 1:sumr_ge0 => [? _ |]; 1: by rewrite expr_ge0. 
+                rewrite (: size skWOTSnt{2} = size skWOTSnt{2} - 1 + 1) 1:// mulrDl ler_lt_add 2:// 2:/=.
+                + by rewrite ler_pmul2r 1:ltr_subr_addl /= 1:ltzE /= 1:ler_eexpr 2://; smt(ge1_hp).
+                admit.
+              elim => [[u v [ur] [vr adval]]|].
+              * right; right; left. 
+                exists u v; split; 1: smt(size_ge0).
+                rewrite nth_rcons szts.
+                pose igl := _ + size skWOTSnt{2} * _ + _ + _; pose igr := _ + size skWOTSnt{2} * _ + _ + _.
+                rewrite (: igl < igr) /igl /igr 2://.
+                rewrite -addrA -(addrA _ _ (size nodescl{2})) ler_lt_add 1://.
+                suff /#: 
+                  bigi predT nr_nodes 1 (u + 1) + v < bigi predT nr_nodes 1 (size nodes{2} + 1)
+                  /\
+                  0 <= size nodescl{2}.
+                rewrite size_ge0 /= 1:(big_cat_int (u + 1) _ (size nodes{2} + 1)) 1,2:/#.
+                rewrite ler_lt_add // (big_cat_int (u + 2)) 1,2:/#.
+                rewrite big_int1; suff /#: 0 <= bigi predT nr_nodes (u + 2) (size nodes{2} + 1).
+                by rewrite sumr_ge0 => ? _; rewrite expr_ge0.
+              elim => [v [vr adval]].
+              right; right; right.
+              exists v; split; 1: smt(size_ge0).
+              by rewrite nth_rcons szts /#.
+            case; 2: case; 3: case.
+            * elim=> i j u v [rng_i [rng_j [rng_u [rng_v]]]].
+              rewrite nth_rcons szts.
+              pose igl := (_ + _ + _ + _)%Int; pose igr := (_ + _ + _ + _)%Int.
+              rewrite (: igl < igr) /igl /igr 2:// /=; 1: admit. (* ltbignrt_i 1..5://*) 
+              by rewrite tsnth 1..4:// => ->; right; rewrite tsdef /#.
+            * elim=> j u v [rng_j [rng_u [rng_v]]].
+              rewrite nth_rcons szts.
+              pose igl := (_ + _ + _ + _)%Int; pose igr := (_ + _ + _ + _)%Int.
+              rewrite (: igl < igr) /igl /igr 2:/= 2:tsnth1 //.
+              + rewrite -4!addrA ler_lt_add 1://.
+                suff /#: 
+                  j * (2 ^ h' - 1) + (bigi predT nr_nodes 1 (u + 1) + v) < size skWOTSnt{2} * (2 ^ h' - 1)
+                  /\
+                  0 <= bigi predT nr_nodes 1 (size nodes{2} + 1) + size nodescl{2}.
+                rewrite addr_ge0 3:/= 2:size_ge0 1:sumr_ge0 => [? _ |]; 1: by rewrite expr_ge0. 
+                rewrite (: size skWOTSnt{2} = size skWOTSnt{2} - 1 + 1) 1:// mulrDl ler_lt_add 2:// 2:/=.
+                + by rewrite ler_pmul2r 1:ltr_subr_addl /= 1:ltzE /= 1:ler_eexpr 2://; smt(ge1_hp).
+                admit.
+              by rewrite tsdef /#.
+            * elim=> u v [rng_u [rng_v]].
+              rewrite nth_rcons szts.
+              pose igl := (_ + _ + _ + _)%Int; pose igr := (_ + _ + _ + _)%Int.
+              rewrite (: igl < igr) /igl /igr 2:/= 2:tsnth2 //.
+              + rewrite -addrA -(addrA _ _ (size nodescl{2})) ler_lt_add 1://. 
+                suff /#:
+                  bigi predT nr_nodes 1 (u + 1) + v < bigi predT nr_nodes 1 (size nodes{2} + 1)
+                  /\
+                  0 <= size nodescl{2}.
+                rewrite size_ge0 /= 1:(big_cat_int (u + 1) _ (size nodes{2} + 1)) 1,2:/#.
+                rewrite ler_lt_add // (big_cat_int (u + 2)) 1,2:/#.
+                rewrite big_int1; suff /#: 0 <= bigi predT nr_nodes (u + 2) (size nodes{2} + 1).
+                by rewrite sumr_ge0 => ? _; rewrite expr_ge0.
+              by rewrite tsdef /#.
+            by elim=> v [rng_v]; rewrite nth_rcons szts /#.
+          split; admit.  
+        wp; skip => /> &2 tsdef tsnth tsnth1 tsnth2 alltrhts uqunz1ts szts nthnds 
+                          ltd_szskw ltnt_szskwnt eqlp_szlfslp _ lthp_sznds.
+        split => [| ts ndscl]; 1: smt(expr_ge0).
+        split => [/# | /lezNgt genn_szndscl]. 
+        move=> tspdef tspnth tspnth1 tspnth2 tspnth3 alltrhtsp uqunz1tsp sztsp ndsclnth lenn_szndscl.
+        rewrite ?size_rcons !andbA -andbA; split => [| /#].
+        rewrite -!andbA; split => [adx |].
+        * rewrite tspdef; split.
+          + do 2! (elim => [-> // |]); elim => [/#|].
+            elim => v [rng_v ->]. 
+            by right; right; exists (size nodes{2}) v; smt(size_ge0).
+          do 2! (elim => [-> // |]). 
+          elim => u v [rng_u [rng_v ->]].
+          case (u < size nodes{2}) => [? | nltszu].
+          + by right; right; left => /#.
+          by right; right; right; exists v => /#.
+        split => [u v ge0_u ltsz1_u ge0_v ltnn_v |].
+        * case (u < size nodes{2}) => [/# | nltszu].
+          by rewrite (: u = size nodes{2}) 1:/# tspnth3 1:/#. 
+        split => [| u v ge0_u ltsz1_u ge0_v ltnn_vc]; 1: rewrite sztsp -addrA. 
+        + by congr; rewrite eq_sym big_int_recr; smt(size_ge0).
+        rewrite nth_rcons; case (u < size nodes{2}) => [/# | nltszu].
+        by rewrite (: u = size nodes{2}) 1:/# /= ndsclnth 1:/#.          
       wp => /=.
       while (   ={skWOTSlp, pkWOTSlp, sigWOTSlp, leaveslp, rootsntp}
              /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}

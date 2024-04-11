@@ -448,10 +448,13 @@ clone import TRH.Collection as TRHC with
   realize in_collection by exists (8 * n * 2).
 
 clone TRHC.SMDTTCRC as TRHC_TCR with
-  op t_smdttcr <- l - 1
+  op t_smdttcr <- bigi predT nr_trees 0 d * (2 ^ h' - 1)
   
   proof *.
-  realize ge0_tsmdttcr by smt(Top.ge2_l).  
+  realize ge0_tsmdttcr. 
+    rewrite mulr_ge0 2:ler_subr_addr 2:-ltzE 2:expr_gt0 2://.
+    by rewrite sumr_ge0 => ? _; rewrite expr_ge0.
+  qed.
 
   
 (* -- Validity/type checks for (indices corresponding to) XMSS-TW addresses -- *)
@@ -5305,10 +5308,10 @@ seq 7 8 : (   #pre
                  (set_thtbidx (set_typeidx (set_ltidx R_SMDTTCRCTRH_EUFNAGCMA.ad{2} i j) trhtype) (u + 1) v,
                   let leaveslp = nth witness (nth witness R_SMDTTCRCTRH_EUFNAGCMA.leavestd{2} i) j in
                     val (val_bt_trh_gen TRHC.O_THFC_Default.pp{2} (set_typeidx (set_ltidx R_SMDTTCRCTRH_EUFNAGCMA.ad{2} i j) trhtype)
-                                        (oget (sub_bt (list2tree leaveslp) (rev (int2bs (h' - u) v)))) u (2 * v))
+                                        (oget (sub_bt (list2tree leaveslp) (rev (int2bs (h' - u) (2 * v))))) u (2 * v))
                     ++
                     val (val_bt_trh_gen TRHC.O_THFC_Default.pp{2} (set_typeidx (set_ltidx R_SMDTTCRCTRH_EUFNAGCMA.ad{2} i j) trhtype)
-                                        (oget (sub_bt (list2tree leaveslp) (rev (int2bs (h' - u) v)))) u (2 * v + 1))))
+                                        (oget (sub_bt (list2tree leaveslp) (rev (int2bs (h' - u) (2 * v + 1))))) u (2 * v + 1))))
            /\ all (fun (adx : _ * _) => get_typeidx adx.`1 = trhtype) TRHC_TCR.O_SMDTTCR_Default.ts{2}
            /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
            /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} = bigi predT (fun (d' : int) => nr_trees d') 0 d * (2 ^ h' - 1)).
@@ -5320,7 +5323,7 @@ inline{2} 25; inline{2} 24; inline{2} 23; inline{2} 22; inline{2} 21.
 swap{1} [15..16] 1.
 wp 15 22 => /=.
 conseq (: is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH{1} => 
-            x'{2} <> x{2} /\ trh pp{2} tw{2} x{2} = trh pp{2} tw{2} x'{2} /\ 0 <= size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= l - 1).
+            x'{2} <> x{2} /\ trh pp{2} tw{2} x{2} = trh pp{2} tw{2} x'{2} /\ 0 <= size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= bigi predT nr_trees 0 d * (2 ^ h' - 1)).
 + move=> /> &2; rewrite (: d <> 0) 2:/=; 1: smt(ge1_d). 
   move=> allntrhtws rsnth tsdef tsnth alltrhts *.
   rewrite !andbA; split => [/# |]. 
@@ -5397,13 +5400,21 @@ move: (ecbtapP (trhi O_THFC_Default.pp{2} (set_typeidx (set_ltidx adz cidx (nth 
                (nth witness lfs cidx)
                (h', 0)).
 move: (ecbtap_vals (trhi O_THFC_Default.pp{2} (set_typeidx (set_ltidx adz cidx (nth witness tkpi cidx).`1) trhtype)) 
-                 updhbidx 
-                 (list2tree (nth witness (nth witness R_SMDTTCRCTRH_EUFNAGCMA.leavestd{2} cidx) (nth witness tkpi cidx).`1))
-                 (val (nth witness (val msigidx.`2) cidx).`2)
-                 (rev (int2bs h' (nth witness tkpi cidx).`2)) 
-                 (nth witness lfs' cidx)
-                 (nth witness lfs cidx)
-                 (h', 0)).
+                   updhbidx 
+                   (list2tree (nth witness (nth witness R_SMDTTCRCTRH_EUFNAGCMA.leavestd{2} cidx) (nth witness tkpi cidx).`1))
+                   (val (nth witness (val msigidx.`2) cidx).`2)
+                   (rev (int2bs h' (nth witness tkpi cidx).`2)) 
+                   (nth witness lfs' cidx)
+                   (nth witness lfs cidx)
+                   (h', 0)).
+move: (ecbtabp_props (trhi O_THFC_Default.pp{2} (set_typeidx (set_ltidx adz cidx (nth witness tkpi cidx).`1) trhtype)) 
+                     updhbidx 
+                     (list2tree (nth witness (nth witness R_SMDTTCRCTRH_EUFNAGCMA.leavestd{2} cidx) (nth witness tkpi cidx).`1))
+                     (val (nth witness (val msigidx.`2) cidx).`2)
+                     (rev (int2bs h' (nth witness tkpi cidx).`2)) 
+                     (nth witness lfs' cidx)
+                     (nth witness lfs cidx)
+                     (h', 0)).
 rewrite (list2tree_fullybalanced _ h') 3:/=; 1: smt(ge1_hp).
 + by rewrite lfsszs 1:// 1:/#.
 rewrite ?valP size_rev size_int2bs -(: h' = max 0 h') 2:/=; 1: smt(ge1_hp).
@@ -5411,21 +5422,72 @@ rewrite (list2tree_height _ h') 2:lfsszs 2,4:// 3:/=; 1,2: smt(ge1_hp).
 rewrite neqlfs /=; move: eqrs; rewrite rsrel 2:rspdef 3:rsdef 1..4:/#.
 rewrite /val_ap_trh /val_ap_trh_gen /val_bt_trh => -> /=. (* breaks? *)
 rewrite list2tree_lvb; 1..3: smt(ge1_hp).
-rewrite (onth_nth witness) 2:lfsrel 1,2:/#.
+rewrite (onth_nth witness) 2:lfsrel 1,2:/# /=.
 rewrite /extract_coll_bt_ap_trh; pose ec := extract_collision_bt_ap _ _ _ _ _ _ _.
 case: ec => /= [x1 x1' x2 x2' hbidx l r bs].
-move=> [#] x1val x1pval x2val x2pval hbidxval lval rval bsval.
+move=> [#] eqhlr eqszhl lthphl lthpszbs.
+move=> [#] x1val x1pval x2val x2pval.
+rewrite take_rev_int2bs; 1: smt(size_ge0).
+rewrite foldlupdhbidx size_int2bs lez_maxr 1:/#.
+rewrite (: h' - (h' - size bs - 1) =  size bs + 1) 1:/# /=. 
+move=> hbidxval lval rval bsval.
 move => [#] neqin eqout.
-split => /=.
+split; last first.
+split.
+move: eqout. rewrite /trhi.
 pose nthtsc := nth _ _ (_ + _ + _ + _)%Int.
 move: (tsnth cidx (nth witness tkpi cidx).`1 (hbidx.`1 - 1) hbidx.`2 _ _ _ _).
 smt().
 smt().
-admit.
-simplify.
-admit.
-rewrite -/nthtsc => -> /=.
-print val_bt_trh_gen.
+smt(size_ge0).
+rewrite hbidxval /= bs2int_ge0 //= /nr_nodes.
+pose i2bs := int2bs _ _.
+rewrite (: h' - (size bs + 1) = size i2bs) 1:size_int2bs 1:/#.
+rewrite bs2int_le2Xs.
+rewrite /nthtsc => -> /= <-.
+congr. congr.
+congr.
+rewrite x1val lval /val_bt_trh_gen.
+rewrite hbidxval /=.
+congr => [| //].
+congr.
+congr.
+search rcons rev int2bs.
+search rev rcons.
+rewrite -rev_cons.
+rewrite -{1}(expr1 2) int2bs_mulr_pow2 1:/#.
+congr.
+rewrite nseq1.
+rewrite cat1s.
+congr.
+pose i2bs := int2bs _ (_ %/ _).
+rewrite (: h' - size bs - 1 = size i2bs) 1:size_int2bs 1:/#.
+by rewrite bs2intK.
+rewrite x1pval rval /val_bt_trh_gen.
+rewrite hbidxval 1:/=.
+congr. congr => [|//].
+congr. congr.
+print int2bs_cat.
+rewrite (int2bs_cat 1) 1:/#.
+rewrite {1}/int2bs mkseq1 /= expr0 divz1.
+rewrite -modzDm modzMr /= expr1.
+rewrite divzDl 1:dvdz_mulr 1:dvdzz.
+rewrite mulrC divMr 1:dvdzz /=.
+rewrite rev_cons. congr.
+pose i2bs := int2bs _ (_ %/ _).
+rewrite (: h' - size bs - 1 = size i2bs) 1:size_int2bs 1:/#.
+by rewrite bs2intK.
+by rewrite size_ge0 szts //.
+pose nthtsc := nth _ _ (_ + _ + _ + _)%Int.
+move: (tsnth cidx (nth witness tkpi cidx).`1 (hbidx.`1 - 1) hbidx.`2 _ _ _ _).
+smt().
+smt().
+smt(size_ge0).
+rewrite hbidxval /= bs2int_ge0 //= /nr_nodes.
+pose i2bs := int2bs _ _.
+rewrite (: h' - (size bs + 1) = size i2bs) 1:size_int2bs 1:/#.
+rewrite bs2int_le2Xs.
+rewrite /nthtsc => -> /=.
 pose vb1 := val_bt_trh_gen _ _ _ _ (2 * hbidx.`2).
 pose vb2 := val_bt_trh_gen _ _ _ _ (2 * hbidx.`2 + 1).
 rewrite eqseq_cat 1:2!valP 1://.
@@ -5436,100 +5498,33 @@ suff /#: vb1 = x1 /\ vb2 = x1'.
 rewrite /vb1 x1val /vb2 x1pval.
 split.
 rewrite lval /val_bt_trh_gen.
-rewrite /updhbidx /=.
-congr. congr. congr.
-search rcons rev take.
-rewrite rcons_take_rev_int2bs.
-admit.
-simplify.
-move: hbidxval.
-rewrite take_rev_int2bs. admit.
-rewrite foldlupdhbidx size_int2bs lez_maxr => /=. admit. 
-rewrite (: h' - (h' - size bs - 1) = size bs + 1) 1:/#.
-move=> -> /=.
-rewrite 
-search bs2int int2bs.
-search int2bs.
-print int2bs_cat.
-rewrite -{2}(expr1 2) int2bs_mulr_pow2. admit.
-
-search int2bs.
-rewrite (int2bs_cat 1). admit.
+rewrite hbidxval /=.
+congr => [| //].
+congr.
+congr.
+rewrite -rev_cons.
+rewrite -{1}(expr1 2) int2bs_mulr_pow2 1:/#.
+congr.
+rewrite nseq1.
+rewrite cat1s.
+congr.
+pose i2bs := int2bs _ (_ %/ _).
+rewrite (: h' - size bs - 1 = size i2bs) 1:size_int2bs 1:/#.
+by rewrite bs2intK.
+rewrite rval /val_bt_trh_gen.
+rewrite hbidxval 1:/=.
+congr => [|//].
 congr. congr.
-search int2bs.
-
-print int2bs. admit.
-
-print bs2intK.
-rewrite /int2bs mkseq1 /= expr0 /=.
-search int2bs.
-print bs2int. 
-search bs2int.
-search foldl foldr. 
-search foldr.
-print BIM.big. bigi.
-search int2bs.
-rewrite (: hbidx.`1  - 1 = size bs). 
-admit.
-congr.
-congr.
-move: hbidxval. search foldl.
-search take rev int2bs.
-rewrite take_rev_int2bs. admit.
-rewrite /updhbidx.
-search (- (_ - _))%Int.
-rewrite opprB.
-rewrite (addrC 1) addrA.
-congr.
-search int2bs.
-rewrite int2bsS. admit.
-search rcons int2bs.
-move: hbidxval.
-search foldl.
-case: nthtsc => ad x /= [adval xval].
-rewrite xval.
-move=> ->.
- 
-
-
-move=> /(_ _ _ _ _ _ _) => [|||//|||].
-+ rewrite (list2tree_fullybalanced _ h'); 1: smt(ge1_hp).
-  by rewrite lfsszs 1:// 1:/#.
-+ by rewrite valP size_rev size_int2bs; smt(ge1_hp).
-+ by rewrite valP (list2tree_height _ h') 2:lfsszs 2://; 1,2: smt(ge1_hp).
-+ move: eqrs; rewrite rsrel 2:rspdef 3:rsdef 1..4:/#.
-  by rewrite /val_ap_trh /val_ap_trh_gen /val_bt_trh => ->.
-+ rewrite list2tree_lvb; 1..3: smt(ge1_hp).
-  by rewrite (onth_nth witness) 2:lfsrel 1,2:/#. 
-rewrite /extract_coll_bt_ap_trh; pose ec := extract_collision_bt_ap _ _ _ _ _ _ _.
-case: ec => /= [x1 x1' x2 x2' hbidx].
-move => [#]. /=. />.
-  + 
-
- ->.
- admit. admit. rewrite rsdef. 1..4:/#. 
-+ trivial.
-                   rewrite -/extract_coll_bt_ap_trh.
-
-
-bt ap bs leaf (hidx, bidx).
-print extract_coll_bt_ap_trh.
-rewrite tsnth 1:// 1,2:tkpirng 1,2:/# /=.
-split; 1: rewrite -pkwrel 1:/# -negP. 
-* pose ml := List.map _ _; pose ml' := List.map _ _; move => eqfl.  
-  move: (eq_from_flatten_nth ml ml' _ _ eqfl); 1: by rewrite ?size_map ?valP.
-  + move=> j; rewrite size_map valP => rng_j.
-    by rewrite ?(nth_map witness) 1,2:valP 1,2:// ?valP.
-  rewrite /ml /ml' => eqmap. 
-  have: injective (map DigestBlock.val) by rewrite inj_map val_inj.
-  rewrite /injective => /(_ (val (nth witness pkws' cidx)) (val (nth witness pkws cidx)) eqmap) eqv.
-  by move: (DBLL.val_inj (nth witness pkws' cidx) (nth witness pkws cidx) eqv).
-move: eqlfs; rewrite lfsrel 1:/# lfsdef 1:// 1,2:/# lfspdef 1:/# => -> /=.
-by rewrite szts sumr_ge0 => [? _ /= | //]; rewrite mulr_ge0 expr_ge0.
-
-
+rewrite (int2bs_cat 1) 1:/#.
+rewrite {1}/int2bs mkseq1 /= expr0 divz1.
+rewrite -modzDm modzMr /= expr1.
+rewrite divzDl 1:dvdz_mulr 1:dvdzz.
+rewrite mulrC divMr 1:dvdzz /=.
+rewrite rev_cons. congr.
+pose i2bs := int2bs _ (_ %/ _).
+rewrite (: h' - size bs - 1 = size i2bs) 1:size_int2bs 1:/#.
+by rewrite bs2intK.
 qed.
-
 
 lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
   hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 

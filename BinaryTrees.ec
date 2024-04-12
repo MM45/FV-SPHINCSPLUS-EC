@@ -74,6 +74,7 @@ lemma subbt_empty (bt : 'a bintree) :
   sub_bt bt [] = Some bt.
 proof. by case bt. qed.
 
+ 
 (* 
   Extracts the (hash) value from a leaf; returns None if the given binary tree is not a leaf 
 *)
@@ -387,9 +388,9 @@ lemma subbt_list2tree_takedrop (ls : 'a list) (e i j : int) :
       0 <= i <= e
    => 0 <= j < 2 ^ (e - i)
    => size ls = 2 ^ e
-   => oget (sub_bt (list2tree ls) (rev (int2bs (e - i) j)))
+   => sub_bt (list2tree ls) (rev (int2bs (e - i) j))
       = 
-      list2tree (take (2 ^ i) (drop (j * (2 ^ i)) ls)).
+      Some (list2tree (take (2 ^ i) (drop (j * (2 ^ i)) ls))).
 proof.
 move=> [ge0_i lee_i] []; have ge0_e: 0 <= e by smt().
 elim: e ge0_e ls i j ge0_i lee_i => /= [ls i j ? ? ? |]. 
@@ -398,7 +399,7 @@ elim: e ge0_e ls i j ge0_i lee_i => /= [ls i j ? ? ? |].
 move=> e ge0_e ih ls i j ge0_i lte1_i.
 case (i = e + 1) => [->  /= |].
 + rewrite expr0 int2bs0s rev_nil /= => ? ? <-.
-  by rewrite (: j = 0) 1:/# /= drop0 take_size subbt_empty oget_some.
+  by rewrite (: j = 0) 1:/# /= drop0 take_size subbt_empty.
 move=> neqe1_i ge0_j; rewrite -addrA (addrC 1) addrA => lt2ei1_j szls.
 rewrite int2bsS 1:/# rev_rcons.
 rewrite (subbt_list2tree_cons _ _ _ (e + 1)) 1:/# 1:// 1:size_rev 1:size_int2bs 1:/#. 
@@ -429,4 +430,31 @@ case (2 ^ i < 2 ^ e - j * 2 ^ i) => [// | /lezNgt ge2ej2i_2i].
 rewrite (: 2 ^ e - j * 2 ^ i = 2 ^ i) 1:/# /= take0 cats0.
 pose dr := drop _ _; rewrite (: 2 ^ i = size dr) 2:take_size 2://.
 by rewrite size_drop 1:/# size_take 1:StdOrder.IntOrder.expr_ge0 1:// /#.
+qed.
+
+lemma subbt_list2tree_idx_leaf (x0 : 'a) (ls : 'a list) (idx e : int) :
+     0 <= e
+  => size ls = 2 ^ e
+  => 0 <= idx < size ls
+  => sub_bt (list2tree ls) (rev (int2bs e idx)) = Some (Leaf (nth x0 ls idx)).
+proof.
+move=> ge0_e; elim: e ge0_e ls idx.
++ rewrite expr0 => ls idx ^ /size_eq1 [x ->] sz1 rng_idx.
+  by rewrite (: idx = 0) 1:/# int2bs0s rev_nil subbt_empty list2tree1.
+move=> e ge0_e ih ls idx szls rng_idx.
+rewrite int2bsS 1:// rev_rcons. print subbt_list2tree_cons.
+rewrite (subbt_list2tree_cons _ _ _ (e + 1)) 1:/# 1:szls // 1:size_rev 1:size_int2bs 1:/#.
+have szlsd2: size ls %/ 2 = 2 ^ e by rewrite -{1}(expr1 2) szls expz_div 1:/#.
+have ge0_szld2: 0 <= size ls %/ 2 by rewrite szlsd2 StdOrder.IntOrder.expr_ge0.
+have szmsz2_2e : size ls - size ls %/ 2 = 2 ^ e.
++ rewrite szlsd2 szls exprD_nneg 1,2:// expr1 1:/#.
+have ltszls_szlsd2: size ls %/ 2 < size ls by smt(StdOrder.IntOrder.expr_gt0).
+case (idx %/ 2 ^ e %% 2 <> 0) => [msb1 | /= msb0].
++ rewrite -{1}int2bs_mod ih 1,2:size_drop 1,3:// 1,2:szmsz2_2e 1,2:lez_maxr 2:// 1,2:StdOrder.IntOrder.expr_ge0 1,2://. 
+  - by rewrite modz_ge0 2:ltz_pmod; 1,2: smt(StdOrder.IntOrder.expr_gt0).
+  rewrite modzE nth_drop 1:// 1:StdOrder.IntOrder.subr_ge0 1:lez_floor; 1: smt(StdOrder.IntOrder.expr_gt0).
+  do 3! congr; rewrite szlsd2 eq_sym {1 2}(divz_eq idx (2 ^ e)).
+  by rewrite (: idx %/ 2 ^ e = 1) 2:/#; 1: admit.
+have ltszlsd2_idx : idx < size ls %/ 2 by admit.
+by rewrite ih 1,2:size_take 1,3:// 1,2:ltszls_szlsd2 1:// 1:/= 1:/# nth_take.
 qed.

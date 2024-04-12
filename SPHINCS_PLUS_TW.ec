@@ -55,7 +55,7 @@ const len : int = len1 + len2.
 
 (* -- FL-XMSS(-MT)-TW -- *)
 (* Height of a single inner tree *)
-const h' : { int | 0 <= h' } as ge0_hp. 
+const h' : { int | 1 <= h' } as ge1_hp. 
 
 (* Number of WOTS-TW/FORS-TW instances of a single inner tree (i.e., number of leaves) *)
 const l' = 2 ^ h'.
@@ -110,17 +110,17 @@ const trcotype : int.
 (* The different address types are distinct *)
 axiom dist_adrstypes : uniq [chtype; pkcotype; trhxtype; trhftype; trcotype].
 
-(* l is greater than or equal to 1 *)
-lemma ge1_l : 1 <= l.
-proof. by rewrite /l -add0r -ltzE expr_gt0. qed.
+(* l' is greater than or equal to 2 *)
+lemma ge2_lp : 2 <= l'.
+proof. by rewrite /l IntOrder.ler_eexpr 1:ltzE /= 1:ge1_hp. qed.
 
-(* l' is greater than or equal to 1 *)
-lemma ge1_lp : 1 <= l'.
-proof. by rewrite /l' -add0r -ltzE expr_gt0. qed.
+(* h is greater than or equal to 1 *)
+lemma ge1_h : 1 <= h.
+proof. by rewrite /h IntOrder.mulr_ege1 1:ge1_hp ge1_d. qed.
 
-(* h is greater than or equal to 0 *)
-lemma ge0_h : 0 <= h.
-proof. rewrite /h mulr_ge0 1:ge0_hp; smt(ge1_d). qed.
+(* l is greater than or equal to 2 *)
+lemma ge2_l : 2 <= l.
+proof. by rewrite /l IntOrder.ler_eexpr 1:ltzE /= 1:ge1_h. qed.
 
 (* Number of leaves of a FORS-TW tree is greater than or equal to 2 *)
 lemma ge2_t : 2 <= t.
@@ -180,7 +180,7 @@ clone import Subtype as Index with
     op P i <= 0 <= i < l
     
   proof *.
-  realize inhabited by exists 0; smt(ge1_l).
+  realize inhabited by exists 0; smt(ge2_l).
 
 type index = Index.sT.
 
@@ -710,10 +710,10 @@ clone import FORS_TW_ES as FTWES with
   realize ge1_n by exact: ge1_n.
   realize ge1_k by exact ge1_k.
   realize ge1_a by exact: ge1_a.
-  realize ge1_l by smt(ge1_lp).
+  realize ge1_l by smt(ge2_lp).
   realize ge1_s by rewrite /nr_trees -add0r -ltzE expr_gt0.
   realize dval. 
-    rewrite /nr_trees /l' /l /h -exprD_nneg /= 1:mulr_ge0; 1..3: smt(ge1_d ge0_hp).
+    rewrite /nr_trees /l' /l /h -exprD_nneg /= 1:mulr_ge0; 1..3: smt(ge1_d ge1_hp).
     by congr; ring.
   qed.
   realize dist_adrstypes by smt(dist_adrstypes).
@@ -728,7 +728,7 @@ clone import FORS_TW_ES as FTWES with
   realize valf_adz.
     rewrite /valid_fadrs /valid_fadrsidxs /valid_fidxvals /valid_fidxvalslp.
     rewrite /valid_fidxvalslptrh ?nth_take // ?nth_drop //.
-    by rewrite insubdK; smt(ge1_k ge1_a ge1_lp IntOrder.expr_gt0).
+    by rewrite insubdK; smt(ge1_k ge1_a ge2_lp IntOrder.expr_gt0).
   qed.
    
 import DBAL BLKAL DBAPKL DBLLKTL FP_OPRETCRDSPR.
@@ -797,13 +797,13 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
   type index <- index,
   type adrs <- adrs
   
-  proof ge6_adrslen, ge1_n, val_log2w, ge0_hp, ge1_d, dist_adrstypes, 
+  proof ge6_adrslen, ge1_n, val_log2w, ge1_hp, ge1_d, dist_adrstypes, 
         valid_xidxvals_idxvals, dpseed_ll, ddgstblock_ll, WTWES.WAddress.inhabited,
         valx_adz.
   realize ge6_adrslen by trivial.
   realize ge1_n by exact: ge1_n.
   realize val_log2w by exact: val_log2w.
-  realize ge0_hp by exact: ge0_hp.
+  realize ge1_hp by exact: ge1_hp.
   realize ge1_d by exact: Top.ge1_d.
   realize dist_adrstypes by smt(Top.dist_adrstypes).
   realize valid_xidxvals_idxvals.
@@ -853,22 +853,22 @@ lemma setallchadz_getchidx  (i j u v : int) :
 proof.
 move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /get_idx insubdK 2://.
 rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
 lemma setalladzch_getkpidx (i j u v : int) :
@@ -877,22 +877,22 @@ lemma setalladzch_getkpidx (i j u v : int) :
 proof.
 move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /get_idx insubdK 2://.
 rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
 lemma setalladzch_gettypeidx (i j u v : int) :
@@ -901,22 +901,22 @@ lemma setalladzch_gettypeidx (i j u v : int) :
 proof.
 move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /get_idx insubdK 2://.
 rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
 lemma setalladzch_gettidx (i j u v : int) :
@@ -925,22 +925,22 @@ lemma setalladzch_gettidx (i j u v : int) :
 proof.
 move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /get_idx insubdK 2://.
 rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
 lemma setalladzch_getlidx (i j u v : int) :
@@ -949,22 +949,22 @@ lemma setalladzch_getlidx (i j u v : int) :
 proof.
 move=> vali valj valu valv @/adz @/set_ltidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /get_idx insubdK 2://.
 rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by left => @/valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
 lemma setalladztrhf_getbidx (i j u v : int) :
@@ -973,7 +973,7 @@ lemma setalladztrhf_getbidx (i j u v : int) :
 proof.
 move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_tidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
   by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
@@ -994,7 +994,7 @@ lemma setalladztrhf_getkpidx (i j u v : int) :
 proof.
 move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_tidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
   by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
@@ -1015,7 +1015,7 @@ lemma setalladztrhf_gettypeidx (i j u v : int) :
 proof. 
 move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_tidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
   by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
@@ -1036,7 +1036,7 @@ lemma setalladztrhf_gettidx (i j u v : int) :
 proof.
 move=> vali valj valuv @/adz @/set_typeidx; rewrite insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
-  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_tidx /set_idx insubdK.
 + rewrite /valid_adrsidxs /adrs_len /= /valid_idxvals.
   by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
@@ -1055,7 +1055,7 @@ lemma eq_dbsettype_adztrhf :
   set_typeidx adz trhftype = set_typeidx (insubd [0; 0; 0; trhftype; 0; 0]) trhftype.
 proof. 
 rewrite /set_typeidx ?insubdK 3:// /valid_adrsidxs /adrs_len /= /valid_idxvals.
-+ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
 
@@ -1074,12 +1074,12 @@ lemma eq_setlttype_adztrhf (i j : int) :
 proof.
 move=> vali valj. 
 rewrite {1}/set_ltidx insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
-+ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_typeidx ?insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals.
-+ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
++ by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 + by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
 rewrite /put /= /set_ltidx insubdK 2:// /valid_adrsidxs /adrs_len /= /valid_idxvals.
-by right; right; left => @/valid_idxvalstrhx /=; smt(ge1_d ge0_hp ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+by right; right; left => @/valid_idxvalstrhx /=; smt(ge1_d ge1_hp ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
 qed.
  
 lemma getsettrhf_kpidx (ad : adrs) (i j : int) :
@@ -1344,7 +1344,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
+    root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
     pk <- (root, ps);
     
@@ -1484,7 +1484,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
+    root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
     pk <- (root, ps);
     
@@ -1583,7 +1583,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
       Compute root (hash value) from the computed list of leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
-    root <- val_bt_trh ps (set_ltidx (set_typeidx ad trhxtype) (d - 1) 0) (list2tree leaves) h' 0;
+    root <- FSSLXMTWES.val_bt_trh ps (set_ltidx (set_typeidx ad trhxtype) (d - 1) 0) (list2tree leaves);
     
 
     (* Ask adversary to forge *)
@@ -1914,7 +1914,7 @@ local module SPHINCS_PLUS_TW_FS = {
 
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
     leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
-    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
+    root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
     pk <- (root, ps);
     sk <- (ms, skFORSnt, skWOTStd, ps);
@@ -1988,7 +1988,7 @@ local module SPHINCS_PLUS_TW_FS = {
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
     leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
     
-    root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves) h' 0;
+    root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
     pk <- (root, ps);
     sk <- (ms, skFORSnt, skWOTStd, ps);
@@ -2355,15 +2355,15 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
     * split; 2: smt(ge2_len).
       rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP //= => i rng_i.
       rewrite insubdK 1:/# nthskwp 1:/# nthskw 1:size_ge0 //=.
-      + rewrite divz_ge0 2:ge0_tidx 2:ltz_divLR /=; 1,2: smt(ge1_lp).
-        by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d).
-      by rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
+      + rewrite divz_ge0 2:ge0_tidx 2:ltz_divLR /=; 1,2: smt(ge2_lp).
+        by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge1_hp ge1_d).
+      by rewrite modz_ge0 2:ltz_pmod; smt(ge2_lp).
     split => [| lfs]; 2: smt(size_rcons).
-    rewrite modz_ge0 2:ltz_pmod /=; 1,2: smt(ge1_lp).
-    rewrite divz_ge0 2:ge0_tidx 2:(: 0 <= l') /=; 1,2: smt(ge1_lp).
-    rewrite ltz_divLR 2:(: nr_trees (size sapl{2}) * l' =  nr_trees (size sapl{2} - 1)); 1: smt(ge1_lp).
-    - by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d).
-    by rewrite ltnt1_tidx /= (IntOrder.ler_lt_trans tidx0{2}) //= leq_div //; smt(ge1_lp).
+    rewrite modz_ge0 2:ltz_pmod /=; 1,2: smt(ge2_lp).
+    rewrite divz_ge0 2:ge0_tidx 2:(: 0 <= l') /=; 1,2: smt(ge2_lp).
+    rewrite ltz_divLR 2:(: nr_trees (size sapl{2}) * l' =  nr_trees (size sapl{2} - 1)); 1: smt(ge2_lp).
+    - by rewrite /nr_trees /l' -exprD_nneg 1:mulr_ge0; smt(ge1_hp ge1_d).
+    by rewrite ltnt1_tidx /= (IntOrder.ler_lt_trans tidx0{2}) //= leq_div //; smt(ge2_lp).
   inline{1} 8; inline{2} 8.
   wp => /=.
   while (   ={roots, ad, ps1, ad1, tidx, kpidx}
@@ -2429,10 +2429,10 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
     rewrite size_ge0 /= /ls size_rev size_take 2:size_drop; 1,2: smt(ge1_a size_ge0). 
     by rewrite ?valP /#. 
   wp; skip => /> &1 &2 ? ? /= nthskf nthskw *.
-  split; 2: smt(ge1_k ge1_lp ge1_d Index.valP).
+  split; 2: smt(ge1_k ge2_lp ge1_d Index.valP).
   rewrite !andbA -4!andbA; split => [/#| ].
-  rewrite divz_ge0 2:modz_ge0 3:ltz_pmod 4:ltz_divLR /=; 1..4: smt(ge1_lp).
-  by rewrite /nr_trees /= /l' -exprD_nneg; smt(ge0_hp ge1_d ge1_k Index.valP).
+  rewrite divz_ge0 2:modz_ge0 3:ltz_pmod 4:ltz_divLR /=; 1..4: smt(ge2_lp).
+  by rewrite /nr_trees /= /l' -exprD_nneg; smt(ge1_hp ge1_d ge1_k Index.valP).
 inline{1} 10; inline{2} 7.
 inline{1} 4; inline{2} 2.
 sp 6 4; wp => />.
@@ -2456,7 +2456,7 @@ while (   ={leaves0}
   split; 2: smt(size_rcons).
   rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP // => i rng_i. 
   by rewrite insubdK 1:/# 1:nthskwp 1:/# nthskw //; smt(ge1_d IntOrder.expr_gt0).
-by wp; skip => />; smt(ge1_lp).
+by wp; skip => />; smt(ge2_lp).
 qed.
 
 local module EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF = {
@@ -2524,7 +2524,7 @@ do 2! congr; 2: congr.
             rcondf{2} 2; 1: by auto.
             by wp; skip => />; smt(size_rcons).
           by wp; skip => />; smt(ge2_len size_rcons). 
-        by wp; skip => />; smt(ge1_lp size_rcons). 
+        by wp; skip => />; smt(ge2_lp size_rcons). 
       by wp; skip => />; smt(size_rcons IntOrder.expr_ge0).
     wp => />.
     while (    ! SKG_PRF.O_PRF_Default.b{2}
@@ -2722,7 +2722,7 @@ seq 8 14 : (   ={glob A, ad}
         split => *; 2: smt(size_rcons).
         by split => *; smt(size_rcons size_ge0).
       wp; skip => /> &2 *.
-      split => *; 1: smt(ge1_lp).
+      split => *; 1: smt(ge2_lp).
       split => *; 2: smt(size_rcons).
       by split => *; smt(size_rcons size_ge0).
     wp; skip => /> &2 *.
@@ -2862,7 +2862,7 @@ seq 8 14 : (   ={glob A, ad}
         split => *; 1: smt(ge2_t).
         by split; smt(size_rcons size_ge0). 
       by wp; skip => />; smt(size_rcons size_ge0 ge1_k).
-    by wp; skip => />; smt(size_rcons size_ge0 ge1_lp).
+    by wp; skip => />; smt(size_rcons size_ge0 ge2_lp).
   wp => /=.
   swap{2} 1 5.
   do 3! rnd.
@@ -3209,7 +3209,7 @@ seq 2 3 : (   #pre
       rewrite fun_ext => u.
       by do 3! congr; rewrite fun_ext => v /#.
     wp; skip => /> &2 nthpkf eqszskpks _ ltnt_szsks.
-    split => [| pkl skl /lezNgt gelp_skl _ nthpkl eqszsklpkl lelp_szskl]; 1: smt(ge1_lp).
+    split => [| pkl skl /lezNgt gelp_skl _ nthpkl eqszsklpkl lelp_szskl]; 1: smt(ge2_lp).
     split => [i j |]; 2: smt(size_rcons).
     rewrite ?nth_rcons ?size_rcons => ge0_i ltsz1_i ge0_j ltlp_j.
     rewrite eqszskpks; case (i < size pkFORSs{2}) => [ltsz | geqsz].
@@ -3351,18 +3351,18 @@ seq 21 16 : (   ={m'}
       split => [|rs]; 1: by rewrite mkseq0 /=; smt(ge1_k).
       split => [/# | ? rsdef *].
       move: (Index.valP (mco mk0{2} m{2}).`2) => [ge0_idx @/l lt2h_idx]. 
-      rewrite nthpkfnt 2:modz_ge0 3:ltz_pmod 4://; 2,3: smt(ge1_lp).
-      + rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge1_lp). 
-        by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d).
+      rewrite nthpkfnt 2:modz_ge0 3:ltz_pmod 4://; 2,3: smt(ge2_lp).
+      + rewrite divz_ge0 2:ltz_divLR 3:ge0_idx 3:/=; 1,2: smt(ge2_lp). 
+        by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d).
       do 2! congr; 1: by rewrite eq_dbsettype_adztrhf.
       + rewrite getsettrhf_kpidx 5:// /valid_tidx /valid_kpidx.
         - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
         - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
-        - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
-          by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-        by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).         
+          by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+        - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge2_lp).
+          by rewrite -exprD_nneg 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
+        by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge2_lp).         
       congr; rewrite rsdef (: size rs = k) 1:/#; congr.
       rewrite fun_ext => u /=; do 3! congr; 1: by rewrite eq_dbsettype_adztrhf.
       by rewrite fun_ext => v /=; rewrite eq_dbsettype_adztrhf.
@@ -3398,7 +3398,7 @@ seq 21 16 : (   ={m'}
 set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{2} %/ l')) chtype 
         *) admit.
       split => [| lfs /lezNgt gelp_szlfs _ *].
-      + rewrite andbA; split; 2: smt(ge1_lp). 
+      + rewrite andbA; split; 2: smt(ge2_lp). 
         split; admit.
       rewrite -!andbA andbA; split; 2: smt(size_rcons).
       split; congr.
@@ -3419,7 +3419,7 @@ set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{
     by wp; skip => />; smt(size_rcons).
   wp; skip => /> &2 nthpkf.
   split => [| lfs /lezNgt gelp_szlfs _ eqadch eqadpkco lelp_szlfs].
-  - by rewrite -eq_settype_adztrhfch /=; smt(ge1_lp).
+  - by rewrite -eq_settype_adztrhfch /=; smt(ge2_lp).
   split => [| eqvbt msig].
   - rewrite eq_setlttype_adztrhf 3://; 1: smt(ge1_d).
     by rewrite /valid_tidx /nr_trees expr_gt0.
@@ -3429,18 +3429,18 @@ set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{
   pose tad := trco _ _ _; pose npkf := nth _ _ _.
   suff -> //: tad = npkf; rewrite /tad /npkf.
   rewrite nthpkf. 
-  - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
-    by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-  - by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).   
+  - rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge2_lp).
+    by rewrite -exprD_nneg 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
+  - by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge2_lp).   
   congr => //=.
   - rewrite eq_dbsettype_adztrhf getsettrhf_kpidx 5:// /valid_tidx /valid_kpidx.
     * rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
       by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
     * rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
       by right; right; right; left => @/valid_idxvalstrhf /=; smt(ge1_d ge1_a ge2_t ge1_k IntOrder.expr_ge0 IntOrder.expr_gt0).
-    * rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge1_lp).
-      by rewrite -exprD_nneg 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-    by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge1_lp).
+    * rewrite divz_ge0 2:ltz_divLR /= /nr_trees /l' /=; 1,2: smt(ge2_lp).
+      by rewrite -exprD_nneg 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
+    by rewrite modz_ge0 /= 2:ltz_pmod; smt(ge2_lp).
   rewrite valrs; do 3! congr => [|/#].
   rewrite fun_ext => u; congr.
   do 2! congr; rewrite fun_ext => v; congr.
@@ -3808,7 +3808,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
       do 3! congr; rewrite fun_ext => v. 
       by rewrite insubdK // /#.
     wp; skip => /> &2 nthpkfnt _ allszlp eqszpksknt ltnt_szsknt.
-    split => [| pkf skf /lezNgt gelp_szskf _ nthpkflp _ lelp_szpkf eqszpksklp]; 1: smt(ge1_lp).
+    split => [| pkf skf /lezNgt gelp_szskf _ nthpkflp _ lelp_szpkf eqszpksklp]; 1: smt(ge2_lp).
     split => [i j|]; 2: smt(cats1 all_cat allP size_rcons).
     rewrite ?size_rcons ?nth_rcons -eqszpksknt => *.
     case (i < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) => [ltszi | nltszi]; 1: by rewrite nthpkfnt.
@@ -3848,7 +3848,7 @@ seq 10 14: (   #pre
                                                            pkco ps{2} (set_kpidx (set_typeidx adlt pkcotype) u)
                                                                 (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                                     cf ps{2} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                       (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                                                                       (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l'))) in
                     DBLL.insubd (mkseq (fun (v : int) => 
                       cf ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
                          (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
@@ -3879,7 +3879,7 @@ seq 10 14: (   #pre
                                                          pkco sk{2}.`2 (set_kpidx (set_typeidx adlt pkcotype) u)
                                                               (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                                   cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                                                                     (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l'))) in
                   DBLL.insubd (mkseq (fun (v : int) => 
                     cf sk{2}.`2 (set_chidx (set_kpidx (set_typeidx (set_ltidx sk{2}.`3 j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
                        (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
@@ -3912,7 +3912,7 @@ seq 10 14: (   #pre
                                              pkco ps1 (set_kpidx (set_typeidx (set_ltidx ad1 (size sapl - 1) tidx) pkcotype) u)
                                                   (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                       cf ps1 (set_chidx (set_kpidx (set_typeidx (set_ltidx ad1 (size sapl - 1) tidx) chtype) u) v) 0 (w - 1) 
-                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (size sapl - 1)) tidx) u)) v))) len)))) l')) h' 0)
+                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (size sapl - 1)) tidx) u)) v))) len)))) l')))
            /\ (forall (j : int), 0 <= j < size sapl =>
               (nth witness sapl j).`1
               =
@@ -3926,7 +3926,7 @@ seq 10 14: (   #pre
                                                        pkco ps1 (set_kpidx (set_typeidx adlt pkcotype) u)
                                                             (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                                 cf ps1 (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 (j - 1)) ti) u)) v))) len)))) l'))) in
                 DBLL.insubd (mkseq (fun (v : int) => 
                   cf ps1 (set_chidx (set_kpidx (set_typeidx (set_ltidx ad1 j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
                      (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0 j) (ti %/ l')) (ti %% l'))) v))) len))
@@ -3990,7 +3990,7 @@ seq 10 14: (   #pre
       wp; skip => /> &2 idxsdef nthsapl1 nthsapl2 ltl_szsigl _ ltd_szsapl.
       split => [| sigw]; 1: by rewrite mkseq0 /=; smt(ge2_len).
       split => [/#| /lezNgt gelen_szsigw sigwdef lelen_szsigw].
-      split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge1_lp).
+      split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge2_lp).
       split => [/# | /lezNgt gelp_szlfs lfsdef lelp_szlfs].
       rewrite ?size_rcons (: ! size sapl{2} + 1 = 0) /=; 1: smt(size_ge0).
       rewrite foldS 2:/=; 1: smt(size_ge0).
@@ -4026,7 +4026,7 @@ seq 10 14: (   #pre
   wp => /=.
   call (: true); 1: by sim.
   wp; skip => /> &2 nthpkf szpkf allszpkf.
-  split => [| sigl]; 1: smt(ge1_l).
+  split => [| sigl]; 1: smt(ge2_l).
   split => [/# | /lezNgt gel_szsigl nthsigl1 nthsigl2 lel_szsigl].
   by split => *; [rewrite nthsigl1 // | rewrite nthsigl2 //] => // /#.
 inline{1} 14; inline{2} 7.  
@@ -4101,7 +4101,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                                      pkco R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_kpidx (set_typeidx adlt pkcotype) u)
                                                           (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                               cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                 (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                                                                 (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} (j - 1)) ti) u)) v))) len)))) l'))) in
               DBLL.insubd (mkseq (fun (v : int) => 
                 cf R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ps{2} (set_chidx (set_kpidx (set_typeidx (set_ltidx R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad{2} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
                    (val (nth witness (val (nth witness (nth witness (nth witness EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV.skWOTStd{2} j) (ti %/ l')) (ti %% l'))) v))) len))
@@ -4144,7 +4144,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                              pkco ps0{1} (set_kpidx (set_typeidx (set_ltidx ad0{1} (size sapl{1} - 1) tidx0{1}) pkcotype) u)
                                                   (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                       cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} (size sapl{1} - 1) tidx0{1}) chtype) u) v) 0 (w - 1) 
-                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (size sapl{1} - 1)) tidx0{1}) u)) v))) len)))) l')) h' 0)
+                                                         (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (size sapl{1} - 1)) tidx0{1}) u)) v))) len)))) l')))
            /\ (forall (j : int), 0 <= j < size sapl{1} =>
               (nth witness sapl{1} j).`1
               =
@@ -4158,7 +4158,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
                                                        pkco ps0{1} (set_kpidx (set_typeidx adlt pkcotype) u)
                                                             (flatten (map DigestBlock.val (mkseq (fun (v : int) => 
                                                                 cf ps0{1} (set_chidx (set_kpidx (set_typeidx adlt chtype) u) v) 0 (w - 1) 
-                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (j - 1)) ti) u)) v))) len)))) l')) h' 0) in
+                                                                   (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} (j - 1)) ti) u)) v))) len)))) l'))) in
                 DBLL.insubd (mkseq (fun (v : int) => 
                   cf ps0{1} (set_chidx (set_kpidx (set_typeidx (set_ltidx ad0{1} j (ti %/ l')) chtype) (ti %% l')) v) 0 (BaseW.val (encode_msgWOTS rt).[v]) 
                      (val (nth witness (val (nth witness (nth witness (nth witness skWOTStd0{1} j) (ti %/ l')) (ti %% l'))) v))) len))
@@ -4221,7 +4221,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     wp; skip => /> &2 idxsdef nthsapl1 nthsapl2 _ ltd_szsapl.
     split => [| sigw]; 1: by rewrite mkseq0 /=; smt(ge2_len).
     split => [/#| /lezNgt gelen_szsigw sigwdef lelen_szsigw].
-    split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge1_lp).
+    split => [| lfs]; 1: by rewrite mkseq0 /=; smt(ge2_lp).
     split => [/#| /lezNgt gelp_szlfs].
     rewrite ?size_rcons => lfsdef lelp_szlfs.
     rewrite {1}lfsdef; move: (idxsdef _); 1: smt().
@@ -4292,34 +4292,34 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     rewrite (StdBigop.Bigint.BIA.eq_big_seq _ (fun _ => l')) => [pkflp /mem_take pkfin /=|].
     - move/allP: allszlppkfnt => /(_ pkflp pkfin) @/(\o) -> //.
     rewrite StdBigop.Bigint.big_constz count_predT /= size_take.
-    - by rewrite divz_ge0; smt(ge1_lp Index.valP).
+    - by rewrite divz_ge0; smt(ge2_lp Index.valP).
     rewrite (: val idx{2} %/ l' < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) 2:/=.
-    - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
-      by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+    - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge2_lp).
+      by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
     by rewrite mulrC -divz_eq.
   rewrite nth_flatten.
-  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
-  + rewrite modz_ge0 /=; 1: smt(ge1_lp). 
+  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP). 
+  + rewrite modz_ge0 /=; 1: smt(ge2_lp). 
     pose nr := nth _ _ _.
     move/allP: allszlppkfnt => /(_ nr) @/nr.
     rewrite /(\o) mem_nth /=.
-    rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
-    move=> <-; rewrite ltz_pmod; smt(ge1_lp).
+    rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+    by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP).
+    move=> <-; rewrite ltz_pmod; smt(ge2_lp).
   rewrite nthpkfnt.
-  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
-  + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp). 
+  + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP).
+  + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge2_lp). 
   do 2! congr. search get_kpidx.
   + rewrite getsettrhf_kpidx /valid_tidx /valid_kpidx 5://.
     - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
     - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
-    - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-      by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-    by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).  
+      by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+    - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+      by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
+    by rewrite modz_ge0 2:ltz_pmod /=; smt(ge2_lp).  
   rewrite rtsdef.
   by do 2! congr; smt().
   rewrite nthpksigxl2 ?valP // nthsapl2 // /#.
@@ -4337,34 +4337,34 @@ have {1}->:
   rewrite (StdBigop.Bigint.BIA.eq_big_seq _ (fun _ => l')) => [pkflp /mem_take pkfin /=|].
   - move/allP: allszlp_pkfnt => /(_ pkflp pkfin) @/(\o) -> //.
   rewrite StdBigop.Bigint.big_constz count_predT /= size_take.
-  - by rewrite divz_ge0; smt(ge1_lp Index.valP).
+  - by rewrite divz_ge0; smt(ge2_lp Index.valP).
   rewrite (: vmco %/ l' < size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.pkFORSnt{2}) 2:/=.
-  - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge1_lp).
-    by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
+  - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge2_lp).
+    by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
   by rewrite mulrC -divz_eq.
 rewrite nth_flatten.
-+ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP). 
-+ rewrite modz_ge0 /=; 1: smt(ge1_lp). 
++ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP). 
++ rewrite modz_ge0 /=; 1: smt(ge2_lp). 
   pose nr := nth _ _ _.
   move/allP: allszlp_pkfnt => /(_ nr) @/nr.
   rewrite /(\o) mem_nth /=.
-  rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge0_hp ge1_d Index.valP).
-  move=> <-; rewrite ltz_pmod; smt(ge1_lp).
+  rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+  by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP).
+  move=> <-; rewrite ltz_pmod; smt(ge2_lp).
 rewrite nthpkfntp.
-+ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-  by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-+ rewrite modz_ge0 2:ltz_pmod; smt(ge1_lp).
++ rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+  by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
++ rewrite modz_ge0 2:ltz_pmod; smt(ge2_lp).
 congr.
 + rewrite getsettrhf_kpidx /valid_tidx /valid_kpidx 5://.
   - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
   - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
-    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge1_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
-  - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge1_lp).
-    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge0_hp ge1_d Index.valP).
-  by rewrite modz_ge0 2:ltz_pmod /=; smt(ge1_lp).
+    by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).
+  - rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
+    by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
+  by rewrite modz_ge0 2:ltz_pmod /=; smt(ge2_lp).
 do 2! congr.
 rewrite rtsdef.
 congr; 2: smt().
@@ -4373,33 +4373,6 @@ do 3! congr; 1,2:smt().
 rewrite fun_ext => v.
 by congr; 2: congr => /#.
 qed.
-
-(* 
-  SPHINCS+ Adversary can return before querying l times, 
-  and then FORS public key computed from the message, even though it doesn't equal the
-  FORS public key on the specific index corresponding to the message, might still equal a 
-  FORS public key corresponding to on eof the other leaves. In this case, the reduction advesary
-  against EUF-NACMA of FL-SL-XMSS-MT-TW returns a forgery message (i.e., a FORS public key) 
-  that was already present in the list of messages (i.e., FORS public keys) for which it received
-  a signature. As a result, the "freshness" predicatre will not hold for the reduction adversary,
-  even though the adversary against SPHINCS returns a valid forgery. This might be fixed by
-  adapting the freshness predicate in EUF-NACMA of FL-SL-XMSS-MT-TW to only check whether the
-  returned message does not equal the message in the message list at the returned index
-  (i.e., is_fresh <- m' <> nth witness ml idx'). Check whether this still allows the 
-  reductions from the hash function properties. 
-*)
-
-(* 
-  Proof functional equivalence between original SPHINCS_PLUS_TW and a variant that immediately generates all
-  necessary secret values (for both the FORS and XMSS-MT parts) and maintains this collection of secret values 
-  throughout, pulling the desired secret values from this collection when neeeded (instead of regenerating them via
-  skg).  
-*)
-
-(*
-  Define variant that 
-*)
-
 
 
 local lemma EUFCMA_SPHINCS_PLUS_TW_FX &m :
@@ -4481,7 +4454,7 @@ lemma EUFCMA_SPHINCS_PLUS_TW &m :
   +
   Pr[FSSLXMTWES.TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), FSSLXMTWES.TRHC_TCR.O_SMDTTCR_Default, FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
-move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m)
+move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m _ _ _)
       (EUFCMA_MFORSTWESNPRF (R_MFORSTWESNPRFEUFCMA_EUFCMA(A)) &m)
       (EUFCMA_SPHINCS_PLUS_TW_FX &m); last smt(). 
 + move=> OC OCll.
@@ -4516,26 +4489,32 @@ move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ 
       by wp; skip => />; smt(size_rcons).
     by wp; skip => />; smt(size_rcons).
   by wp; skip => />; smt(size_rcons).
-move=> OC.
-proc; inline *.
-wp.
-while (true) (k - size roots).
-+ move=> z. 
-  by wp; skip => />; smt(size_rcons).
-wp.
-call (: true). 
-+ by move=> O Oll; apply (A_forge_ll O).
-+ proc; inline *.
++ move=> OC.
+  proc; inline *.
   wp.
-  while (true) (k - size sig).
-  + move=> z.
-    wp => /=.
-    while (true) (t - size leaves0).
-    - move=> z'.
-      by wp; skip => />; smt(size_rcons).
+  while (true) (k - size roots).
+  - move=> z. 
     by wp; skip => />; smt(size_rcons).
-  by if => //; auto => />; smt(dmkey_ll).
-by wp; skip => /> /#.
+  wp.
+  call (: true). 
+  - by move=> O Oll; apply (A_forge_ll O).
+  - proc; inline *.
+    wp.
+    while (true) (k - size sig).
+    * move=> z.
+      wp => /=.
+      while (true) (t - size leaves0).
+      + move=> z'.
+        by wp; skip => />; smt(size_rcons).
+      by wp; skip => />; smt(size_rcons).
+    by if => //; auto => />; smt(dmkey_ll).
+  by wp; skip => /> /#.
++ proc; inline *.
+  admit.
++ proc; inline *.
+  admit.
+proc; inline *.
+admit.
 qed.
  
 end section Proof_SPHINCS_PLUS_TW_EUFCMA.

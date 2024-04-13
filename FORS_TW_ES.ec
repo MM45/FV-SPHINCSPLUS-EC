@@ -412,7 +412,10 @@ op set_thtbidx (ad : adrs) (i j : int) : adrs =
 (* -- Getters -- *)
 op get_kpidx (ad : adrs) : int =
   get_idx ad 2.
-  
+
+op get_typeidx (ad : adrs) : int =
+  get_idx ad 3.
+
 
 (* -- Keyed Hash Functions -- *)
 (* Secret key element generation function *)
@@ -828,6 +831,45 @@ clone import Subtype as FHA with
   
 type fadrs = FHA.sT.
 *)
+
+lemma gettype_setthtbkpttypetrh (i j u v : int) (ad : adrs) :
+     valid_fidxvalsgp (drop 5 (val ad))
+  => valid_tidx (nth witness (val ad) 4)
+  => valid_tidx i
+  => valid_kpidx j
+  => valid_thidx u
+  => valid_tbidx u v
+  => get_typeidx (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j) u v) = trhtype.
+proof.
+have gtif_szad : forall i, i < 5 => i < if 5 < size (val ad) then 5 else size (val ad) by smt(Adrs.valP ge5_adrslen).
+move=> vadgp vti vi vj vu vv @/get_typeidx @/set_typeidx @/set_tidx @/set_idx; rewrite insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 4?drop_put_out 1..4:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39://
+          1..20:gtif_szad 1..40:// /= ?nth_take 1..2:// /=; smt(ge1_a ge1_k ge1_l IntOrder.expr_gt0).
+rewrite /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k IntOrder.expr_gt0). 
+rewrite /set_thtbidx /set_idx insubdK.
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= vi vj /=; smt(ge1_a ge1_k IntOrder.expr_gt0).
+rewrite /get_idx insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..8:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81:// 1..40:gtif_szad 1..80:// /=; smt(ge1_a ge1_k IntOrder.expr_gt0).
+by rewrite ?nth_put ?size_put 9:// /#.  
+qed.
 
 
 

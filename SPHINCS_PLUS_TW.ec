@@ -538,17 +538,9 @@ op set_thtbidx (ad : adrs) (i j : int) : adrs =
 
 
 (* -- Getters -- *)
-(*
 op get_typeidx (ad : adrs) : int =
   get_idx ad 3.
 
-lemma neq_from_typeidx (ad ad' : adrs) :
-  get_typeidx ad <> get_typeidx ad' => ad <> ad'.
-proof.
-rewrite -eq_adrs_idxsq negb_forall /get_typeidx => neqtypeidx.
-by exists 3 => /= @/eq_idx.
-qed.
-*)
             
 (* -- Keyed hash functions -- *)
 (* Secret key element generation function *)
@@ -681,6 +673,8 @@ clone import FORS_TW_ES as FTWES with
     op set_kpidx <- set_kpidx,
     op set_thtbidx <- set_thtbidx,
     
+    op get_typeidx <- get_typeidx,
+    
     op skg <- skg,
     op mkg <- mkg,
     
@@ -735,7 +729,6 @@ import DBAL BLKAL DBAPKL DBLLKTL FP_OPRETCRDSPR.
 
 
 (* FL-SL-XMSS-MT-TW *)
-(* Instantiate with adz being same adz as here --> easier reduction proof (initial addresses match) *)
 clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op adrs_len <- adrs_len,
     op n <- n,
@@ -778,6 +771,8 @@ clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
     op set_typeidx <- set_typeidx,
     op set_kpidx <- set_kpidx,
     op set_thtbidx <- set_thtbidx,
+    
+    op get_typeidx <- get_typeidx,
     
     op thfc <- thfc,
     op trh <- trh,
@@ -3368,44 +3363,6 @@ seq 21 16 : (   ={m'}
       by rewrite fun_ext => v /=; rewrite eq_dbsettype_adztrhf.
     call (: true); 1: by sim.
     by skip => />; rewrite eq_settype_adztrhfch.
-    (*
-    inline{1} 1; inline{2} 1.
-    swap{1} 7 -1; swap{2} 7 -1.
-    wp => /=.
-    while (   ={sapl, root, idx0, tidx0, kpidx0} 
-           /\ skWOTStd0{1} = skWOTStd{2}
-           /\ ps0{1} = ps{2}
-           /\ ad0{1} = adz 
-           /\ ad{2} = insubd [0; 0; 0; trhftype; 0; 0]
-           /\ size sapl{1} <= d).
-    * inline{1} 5; inline{2} 5.
-      wp => />.
-      while (   ={leaves0, skWOTSl}
-             /\ set_typeidx ad1{1} chtype = set_typeidx ad0{2} chtype
-             /\ set_typeidx ad1{1} pkcotype = set_typeidx ad0{2} pkcotype
-             /\ ps1{1} = ps0{2}
-             /\ size leaves0{1} <= l').
-      + wp => /=.
-        call (: true); 1: by sim.
-        by wp; skip => />; smt(size_rcons).
-      wp => /=.
-      call (: true); 1: by sim.
-      wp; skip => /> &2 _ ltd_szsapl.
-      split => [| eqkpad sigw].
-      + congr.
-        (*
-          set_typeidx (set_ltidx adz (size sapl{2}) (tidx0{2} %/ l')) chtype =
-set_typeidx (set_ltidx (insubd [0; 0; 0; trhftype; 0; 0]) (size sapl{2}) (tidx0{2} %/ l')) chtype 
-        *) admit.
-      split => [| lfs /lezNgt gelp_szlfs _ *].
-      + rewrite andbA; split; 2: smt(ge2_lp). 
-        split; admit.
-      rewrite -!andbA andbA; split; 2: smt(size_rcons).
-      split; congr.
-      + do 2! congr; admit.
-      admit.
-    by wp; skip => />; smt(ge1_d).
-  *)
   inline{1} 2; inline{2} 11.
   wp => /=.
   while (   ={skWOTSl}   
@@ -3459,40 +3416,7 @@ while{1} (true) (d - i{1}).
   by wp; skip => /> /#. 
 by skip => /> /#.
 qed.
-(*
-seq 10 12 : (   ={root}
-             /\ ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, O_CMA_MFORSTWESNPRF)
-             /\ ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, O_CMA_MFORSTWESNPRF)
-             /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (ms, skFORSnt0, skWOTStd, ps0){1}
-             /\ O_CMA_SPHINCSPLUSTWFS_PRF.qs{1} = []
-             /\ O_CMA_SPHINCSPLUSTWFS_NPRF.mmap{1} = empty
-             /\ pk{1} = (root, ps0){1}
-             /\ pk{2} = (pkFORSs, ps0, ad0){2}
-             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.pkFORSnt{2} = pkFORSs{2}
-             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ps{2} = ps0{2}
-             /\ R_MFORSTWESNPRFEUFCMA_EUFCMA.ad{2} = ad0{2}
-             /\ #pre).
-+ sp; wp => />.
-  inline{1} 1; inline{2} 1.
-  wp => /=.
-  while (   ={leaves0, skWOTSl, ps1}
-         /\ set_typeidx ad1{1} chtype = set_typeidx ad1{2} chtype
-         /\ set_typeidx ad1{1} pkcotype = set_typeidx ad1{2} pkcotype
-         /\ size leaves0{1} <= l').
-  - inline{1} 2; inline{2} 2.
-    wp => /=.
-    while (   ={pkWOTS0, skWOTS1, ps2, ad2}
-           /\ size pkWOTS0{1} <= len).
-    * by wp; skip => />; smt(size_rcons).
-    by wp; skip => />; smt(ge2_len size_rcons).
-  by wp; skip => />; admit.
-swap{1} 2 1; swap{2} 4 1.
-inline{1} 3; inline{2} 5; inline{2} 13.
-inline{}
-sim : (={is_fresh} /\ EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V.valid_MFORSTWESNPRF{1} = is_valid{2}).
-admit.
-qed.
-*)
+
 
 local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV = {
   var skWOTStd : skWOTS list list list
@@ -4510,7 +4434,45 @@ move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ 
     by if => //; auto => />; smt(dmkey_ll).
   by wp; skip => /> /#.
 + proc; inline *.
-  admit.
+  have validxsadz : valid_adrsidxs [0; 0; 0; chtype; 0; 0].
+  - rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals; left.
+    by rewrite /valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_gt0 ge1_d).
+  while (#post /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad = adz).
+  - wp => /=.
+    while (#pre).
+    * wp => /=.
+      while (#pre).
+      + wp => /=.
+        while (#pre).
+        - wp => /=.
+          while (#pre).
+          * wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk lta_sznds ltnnf_szndscl.
+            rewrite -cats1 all_cat allnchtws /=.
+            
+            rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+            + by rewrite /valid_tidx /= expr_gt0.
+            + by rewrite /valid_thfidx; 1: smt(size_ge0).
+            + rewrite /valid_tbfidx. admit.
+            by smt(Top.dist_adrstypes).  
+          by wp; skip.
+        wp=> /=.
+        while (#pre).
+        - wp; rnd; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk ltt_szsket skfele skfelein.
+          rewrite -cats1 all_cat allnchtws /=.
+            
+          rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+          + by rewrite /valid_tidx /= expr_gt0.
+          + by rewrite /valid_thfidx; smt(ge1_a).
+          + rewrite /valid_tbfidx. admit.
+          by smt(Top.dist_adrstypes).
+        by wp; skip.
+      wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ads skf /lezNgt gek_szskf allnchads.
+      rewrite -cats1 all_cat allnchads /=.
+      rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+      + by rewrite /valid_tidx /= expr_gt0.
+      + by rewrite /valid_thfidx; smt(ge1_a).
+      + rewrite /valid_tbfidx. admit.
+      by smt(Top.dist_adrstypes).
 + proc; inline *.
   admit.
 proc; inline *.

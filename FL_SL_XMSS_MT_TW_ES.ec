@@ -6593,10 +6593,10 @@ rewrite mulrC divMr 1:dvdzz /= rev_cons; pose i2bs := int2bs _ (_ %/ _).
 by rewrite (: h' - size bs - 1 = size i2bs) 1:size_int2bs 1:/# bs2intK.
 qed.
 
-
+ 
 lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF &m :
   hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
-          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
+          R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = []
           ==> 
           all (fun (ad : adrs) => get_typeidx ad <> chtype) R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads] =>
   hoare[A(R_SMDTTCRCPKCO_EUFNAGCMA(A, PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).O_THFC).choose : 

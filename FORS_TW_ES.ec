@@ -2501,9 +2501,12 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 }.
 
 section Proof_EUFCMA_M_FORS_TW_ES.
-print O_ITSR_Default.
-declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
 
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FP_DSPR.O_SMDTDSPR_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+
+declare axiom A_forge_ll (O <: SOracle_CMA_MFORSTWESNPRF{-A}) :
+  islossless O.sign => islossless A(O).forge.
+  
 (* As EUF_CMA_MFORSTWESNPRF, but with additional checks for possibility of breaking considered properties of THFs  *)
 local module EUF_CMA_MFORSTWESNPRF_V = {
   var valid_ITSR, valid_OpenPRE, valid_TRHTCR : bool
@@ -2832,9 +2835,49 @@ lemma EUFCMA_MFORSTWESNPRF &m :
   Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +
   Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
-proof. admit. qed.
+proof.
+move: (EUFCMA_MFORSTWESNPRF_OPRE &m).
+rewrite EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE.
+move: (OpenPRE_From_DSPR_TCR (R_FPOpenPRE_FOpenPRE(A)) _ _ &m); 3: smt().
++ move=> O.
+  proc; inline *.
+  wp => /=.
+  while (true) (s - tidx).
+  - move=> z.
+    wp => /=.
+    while (true) (l - kpidx).
+    * move=> z'.
+      wp => /=.
+      while (true) (k * t - tbidx).
+      + move=> z''.
+        by wp; skip => /> /#.
+      by wp; skip => /> /#.
+    by wp; skip => /> /#.
+  by wp; skip => /> /#.
+move=> O Oll.
+proc; inline *.
+wp => /=.
+call (: true); 1: by apply A_forge_ll.
++ proc; inline *.
+  wp => /=.
+  while (true) (k - size sigFORSTW).
+  - move=> z.
+    wp; call Oll; wp; skip => />; smt(size_rcons).
+  wp => /=.
+  if; [wp; rnd |]; skip => />; 2: smt().
+  by move=> *; rewrite dmkey_ll /#.
+while (true) (s - size pkFORSs).
+- move=> z.
+  wp => /=.
+  while (true) (l - size pkFORSl).
+  * move=> z'.
+    wp => /=.
+    while (true) (k - size roots).
+    + move=> z''.
+      by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+by wp; skip => /> /#.        
+qed.
 
-(*
-local clone import OpenPRE_From_TCR_DSPR_THF as OPRETCRDSPR with
-*)
 end section Proof_EUFCMA_M_FORS_TW_ES.

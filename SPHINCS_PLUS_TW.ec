@@ -4378,6 +4378,9 @@ lemma EUFCMA_SPHINCS_PLUS_TW &m :
   +
   Pr[FSSLXMTWES.TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EUFNAGCMA(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)), FSSLXMTWES.TRHC_TCR.O_SMDTTCR_Default, FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
+have validxsadz : valid_adrsidxs [0; 0; 0; chtype; 0; 0].
+  - rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals; left.
+    by rewrite /valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_gt0 ge1_d).
 move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m _ _ _)
       (EUFCMA_MFORSTWESNPRF (R_MFORSTWESNPRFEUFCMA_EUFCMA(A)) &m)
       (EUFCMA_SPHINCS_PLUS_TW_FX &m); last smt(). 
@@ -4434,9 +4437,6 @@ move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ 
     by if => //; auto => />; smt(dmkey_ll).
   by wp; skip => /> /#.
 + proc; inline *.
-  have validxsadz : valid_adrsidxs [0; 0; 0; chtype; 0; 0].
-  - rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals; left.
-    by rewrite /valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_gt0 ge1_d).
   while (#post /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad = adz).
   - wp => /=.
     while (#pre).
@@ -4448,35 +4448,120 @@ move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ 
           while (#pre).
           * wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk lta_sznds ltnnf_szndscl.
             rewrite -cats1 all_cat allnchtws /=.
-            
-            rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+            rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
             + by rewrite /valid_tidx /= expr_gt0.
             + by rewrite /valid_thfidx; 1: smt(size_ge0).
-            + rewrite /valid_tbfidx. admit.
+            + rewrite /valid_tbfidx; split => [| _].
+              - rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+                rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+                by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
             by smt(Top.dist_adrstypes).  
           by wp; skip.
         wp=> /=.
         while (#pre).
         - wp; rnd; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk ltt_szsket skfele skfelein.
           rewrite -cats1 all_cat allnchtws /=.
-            
-          rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
-          + by rewrite /valid_tidx /= expr_gt0.
-          + by rewrite /valid_thfidx; smt(ge1_a).
-          + rewrite /valid_tbfidx. admit.
+          rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+          * by rewrite /valid_tidx /= expr_gt0.
+          * by rewrite /valid_thfidx; smt(ge1_a).
+          * rewrite /valid_tbfidx; split => [| _].
+            + rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+              rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+              by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
           by smt(Top.dist_adrstypes).
         by wp; skip.
       wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ads skf /lezNgt gek_szskf allnchads.
       rewrite -cats1 all_cat allnchads /=.
-      rewrite gettype_setthtbkpttypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+      rewrite gettype_setkp2type2trhtrco ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
       + by rewrite /valid_tidx /= expr_gt0.
-      + by rewrite /valid_thfidx; smt(ge1_a).
-      + rewrite /valid_tbfidx. admit.
+      + by rewrite /valid_kpidx; smt(size_ge0).
       by smt(Top.dist_adrstypes).
+    by wp; skip.
+  by wp; skip.
 + proc; inline *.
-  admit.
+  while (#post /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad = adz).
+  - wp => /=.
+    while (#pre).
+    * wp => /=.
+      while (#pre).
+      + wp => /=.
+        while (#pre).
+        - wp => /=.
+          while (#pre).
+          * wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk lta_sznds ltnnf_szndscl.
+            rewrite -cats1 all_cat allnchtws /=.
+            rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+            + by rewrite /valid_tidx /= expr_gt0.
+            + by rewrite /valid_thfidx; 1: smt(size_ge0).
+            + rewrite /valid_tbfidx; split => [| _].
+              - rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+                rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+                by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
+            by smt(Top.dist_adrstypes).  
+          by wp; skip.
+        wp=> /=.
+        while (#pre).
+        - wp; rnd; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk ltt_szsket skfele skfelein.
+          rewrite -cats1 all_cat allnchtws /=.     
+          rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+          * by rewrite /valid_tidx /= expr_gt0.
+          * by rewrite /valid_thfidx; smt(ge1_a).
+          * rewrite /valid_tbfidx; split => [| _].
+            + rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+              rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+              by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
+          by smt(Top.dist_adrstypes).
+        by wp; skip.
+      wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ads skf /lezNgt gek_szskf allnchads.
+      rewrite -cats1 all_cat allnchads /=.
+      rewrite gettype_setkp2type2trhtrco ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+      + by rewrite /valid_tidx /= expr_gt0.
+      + by rewrite /valid_kpidx; smt(size_ge0).
+      by smt(Top.dist_adrstypes).
+    by wp; skip.
+  by wp; skip.
 proc; inline *.
-admit.
+while (#post /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad = adz).
++ wp => /=.
+  while (#pre).
+  - wp => /=.
+    while (#pre).
+    * wp => /=.
+      while (#pre).
+      + wp => /=.
+        while (#pre).
+        - wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk lta_sznds ltnnf_szndscl.
+          rewrite -cats1 all_cat allnchtws /=.
+          rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+          * by rewrite /valid_tidx /= expr_gt0.
+          * by rewrite /valid_thfidx; 1: smt(size_ge0).
+          * rewrite /valid_tbfidx; split => [| _].
+            + rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+              rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+              by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
+          by smt(Top.dist_adrstypes).  
+        by wp; skip.
+      wp=> /=.
+      while (#pre).
+      + wp; rnd; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ltk_szsk ltt_szsket skfele skfelein.
+        rewrite -cats1 all_cat allnchtws /=.
+        rewrite gettype_setthtbkptypetrh ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+        - by rewrite /valid_tidx /= expr_gt0.
+        - by rewrite /valid_thfidx; smt(ge1_a).
+        - rewrite /valid_tbfidx; split => [| _].
+          * rewrite addr_ge0 1:mulr_ge0 1:size_ge0 1:expr_ge0 1,2://.
+            rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 2://.
+            by rewrite ler_pmul2r 1:expr_gt0 1:// /#.
+        by smt(Top.dist_adrstypes).
+      by wp; skip.
+    wp; skip => /> &2 allnchtws ltnt0_szsknt ltlp_szsklp ads skf /lezNgt gek_szskf allnchads.
+    rewrite -cats1 all_cat allnchads /=.
+    rewrite gettype_setkp2type2trhtrco ?insubdK 1,3:validxsadz ?nth_drop 1,2,3,5,6://. 
+    * by rewrite /valid_tidx /= expr_gt0.
+    * by rewrite /valid_kpidx; smt(size_ge0).
+    by smt(Top.dist_adrstypes).
+  by wp; skip.
+by wp; skip.
 qed.
  
 end section Proof_SPHINCS_PLUS_TW_EUFCMA.

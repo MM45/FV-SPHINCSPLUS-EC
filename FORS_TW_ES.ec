@@ -1,7 +1,7 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder.
-(*---*) import BS2Int BitChunking.
+require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder StdBigop.
+(*---*) import BS2Int BitChunking Bigint BIA.
 (*---*) import RealOrder.
 
 
@@ -1552,25 +1552,46 @@ module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
   }
 
   proc sign(m : msg) : mkey * sigFORSTW = {
+    var skFORS : skFORS;
+    var skFORSs : skFORS list list;
+    var ps : pseed;
+    var ad : adrs;
     var mk : mkey;
+    var cm : msgFORSTW;
+    var idx : index;
+    var tidx, kpidx : int;
     var sigFORSTW : sigFORSTW;
-
-    (mk, sigFORSTW) <@ O_CMA_MFORSTWESNPRF.sign(m);
-
-    mks <- rcons mks mk;
-    lidxs <- lidxs ++ g (mco mk m);
+    
+    (skFORSs, ps, ad) <- sk;
+    
+    if (m \notin mmap) { 
+      mk <$ dmkey;
+      mmap.[m] <- mk;
+      mks <- rcons mks mk;
+      lidxs <- lidxs ++ g (mco mk m);
+      qs <- rcons qs m;
+    }
+    mk <- oget mmap.[m];
+      
+    (cm, idx) <- mco mk m;
+    
+    (tidx, kpidx) <- edivz (val idx) l;
+    
+    skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
+     
+    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
 
     return (mk, sigFORSTW);
   }
 }.
-
 
 (* -- Reduction adversaries -- *)
 module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITSR) = {  
   var ps : pseed
   var ad : adrs
   var skFORSs : skFORS list list
-
+  var mmap : (msg, mkey) fmap
+  
   module O_CMA_R_EUFCMA_ITSR : SOracle_CMA_MFORSTWESNPRF = {    
     proc sign(m : msg) : mkey * sigFORSTW = {
       var mk : mkey;
@@ -1579,8 +1600,12 @@ module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
       var tidx, kpidx : int;
       var skFORS : skFORS;
       var sigFORSTW : sigFORSTW;
-       
-      mk <@ O.query(m);
+      
+      if (m \notin mmap) {  
+        mk <@ O.query(m);
+        mmap.[m] <- mk;
+      }
+      mk <- oget mmap.[m]; 
       
       (cm, idx) <- mco mk m;
     
@@ -1607,6 +1632,7 @@ module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
     (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);    
     
     skFORSs <- sk.`1;
+    mmap <- empty;
     
     (m', sig') <@ A(O_CMA_R_EUFCMA_ITSR).forge(pk);
     
@@ -2004,7 +2030,7 @@ module (R_FPOpenPRE_FOpenPRE (A :  Adv_EUFCMA_MFORSTWESNPRF) : FP_OpenPRE.Adv_SM
     return (i, DigestBlock.insubd x);
   }
 }.
-
+ 
 (*
 module (R_FSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : FC_TCR.Adv_SMDTTCRC) (O : FC_TCR.Oracle_SMDTTCR, OC : FC.Oracle_THFC) = {
   var ad : adrs
@@ -2336,11 +2362,12 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
       queried from left to right.
     *)
     cidx <- tidx * l * k * (2 ^ a - 1) + kpidx * k * (2 ^ a - 1) + dfidx * (2 ^ a - 1) 
-            + sumz (mkseq (fun (i : int) => nr_nodes (i + 1)) (hidx - 1)) + (bidx %% nr_nodes hidx);
+            + bigi predT (fun (i : int) => nr_nodes i) 1 hidx + (bidx %% nr_nodes hidx);
 
     return (cidx, c);
   }
 }.
+
 
 module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMDTTCRC) (O : TRCOC_TCR.Oracle_SMDTTCR, OC : TRCOC.Oracle_THFC) = {
   var ad : adrs
@@ -2506,9 +2533,9 @@ declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_ITSR_Defa
 
 declare axiom A_forge_ll (O <: SOracle_CMA_MFORSTWESNPRF{-A}) :
   islossless O.sign => islossless A(O).forge.
-  
+
 (* As EUF_CMA_MFORSTWESNPRF, but with additional checks for possibility of breaking considered properties of THFs  *)
-local module EUF_CMA_MFORSTWESNPRF_V = {
+local module EUF_CMA_MFORSTWESNPRF_C = {
   var valid_ITSR, valid_OpenPRE, valid_TRHTCR : bool
   
   proc main() : bool = {    
@@ -2526,7 +2553,7 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
     var mk' : mkey;
     var sigFORSTW' : sigFORSTW;
     var lidxs' : (int * int * int) list;
-    var dfidx, dftidx, dflidx, tidx, kpidx : int;
+    var dfidx, dftidx, dflfidx, tidx, kpidx : int;
     var x, x', leaf, leaf', root, root' : dgstblock;
     var ap' : apFORSTW;
     
@@ -2552,7 +2579,7 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
     (mk', sigFORSTW') <- sig';
     lidxs' <- g (mco mk' m');
     valid_ITSR <-    (forall idx, idx \in lidxs' => idx \in O_CMA_MFORSTWESNPRF_AV.lidxs) 
-                  /\ ! mk' \in O_CMA_MFORSTWESNPRF_AV.mks /\ ! m' \in O_CMA_MFORSTWESNPRF.qs;
+                  /\ ! (mk', m') \in zip O_CMA_MFORSTWESNPRF_AV.mks O_CMA_MFORSTWESNPRF.qs;
     
     
     (*
@@ -2561,14 +2588,14 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
       the adversary managed to find a value that maps to the same leaf as this original secret key value.  
     *)
     skFORSs <- sk.`1;
-    (dfidx, dftidx, dflidx) <- nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs');
+    (dfidx, dftidx, dflfidx) <- nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs');
     (x', ap') <- nth witness (val sigFORSTW') dftidx;
     (tidx, kpidx) <- edivz dfidx l;
     skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
     skFORSt <- nth witness (val skFORS) dftidx; 
-    x <- nth witness skFORSt dflidx;
-    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflidx)) (val x');
-    leaf <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflidx)) (val x);
+    x <- nth witness skFORSt dflfidx;
+    leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflfidx)) (val x');
+    leaf <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflfidx)) (val x);
     valid_OpenPRE <- leaf' = leaf;  
     
     (*
@@ -2577,30 +2604,190 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
       the corresponding original leaf, the adversary managed to find an authentication path that still results in the
       same root as the original tree's root (which requires a collision for the tree hash function). 
     *) 
-    root' <- val_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) ap' dflidx leaf' dftidx; 
+    root' <- val_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) ap' dflfidx leaf' dftidx; 
     leaves <- mkseq (fun (i : int) => f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + i)) (val (nth witness skFORSt i))) t;
-    root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) (list2tree leaves) dflidx;
+    root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) (list2tree leaves) dflfidx;
     valid_TRHTCR <- root' = root;
     
     return is_valid /\ is_fresh; 
   }
 }.
 
-local equiv Eqv_EUF_CMA_MFORSTWESNPRF_Orig_V:
-  EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main ~ EUF_CMA_MFORSTWESNPRF_V.main :
+local equiv Eqv_EUF_CMA_MFORSTWESNPRF_Orig_C:
+  EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main ~ EUF_CMA_MFORSTWESNPRF_C.main :
     ={glob A} ==> ={res}.
 proof.
 proc.
-seq 5 5 : (={sig', pk, m', O_CMA_MFORSTWESNPRF.qs}). 
-+ call (: ={glob O_CMA_MFORSTWESNPRF}).
+seq 5 5 : (   ={sig', pk, m'} 
+           /\ mem O_CMA_MFORSTWESNPRF.qs{1} = mem O_CMA_MFORSTWESNPRF.qs{2}). 
++ call (:   ={O_CMA_MFORSTWESNPRF.mmap, O_CMA_MFORSTWESNPRF.sk}
+         /\ mem O_CMA_MFORSTWESNPRF.qs{1} = mem O_CMA_MFORSTWESNPRF.qs{2}
+         /\ dom O_CMA_MFORSTWESNPRF.mmap{1} = mem O_CMA_MFORSTWESNPRF.qs{1}).
   - proc; inline *.
-    by sim.
-  conseq />. 
-  inline *.
-  by wp 14 15; sim.
-wp; conseq (: _ ==> ={is_valid, is_fresh}) => //.
+    sp 1 1.
+    if => //.
+    * wp=> /=. 
+      while (={ps0, ad0, skFORS0, m0, sig}).
+      + wp => /=.
+        by while (={leaves0, skFORS1, idxt, ps1, ad1}); wp; skip.
+      wp => /=.
+      by rnd; skip => />; smt(mem_set mem_rcons).
+    wp => /=.
+    while (={ps0, ad0, skFORS0, m0, sig}).
+    + wp => /=.
+      by while (={leaves0, skFORS1, idxt, ps1, ad1}); wp; skip.
+    by wp; skip => />; smt(mem_set mem_rcons).
+  inline{1} 4; inline{2} 4; inline{2} 5.
+  wp => />.
+  conseq (: _ ==> ={pk, sk}); 1: smt(mem_empty).
+  by sim.
+inline{1} 2; inline{2} 2.
+wp => /=.
+conseq (: _ ==> ={is_valid}); 1: smt(). 
 by sim.
 qed.
+
+
+(* As EUF_CMA_MFORSTWESNPRF, but with additional checks for possibility of breaking considered properties of THFs  *)
+local module EUF_CMA_MFORSTWESNPRF_V = {
+  var valid_ITSR, valid_OpenPRE, valid_TRHTCR : bool
+  
+  proc main() : bool = {    
+    var ad : adrs;
+    var ps : pseed;
+    var pk : pkFORS list list * pseed * adrs;
+    var sk : skFORS list list * pseed * adrs;
+    var m' : msg;
+    var sig' : mkey * sigFORSTW;
+    var is_valid, is_fresh : bool;
+    var skFORSt, leaves : dgstblock list;
+    var skFORS : skFORS;
+    var pkFORS, pkFORS' : pkFORS;
+    var pkFORSs : pkFORS list list;
+    var skFORSs : skFORS list list; 
+    var mk' : mkey;
+    var cm' : msgFORSTW;
+    var idx' : index;
+    var sigFORSTW' : sigFORSTW;
+    var lidxs' : (int * int * int) list;
+    var dfidx, dftidx, dflfidx, tidx, kpidx, lfidx : int;
+    var x, x', leaf, leaf', root, root' : dgstblock;
+    var ap' : apFORSTW;
+    var skFORS_ele' : dgstblock;
+    var skFORS_eles', leaves' : dgstblock list;
+    var roots' : dgstblock list;
+    
+    ad <- adz;
+    ps <$ dpseed;
+    
+    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+
+    O_CMA_MFORSTWESNPRF_AV.init(sk);
+
+    (m', sig') <@ A(O_CMA_MFORSTWESNPRF_AV).forge(pk);
+    
+    pkFORSs <- pk.`1;
+    (mk', sigFORSTW') <- sig';
+    (cm', idx') <- mco mk' m';
+    (tidx, kpidx) <- edivz (val idx') l;
+    pkFORS <- nth witness (nth witness pkFORSs tidx) kpidx;
+    lidxs' <- g (cm', idx');
+    
+    skFORS_eles' <- [];
+    leaves' <- [];
+    roots' <- [];
+    while (size roots' < k){
+      lfidx <- (nth witness lidxs' (size roots')).`3;
+      (skFORS_ele', ap') <- nth witness (val sigFORSTW') (size roots');
+      leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (size roots' * t + lfidx)) (val skFORS_ele');
+      root' <- val_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) ap' lfidx leaf' (size roots');
+      skFORS_eles' <- rcons skFORS_eles' skFORS_ele';
+      leaves' <- rcons leaves' leaf';
+      roots' <- rcons roots' root';
+    }
+    pkFORS' <- trco ps (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) trcotype) (get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx)))
+                    (flatten (map DigestBlock.val roots'));
+    
+    
+    (* Additional checks *)
+    (* 
+      ITSR: 
+      The adversary managed to find a message that, when signed, only uses secret key values that
+      have already been revealed as part of signatures of different, previously signed messages 
+    *)
+    valid_ITSR <-    (forall idx, idx \in lidxs' => idx \in O_CMA_MFORSTWESNPRF_AV.lidxs) 
+                  /\ ! (mk', m') \in zip O_CMA_MFORSTWESNPRF_AV.mks O_CMA_MFORSTWESNPRF.qs;
+    
+    (*
+      OpenPRE (assuming no ITSR break):
+      Even though the signed message uses a secret key value that was not yet revealed (i.e., no ITSR break),
+      the adversary managed to find a value that maps to the same leaf as this original secret key value.  
+    *)
+    (dfidx, dftidx, dflfidx) <- nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs');
+    (x', ap') <- nth witness (val sigFORSTW') dftidx;
+    skFORSt <- nth witness (val (nth witness (nth witness sk.`1 tidx) kpidx)) dftidx;
+    x <- nth witness skFORSt dflfidx;
+    leaf' <- nth witness leaves' dftidx;
+    leaf <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + dflfidx)) (val x);
+    valid_OpenPRE <- leaf' = leaf;  
+    
+    (*
+      Tree-hash TCR (assuming no ITSR and no OpenPRE breaks):
+      Even though there is a leaf (computed from the secret key value) in the forged signature that does not match
+      the corresponding original leaf, the adversary managed to find an authentication path that still results in the
+      same root as the original tree's root (which requires a collision for the tree hash function). 
+    *) 
+    root' <- nth witness roots' dftidx; 
+    leaves <- mkseq (fun (i : int) => f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (dftidx * t + i)) (val (nth witness skFORSt i))) t;
+    root <- val_bt_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) (list2tree leaves) dflfidx;
+    valid_TRHTCR <- root' = root;
+
+    is_valid <- pkFORS' = pkFORS;
+    
+    is_fresh <- ! (m' \in O_CMA_MFORSTWESNPRF.qs);
+    
+    return is_valid /\ is_fresh; 
+  }
+}.
+
+local equiv Eqv_EUF_CMA_MFORSTWESNPRF_C_V:
+  EUF_CMA_MFORSTWESNPRF_C.main ~ EUF_CMA_MFORSTWESNPRF_V.main :
+    ={glob A} ==> ={res}.
+proof.
+proc.
+seq 5 5 : (   ={ad, ps, sk, pk, m', sig', O_CMA_MFORSTWESNPRF.qs}
+           /\ pk{1}.`2 = ps{1}
+           /\ pk{1}.`3 = ad{1}).
++ call (: ={glob O_CMA_MFORSTWESNPRF_AV}); 1: by sim.
+  inline{1} 4; inline{1} 5; inline{2} 4; inline{2} 5.
+  inline{1} 3; inline{2} 3.
+  wp => />.
+  while (#post).
+  - wp => /=. 
+    conseq (: _ ==> ={skFORSl, pkFORSl}) => //.
+    by sim.
+  by wp; rnd; wp; skip.
+inline{1} 2; inline{1} 1; inline{1} 9; inline{1} 13.
+swap{1} 24 17; swap{1} [21..22] 19; swap{1} 21 -20.
+sp 1 0; wp 20 11.
+conseq (: _ ==> ={pkFORS'} /\ pkFORS0{1} = pkFORS{2}) => //.
+wp => /=.
+while (   roots{1} = roots'{2}
+       /\ ps2{1} = ps{2}
+       /\ ad2{1} = set_kpidx (set_tidx (set_typeidx ad{2} trhtype) tidx{2}) kpidx{2}
+       /\ sig1{1} = sigFORSTW'{2}
+       /\ lidxs'{2} = g (m2{1}, idx{1})).
++ wp; skip => /> &1 &2 ltk_szrsp.
+  have -> //:
+    bs2int (rev (take a (drop (a * size roots'{2}) (val m2{1})))) 
+    =
+    (nth witness (g (m2{1}, idx{1})) (size roots'{2})).`3.
+  rewrite /g /= nth_mkseq 2:/=; 1: smt(size_ge0).
+  do 2! congr; rewrite /chunk nth_mkseq 2://.
+  by rewrite size_ge0 valP /= mulzK 2://; 1: smt(ge1_a).
+by wp; skip.
+qed.
+
 
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
@@ -2626,7 +2813,7 @@ local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
 proof.
 admit.
 qed.
-*)
+*) print O_ITSR_Default.
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
@@ -2646,12 +2833,76 @@ have ->:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res]
   =
   Pr[EUF_CMA_MFORSTWESNPRF_V.main() @ &m : res].
-+ by byequiv Eqv_EUF_CMA_MFORSTWESNPRF_Orig_V.
++ byequiv => //.
+  transitivity EUF_CMA_MFORSTWESNPRF_C.main (={glob A} ==> ={res}) (={glob A} ==> ={res}) => [/# | // | |].
+  - by apply Eqv_EUF_CMA_MFORSTWESNPRF_Orig_C.
+  by apply Eqv_EUF_CMA_MFORSTWESNPRF_C_V.
 rewrite -!RField.addrA.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_add.
-+ admit.
++ byequiv => //.
+  proc.
+  inline{2} 2; inline{2} 1.
+  seq 5 7 : (   ={pk, sk, m', sig'}
+             /\ ad{1} = R_ITSR_EUFCMA.ad{2}
+             /\ ps{1} = R_ITSR_EUFCMA.ps{2}
+             /\ O_ITSR_Default.ts{2} = zip O_CMA_MFORSTWESNPRF_AV.mks{1} O_CMA_MFORSTWESNPRF.qs{1}
+             /\ O_CMA_MFORSTWESNPRF_AV.lidxs{1} 
+                = 
+                flatten (map (fun (mkm : mkey * msg) => g (mco mkm.`1 mkm.`2)) 
+                             (zip O_CMA_MFORSTWESNPRF_AV.mks{1} O_CMA_MFORSTWESNPRF.qs{1}))).
+  - call (:   ={mmap}(O_CMA_MFORSTWESNPRF, R_ITSR_EUFCMA)
+           /\ O_CMA_MFORSTWESNPRF.sk{1} = (R_ITSR_EUFCMA.skFORSs, R_ITSR_EUFCMA.ps, R_ITSR_EUFCMA.ad){2}
+           /\ O_ITSR_Default.ts{2} = zip O_CMA_MFORSTWESNPRF_AV.mks{1} O_CMA_MFORSTWESNPRF.qs{1}
+           /\ O_CMA_MFORSTWESNPRF_AV.lidxs{1}
+              =
+              flatten (map (fun (mkm : mkey * msg) => g (mco mkm.`1 mkm.`2)) 
+                           (zip O_CMA_MFORSTWESNPRF_AV.mks{1} O_CMA_MFORSTWESNPRF.qs{1}))
+           /\ size O_CMA_MFORSTWESNPRF_AV.mks{1} = size O_CMA_MFORSTWESNPRF.qs{1}).
+    * proc; inline *.
+      sp 1 0.
+      if => //.
+      + wp => />.
+        while (   ={sig, m0, skFORS0}
+               /\ ps0{1} = ps{2}
+               /\ ad0{1} = ad{2}).
+        - wp 10 10 => /=.
+          sp 7 7.
+          conseq (: _ ==> ={sig, leaves}) => //.
+          by sim.
+        wp; rnd; wp; skip => /> &1 &2 eqszmkss ninm mk mkin sig /lezNgt gek_szsig _.
+        by rewrite zip_rcons 1:// /= map_rcons flatten_rcons ?size_rcons eqszmkss.
+      wp => /=.
+      conseq (: _ ==> ={mk, sig}) => //.
+      by sim.
+    inline{1} 4; inline{1} 5.
+    wp => /=.
+    seq 2 3 : (   #pre 
+               /\ ad{1} = adz 
+               /\ ad{1} = R_ITSR_EUFCMA.ad{2} 
+               /\ ps{1} = R_ITSR_EUFCMA.ps{2}
+               /\ O_ITSR_Default.ts{2} = []).
+    * by rnd; wp; skip. 
+    inline{1} 1; inline{2} 1.
+    sp 2 2; wp => />.
+    by sim.
+  inline{2} 4.
+  conseq (: _ ==> EUF_CMA_MFORSTWESNPRF_V.valid_ITSR{1} 
+                  => 
+                     (forall (x0 : int * int * int), x0 \in ikssl_f{2} => x0 \in ikssl_q{2}) 
+                  /\ ! ((k{2}, x{2}) \in kxl{2})) => //.
+  swap{1} [2..3] -1; swap{1} 6 -3; sp 3 0.
+  wp => /=.
+  conseq (: _ ==> true) => [/> /# |].
+  while{1} (true) (Top.k - size roots'{1}).
+  + move=> _ z.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => /> /#.   
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
-+ admit.
++ byequiv=> //.
+  proc.
+  inline{2} 2.
+  inline{2} 8.
+  admit.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler_add.
 + admit.
 admit.

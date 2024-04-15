@@ -2900,8 +2900,19 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_a
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
 + byequiv=> //.
   proc.
-  inline{2} 2.
-  inline{2} 8.
+  inline{1} 3; inline{2} 2; inline{2} 7. search uniq flatten.
+  seq 7 14 : (   ad{1} = adz
+              /\ ad{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
+              /\ ad{1} = ad0{1}
+              /\ ps{1} = pp{2}
+              /\ ps{1} = ps0{1}
+              /\ pp{2} = O_SMDTOpenPRE_Default.pp{2}).
+              (* forall i j u : int,
+                    nth witness (nth witness (nth witness skFORSs{1} i) j) u
+                    =
+                    nth witness O_SMDTOpenPRE_Default.xs{2} (i * s + j * l + u) *)
+              
+              (*/\ O_SMDTOpenPRE_Default.ts{2} = mkseq (fun (i : int) => set_thtbidx) *)
   admit.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler_add.
 + admit.

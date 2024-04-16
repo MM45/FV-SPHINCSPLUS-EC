@@ -1848,6 +1848,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
       if (m \notin mmap) { 
         mk <$ dmkey;
         mmap.[m] <- mk;
+        lidxs <- lidxs ++ g (mco mk m);
       }
       mk <- oget mmap.[m];
 
@@ -1865,8 +1866,6 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
         ap <- cons_ap_trh ps ad (list2tree leaves) lidx (size sigFORSTW);
         sigFORSTW <- rcons sigFORSTW (DigestBlock.insubd skFORS_ele, ap);
       }
-      
-      lidxs <- lidxs ++ g (cm, idx);
       
       return (mk, insubd sigFORSTW);
     }
@@ -1909,7 +1908,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     var sigFORSTW' : sigFORSTW;
     var mksigFORSTW' : mkey * sigFORSTW;
     var lidxs' : (int * int * int) list;
-    var tidx, kpidx, dfidx, cidx : int;
+    var tidx, kpidx, dfidx, dftidx, dflfidx, cidx : int;
     var cm' : msgFORSTW;
     var idx' : index;
     var x' : dgstblock;
@@ -1976,11 +1975,9 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
     (* 
       Find the (instance index, inner tree index, leaf index) tuple computed from
       the forgery message that did not yet occur in the tuples computed from 
-      the messages in the oracle queries. From this tuple, extract the inner tree
-      index (which is also the index of the element in the forged signature
-      that we want to extract)
+      the messages in the oracle queries.
     *)
-    dfidx <- (nth witness lidxs' (find (fun i => ! i \in lidxs) lidxs')).`2;
+    (dfidx, dftidx, dflfidx) <- nth witness lidxs' (find (fun i => ! i \in lidxs) lidxs');
     
     (* Get element from forged signature containing the non-matching secret key element  *)
     (x', ap') <- nth witness (val sigFORSTW') dfidx;
@@ -1994,7 +1991,7 @@ module (R_FSMDTOpenPRE_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : F_OpenPRE.Adv_SMD
       the index of the secret key/leaf (for which x' is a collision) if you were to
       flatten the complete structure.
     *)
-    cidx <- tidx * l * k * t + kpidx * k * t + dfidx * t + bs2int (rev (take a (drop (a * dfidx) (val cm'))));
+    cidx <- tidx * l * k * t + kpidx * k * t + dftidx * t + dflfidx; (* bs2int (rev (take a (drop (a * dfidx) (val cm')))) *)
 
     return (cidx, val x');
   }
@@ -2892,27 +2889,139 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_a
                   /\ ! ((k{2}, x{2}) \in kxl{2})) => //.
   swap{1} [2..3] -1; swap{1} 6 -3; sp 3 0.
   wp => /=.
-  conseq (: _ ==> true) => [/> /# |].
+  conseq (: _ ==> true) => [/> |].
+  progress. rewrite H0 H H2.
   while{1} (true) (Top.k - size roots'{1}).
   + move=> _ z.
     by wp; skip => />; smt(size_rcons).
-  by wp; skip => /> /#.   
+  by wp; skip => /> /#.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
 + byequiv=> //.
   proc.
   inline{1} 3; inline{2} 2; inline{2} 7.
-  seq 7 14 : (   ad{1} = adz
+  inline{2} 16.
+  seq 7 23 : (   ={glob A}
+              /\ ad{1} = adz
               /\ ad{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
               /\ ad{1} = ad0{1}
               /\ ps{1} = pp{2}
               /\ ps{1} = ps0{1}
-              /\ pp{2} = O_SMDTOpenPRE_Default.pp{2}).
-              (* forall i j u : int,
-                    nth witness (nth witness (nth witness skFORSs{1} i) j) u
+              /\ pp{2} = O_SMDTOpenPRE_Default.pp{2}
+              /\ pp{2} = R_FSMDTOpenPRE_EUFCMA.ps{2}
+              /\ O_SMDTOpenPRE_Default.os{2} = []
+              /\ R_FSMDTOpenPRE_EUFCMA.lidxs{2} = []
+              /\ R_FSMDTOpenPRE_EUFCMA.mmap{2} = empty
+              /\ R_FSMDTOpenPRE_EUFCMA.leavess{2} = unzip2 O_SMDTOpenPRE_Default.ts{2}
+              /\ pkFORSs0{1} = pkFORSs{2}
+              /\ (forall (i j u v : int), 0 <= i < s => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                    nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v)
                     =
-                    nth witness O_SMDTOpenPRE_Default.xs{2} (i * s + j * l + u) *)
-              
-              (*/\ O_SMDTOpenPRE_Default.ts{2} = mkseq (fun (i : int) => set_thtbidx) *)
+                    val (nth witness (nth witness (val (nth witness (nth witness skFORSs0{1} i) j)) u) v))
+              /\ (forall (i j u v : int), 0 <= i < s => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                    nth witness O_SMDTOpenPRE_Default.ts{2} (i * l * k * t + j * k * t + u * t + v)
+                    =
+                    (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v),
+                     f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * k + v))
+                       (nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v))))
+              /\ size O_SMDTOpenPRE_Default.ts{2} = d * k * t
+              /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}).
+  - admit.
+  inline{2} 13; inline{2} 12; inline{2} 11.
+  wp 30 10 => /=.
+  conseq (: _ 
+            ==> 
+               is_fresh{1} 
+            /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR{1} 
+            /\ EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE{1} 
+            =>
+               ! (i{2} \in O_SMDTOpenPRE_Default.os{2})
+            /\ f pp{2} tw{2} x{2} = y{2}).
+  * 
+  (*
+    progress.
+    rewrite size_ge0. smt().
+    smt().
+    rewrite nth_uniq => i j.
+    rewrite size_map H1 => rng_i rng_j neqi_j.
+    rewrite 2?(nth_map witness) 1,2:H1 1,2:// /=.
+    print edivzP.
+    print divz_eq.
+    move: neqi_j.
+    rewrite (divz_eq i (l * k * t)) (divz_eq j (l * k * t)) => neqi_j.
+    rewrite (divz_eq (i %% (l * k * t)) (k * t)).
+    rewrite modz_dvd 1:-mulrA 1:dvdz_mull 1:dvdzz.
+    rewrite (divz_eq (i %% (k * t)) t).
+    rewrite modz_dvd 1:dvdz_mull 1:dvdzz.
+    move: (H0 (i %/ (l * k * t)) (i %% (l * k * t) %/ (k * t)) 
+              (i %% (k * t) %/ t) (i %% t) _ _ _ _).
+    admit.
+    admit.
+    admit.
+    rewrite modz_ge0 2:ltz_pmod 3://; 1,2: smt(ge2_t).
+    rewrite ?addrA ?mulrA => -> /=.
+    rewrite (divz_eq (j %% (l * k * t)) (k * t)).
+    rewrite modz_dvd 1:-mulrA 1:dvdz_mull 1:dvdzz.
+    rewrite (divz_eq (j %% (k * t)) t).
+    rewrite modz_dvd 1:dvdz_mull 1:dvdzz.
+    move: (H0 (j %/ (l * k * t)) (j %% (l * k * t) %/ (k * t)) 
+              (j %% (k * t) %/ t) (j %% t) _ _ _ _).
+    admit.
+    admit.
+    admit.
+    rewrite modz_ge0 2:ltz_pmod 3://; 1,2: smt(ge2_t).
+    rewrite ?addrA ?mulrA => -> /=.
+    rewrite -eq_adrs_idxsq negb_forall /=.
+    case (i %/ (l * k * t) <> j %/ (l * k * t)) => [n1 | /= n2].
+    exists 4. rewrite /eq_idx. admit.
+    have neq2: i %% (l * k * t) <> j %% (l * k * t) by smt().
+    rewrite (divz_eq (i %% (l * k * t)) (k * t)) (divz_eq (j %% (l * k * t)) (k * t)) in neq2.
+    rewrite modz_dvd in neq2. rewrite -mulrA dvdz_mull 1:dvdzz //.
+    rewrite modz_dvd in neq2. rewrite -mulrA dvdz_mull 1:dvdzz //.
+    
+    case (i %% (l * k * t) %/ (k * t) <> j %% (l * k * t) %/ (k * t)) => [nn1 | /= nn2].
+    exists 2. admit.
+    have nneq2: i %% (k * t) <> j %% (k * t) by smt().
+    print valid_tidx.
+    admit.
+    smt().
+  *)
+    admit.
+  inline{2} 10.
+  wp => /=.
+  while{1} (   leaves'{1} 
+               =
+               mkseq (fun (i : int) => 
+                         f ps{1} (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{1} trhtype) tidx{1}) kpidx{1}) 0 (i * t + (nth witness lidxs'{1} i).`3)) (val (nth witness (val sigFORSTW'{1}) i).`1)) (size roots'{1})
+            /\ size roots'{1} = size skFORS_eles'{1}
+            /\ size roots'{1} = size leaves'{1}
+            /\ size roots'{1} <= k)
+           (k - size roots'{1}).
+  - admit.
+  wp => /=.
+  call (:   ={mmap}(O_CMA_MFORSTWESNPRF, R_FSMDTOpenPRE_EUFCMA)
+         /\ ={lidxs}(O_CMA_MFORSTWESNPRF_AV, R_FSMDTOpenPRE_EUFCMA)
+         /\ dom O_CMA_MFORSTWESNPRF.mmap{1} = mem O_CMA_MFORSTWESNPRF.qs{1}
+         /\ (forall (i j u v : int), 0 <= i < s => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+              nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v)
+              =
+              val (nth witness (nth witness (val (nth witness (nth witness O_CMA_MFORSTWESNPRF.sk{1}.`1 i) j)) u) v))
+         /\ (forall (idxs : int * int * int),
+              idxs \in R_FSMDTOpenPRE_EUFCMA.lidxs{2}
+              <=>
+              idxs.`1 %/ l * l * k * t +
+              idxs.`1 %% l * k * t +
+              idxs.`2 * t +
+              idxs.`3 \in
+              O_SMDTOpenPRE_Default.os{2})).
+  - admit.
+  inline{1} 4; inline{1} 5.
+  wp; skip => />.
+  progress.
+  by rewrite fun_ext => x; rewrite mem_empty.
+  by rewrite mkseq0.
+  smt(ge1_k).
+  smt(ge1_k).
+  admit.
   admit.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler_add.
 + admit.

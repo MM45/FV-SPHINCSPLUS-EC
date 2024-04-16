@@ -412,7 +412,7 @@ case (j %/ 2 ^ (e - i) %% 2 <> 0) => /= [msb1 | msb0].
   do 3! congr; rewrite szlsd2. 
   rewrite {2}(divz_eq j (2 ^ (e - i))) mulrDl /= addrC; congr. 
   suff: j %/ 2 ^ (e - i) = 1 by move=> -> /=; rewrite -exprD_nneg 1:/# 1:// /#. 
-  by rewrite exprS in lt2ei1_j; smt(edivzP). 
+  by rewrite exprS in lt2ei1_j; smt(edivzP).
 have lt2e1_j : j < 2 ^ (e - i) by rewrite exprS in lt2ei1_j; smt(edivzP).
 have ltszlsd2 : size ls %/ 2 < size ls.
 + rewrite szlsd2 szls exprD_nneg 1,2://.
@@ -423,8 +423,9 @@ rewrite ltszlsd2 /= szlsd2 (: j * 2 ^ i < 2 ^ e) 2:/=.
 + rewrite (: 2 ^ e = 2 ^ (e - i) * 2 ^ i) 1:-exprD_nneg 1:/# 1:// 1:/#.
   by rewrite StdOrder.IntOrder.ltr_pmul2r 1:StdOrder.IntOrder.expr_gt0.
 rewrite take_cat 1:size_drop 1:StdOrder.IntOrder.mulr_ge0 2:StdOrder.IntOrder.expr_ge0 1,2://.
-have le2ei_j2i: j * 2 ^ i <= 2 ^ e - 2 ^ i. 
-+ admit. 
+have le2ei_j2i: j * 2 ^ i <= 2 ^ e - 2 ^ i.
++ rewrite StdOrder.IntOrder.ler_subr_addr -{2}(mul1r (2 ^ i)) -mulrDl.
+  by rewrite -lez_divRL 1:StdOrder.IntOrder.expr_gt0 // expz_div 2:// /#.
 rewrite lez_maxr 1:size_take 1:StdOrder.IntOrder.expr_ge0 1:// 1:/#.
 rewrite size_take 1:StdOrder.IntOrder.expr_ge0 1:// -szlsd2 ltszlsd2 /= szlsd2.
 case (2 ^ i < 2 ^ e - j * 2 ^ i) => [// | /lezNgt ge2ej2i_2i].
@@ -455,7 +456,7 @@ case (idx %/ 2 ^ e %% 2 <> 0) => [msb1 | /= msb0].
   - by rewrite modz_ge0 2:ltz_pmod; 1,2: smt(StdOrder.IntOrder.expr_gt0).
   rewrite modzE nth_drop 1:// 1:StdOrder.IntOrder.subr_ge0 1:lez_floor; 1: smt(StdOrder.IntOrder.expr_gt0).
   do 3! congr; rewrite szlsd2 eq_sym {1 2}(divz_eq idx (2 ^ e)).
-  by rewrite (: idx %/ 2 ^ e = 1) 2:/#; smt(edivzP).
-have ltszlsd2_idx : idx < size ls %/ 2 by smt(edivzP).
+  rewrite (: idx %/ 2 ^ e = 1) 2:/#; 1: by rewrite exprS in szls => //; smt(edivzP).
+have ltszlsd2_idx : idx < size ls %/ 2 by rewrite exprS in szls => //; smt(edivzP).
 by rewrite ih 1,2:size_take 1,3:// 1,2:ltszls_szlsd2 1:// 1:/= 1:/# nth_take.
 qed.

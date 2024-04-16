@@ -3174,7 +3174,9 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
     wp; skip => /> *.
     split => [| pkWOTS]; 1: by rewrite mkseq0 /=; smt(ge2_len).
     split => [/# | /lezNgt gelen_szpk *].
-    by rewrite insubdK 1:/# size_rcons ?mkseqS 1://; smt(ge2_len mkseqS).
+    rewrite insubdK 1:/# size_rcons ?mkseqS 1://. 
+    rewrite -andbA; split; 2: smt(ge2_len).
+    by congr => /=; smt(mkseqS).
   wp => /=.
   while (   ={skWOTStd}
          /\ valid_xadrs ad{2} 
@@ -3377,8 +3379,15 @@ seq 14 12 : (   ={glob A, ad, ps, ml, root, skWOTStd, pk}
                         eqsztdsl eqsztdsr ltnrt_szskts.
       split => [| lfs pks sigs sks /lezNgt gelp_szsks _]; 1: by smt(ge2_lp).
       move=> nthpkp nthlfp nthsigp ge0_szsks lelp_szsks eqszspp eqszssp eqszslp.
-      do 4! (split; 1: smt(ge1_d ge2_lp nth_rcons size_rcons)). 
-      by split; smt(ge1_d ge2_lp nth_rcons size_rcons).
+      split => [j u v |]; 1: smt(nth_rcons size_rcons).
+      split => [j u ge0_j |]; 1: rewrite ?size_rcons ?nth_rcons.
+      * by move=> *; rewrite -eqszntsp -eqszntsl /#.
+      split => [j ge0_j |]; 1: rewrite ?size_rcons ?nth_rcons.
+      * by move=> *; rewrite -eqszntsr -eqszntsl /#.
+      split => [j u v ge0_j |]; 1: rewrite ?size_rcons ?nth_rcons.
+      * by move=> *; rewrite -eqszntss /#.
+      split => [j ge0_j |]; 2: by rewrite ?size_rcons /#.      rewrite nth_rcons size_rcons  => ?; case (j < size leavesnt{2}) => [/# | ?].
+      by rewrite (: j = size leavesnt{2}) 1:/# /= -eqszslp /#.
     wp; skip => |> &2 valad nthpk nthlf nthrt nthsig sznthlf ge0_szsk _ eqszpk eqszsig eqszlf eqszrt ltd_szsk.
     split => [|lfs pks rts sigs sks /lezNgt genrt_szsk _].
     - by rewrite /nr_trees expr_ge0 /#.
@@ -4309,17 +4318,7 @@ rewrite ih 1:// (: n + 1 <> 0) 1:/# /=.
 rewrite exprD_nneg // divz_mul 1:expr_ge0 // 1:expr1.
 by case: (edivz (i %/ j ^ n) j).
 qed.
-(*
-local lemma int2bs_bs2int_int2bs1 (n i : int) : 
-  0 <= n =>
-  0 <= i < 2 ^ n
-  int2bs (n + 1) (bs2int (int2bs n i))
-  =
-  int2bs (n + 1)
-(int2bs (h' - size bs)
-     (bs2int (int2bs (h' - size bs - 1) ((nth witness tkpi cidx).`2 %/ 2 ^ (size bs + 1))))) =
-rev (int2bs (h' - size bs) (2 * ((nth witness tkpi cidx).`2 %/ 2 ^ (size bs + 1))))
-*)
+
 local lemma EUFNAGCMA_FLSLXMSSMTTWESNPRF_MEUFGCMAWOTSTWES &m :
   hoare[A(R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA(A, O_MEUFGCMA_WOTSTWESNPRF, FC.O_THFC_Default).O_THFC).choose : 
           R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA.O_THFC.ads = [] 
@@ -5060,7 +5059,6 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
                    =
                    pkco PKCOC_TCR.O_SMDTTCR_Default.pp{2} (set_kpidx (set_typeidx (set_ltidx R_SMDTTCRCPKCO_EUFNAGCMA.ad{2} (size R_SMDTTCRCPKCO_EUFNAGCMA.skWOTStd{2}) j) pkcotype) u)
                         (flatten (map DigestBlock.val (DBLL.val (nth witness (nth witness pkWOTSnt{2} j) u)))))
-             
              /\ (forall (adx : adrs * dgst),
                    adx \in PKCOC_TCR.O_SMDTTCR_Default.ts{2}
                    <=>
@@ -5417,7 +5415,11 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
         rewrite -!andbA; split.
         + congr; rewrite ndsnth 2:expr_gt0 2,3:// 2:/=; 1: smt(ge1_hp).
           by rewrite drop0 -/l' -eqlp_szlfslp take_size /#.
-        by split; smt(size_ge0 nth_rcons size_rcons).
+        split => [j u ge0_j | ]; 1: rewrite size_rcons ?nth_rcons.
+        + by move=> *; rewrite -eqszsklfsnt -eqszskpknt /#.
+        split => [ | j u ge0_j ]; last first.
+        + by rewrite size_rcons ?nth_rcons -eqszskpknt /#.
+        move=> adx; split => [/tspdef |]; smt(size_rcons size_ge0).
       wp; skip => /> &2 lfsdef tsdef tsnth allpkcots allnpkcotws uqunz1ts szts 
                          eqszskpktd eqszsklfstd eqszsksigtd eqszskrtstd
                          _ ltd_szskwtd.

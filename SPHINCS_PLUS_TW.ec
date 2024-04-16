@@ -1837,7 +1837,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
 section Proof_SPHINCS_PLUS_TW_EUFCMA.
 
 
-declare module A <: Adv_EUFCMA {-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.FC_TCR.O_SMDTTCR_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.TRHC_TCR.O_SMDTTCR_Default, -TRCOC.O_THFC_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_CMA_MFORSTWESNPRF, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTPREC_Game4WOTSTWES, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA, -O_CMA_Default, -SKG_PRF.O_PRF_Default, -MKG_PRF.O_PRF_Default, -R_SKGPRF_EUFCMA, -R_MKGPRF_EUFCMA, -R_MFORSTWESNPRFEUFCMA_EUFCMA}.
+declare module A <: Adv_EUFCMA {-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FTWES.FC_TCR.O_SMDTTCR_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FP_DSPR.O_SMDTDSPR_Default, -FTWES.TRHC_TCR.O_SMDTTCR_Default, -TRCOC.O_THFC_Default, -TRCOC_TCR.O_SMDTTCR_Default, -O_CMA_MFORSTWESNPRF, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -O_THFC_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTPREC_Game4WOTSTWES, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA, -O_CMA_Default, -SKG_PRF.O_PRF_Default, -MKG_PRF.O_PRF_Default, -R_SKGPRF_EUFCMA, -R_MKGPRF_EUFCMA, -R_MFORSTWESNPRFEUFCMA_EUFCMA}.
 
 declare axiom A_forge_ll (O <: SOracle_CMA{-A}) :
   islossless O.sign => islossless A(O).forge.
@@ -2207,10 +2207,18 @@ seq 4 8 : (   ={glob A, ad, ms, ss, ps}
               (len - size skWOTS).
         - move=> z'''.
           by wp; skip => />; smt(nth_rcons size_rcons).
-        by wp; skip => />; smt(ge2_len nth_rcons size_rcons DBLL.insubdK DBLL.valP).
-      by wp; skip => />; smt(nth_rcons size_rcons).
-    by wp; skip => />; smt(nth_rcons size_rcons).
-  wp => />; 1: smt().
+        wp; skip => /> &2 nthsklp ltl_szsklp.
+        split => [| skw]; 2: split => [| /lezNgt gelen_szskw]; 1,2: smt(ge2_len).
+        move=> nthskw lelen_skw; split; 2: by rewrite size_rcons /#.
+        move=> u v ge0_u; rewrite nth_rcons ?size_rcons /= => ltsz1_u ge0_v ltlen_v.
+        by case (u < size skWOTSlp{2}); smt(DBLL.insubdK DBLL.valP).
+      wp; skip => /> &2 nthsknt ltl_szsknt. 
+      split => [/# | skwlp]; split => [/# | /lezNgt gelp_szskwlp ?]. 
+      by split; smt(nth_rcons size_rcons).
+    wp; skip => /> &2 nthsktd ltd_szsktd.
+    split => [/# | skwlp]; split => [/# | /lezNgt gent_szskwnt ?]. 
+    by split; smt(nth_rcons size_rcons).
+  wp => /=.
   while{2} (    ad{2} = adz
             /\ (forall (i j u v : int),
                  0 <= i && i < size skFORSnt{2} =>
@@ -2260,7 +2268,8 @@ seq 4 8 : (   ={glob A, ad, ms, ss, ps}
       by wp; skip => />; smt(nth_rcons size_rcons ge1_k DBLLKTL.valP DBLLKTL.insubdK).
     by wp; skip => />; smt(nth_rcons size_rcons).
   wp; do 3! rnd.
-  by wp; skip => /> /#.
+  wp; skip => /> ms msin ss ssin ps psin.
+  by do 5! (split => [/# | *]) => /#.
 call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
        /\ O_CMA_Default.sk{1}.`1 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`1
        /\ O_CMA_Default.sk{1}.`3 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`4 
@@ -2327,14 +2336,14 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
       rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP //= => i rng_i.
       by rewrite insubdK 1:/# nthskwp 1:/# nthskw 1:size_ge0.
     inline{1} 2; inline{2} 4.
-    wp => />; 1: smt().
+    wp => /=.
     while (   ={ps2, ad2, em} 
            /\ sig2{1} = sig0{2}
            /\ skWOTS1{1} = skWOTS2{2}
            /\ size sig2{1} <= len).
     * by wp; skip => />; smt(size_rcons).
     inline{1} 8.
-    wp => />; 1: smt().
+    wp => /=.
     while{1} (   (forall (i : int), 0 <= i < size skWOTS2{1} =>
                    nth witness skWOTS2{1} i 
                    =
@@ -2346,7 +2355,7 @@ call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
     wp; skip => /> &1 &2 ge0_tidx ltnt1_tidx ge0_kpidx ltlp_kpidx _ nthskf nthskw ltd_szsapl.
     split => [| skw]; 1: smt(ge2_len).
     split => [/# | /lezNgt gelen_szskw nthskwp lelen_szskw].
-    split => [| sigw /lezNgt gelen_szsigw _ lelen_szsigw].
+    split => [| sigw /lezNgt gelen_szsigw _ eqins_skw lelen_szsigw].
     * split; 2: smt(ge2_len).
       rewrite &(DBLL.val_inj) &(eq_from_nth witness) ?valP //= => i rng_i.
       rewrite insubdK 1:/# nthskwp 1:/# nthskw 1:size_ge0 //=.
@@ -2436,7 +2445,7 @@ while (   ={leaves0}
        /\ #pre).
 + wp; call (: true); 1: by sim.
   inline{1} 1.
-  wp => />; 1: smt().
+  wp => /=.
   while{1} (   (forall (i : int), 0 <= i < size skWOTS0{1} =>
                  nth witness skWOTS0{1} i 
                  =
@@ -2584,7 +2593,7 @@ seq 8 14 : (   ={glob A, ad}
                   psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} i j) chtype) u) v) 0))))
          /\ size skWOTStd{1} <= d
          /\ #post).
-  - wp => />; 1: smt().
+  - wp => /=.
     while (  ={skWOTSnt}
            /\ ad{2} = adz
            /\ SKG_PRF.O_PRF_Default.b{2}
@@ -2604,7 +2613,7 @@ seq 8 14 : (   ={glob A, ad}
                       psad = (R_SKGPRF_EUFCMA.ps{2}, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx ad{2} (size R_SKGPRF_EUFCMA.skWOTStd{2}) j) chtype) u) v) 0))))
            /\ size skWOTStd{1} < d
            /\ size skWOTSnt{1} <= nr_trees (size skWOTStd{1})).
-    * wp => />; 1: smt().
+    * wp => /=.
       while (  ={skWOTSnt, skWOTSlp}
              /\ ad{2} = adz
              /\ SKG_PRF.O_PRF_Default.b{2}
@@ -2713,17 +2722,18 @@ seq 8 14 : (   ={glob A, ad}
           case (v = size skWOTS{2}) => [ // | neqszv].
           by move: (ninskw v); rewrite negb_and (: 0 <= v && v < size skWOTS{2}) /#.
         wp; skip => /> &2 *.
-        split => *; 1: smt(ge2_len).
-        split => *; 2: smt(size_rcons).
-        by split => *; smt(size_rcons size_ge0).
+        split => [* | psdbmap skw ? _ psdbmapdef ?]; 1: smt(ge2_len).
+        split => [psad |]; 2: smt(size_rcons).
+        by split => [/psdbmapdef | ]; smt(size_rcons size_ge0).
       wp; skip => /> &2 *.
-      split => *; 1: smt(ge2_lp).
-      split => *; 2: smt(size_rcons).
-      by split => *; smt(size_rcons size_ge0).
-    wp; skip => /> &2 *.
-    split => *; 1: smt(IntOrder.expr_ge0).
-    split => *; 2: smt(size_rcons).
-    by split => *; smt(size_rcons size_ge0).
+      split => [* | psdbmap skw ? _ psdbmapdef ?]; 1: smt(ge2_lp).
+      split => [psad |]; 2: smt(size_rcons).
+      by split => [/psdbmapdef | ]; smt(size_rcons size_ge0).
+    wp; skip => /> &2 bT mdef _ ltd_szsktd.
+    split => [ * | psdbmap skw ? _ psdbmapdef ?]; 1: rewrite expr_ge0 1:// 1:/=.
+    * by move => psad; split => [/mdef |] /#.
+    split => [psad |]; 2: smt(size_rcons).
+    by split => [/psdbmapdef | ]; smt(size_rcons size_ge0).
   wp => /=.
   while (   SKG_PRF.O_PRF_Default.b{2}
          /\ ad{2} = adz
@@ -4382,8 +4392,7 @@ have validxsadz : valid_adrsidxs [0; 0; 0; chtype; 0; 0].
   - rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals; left.
     by rewrite /valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_gt0 ge1_d).
 move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m _ _ _)
-      (EUFCMA_MFORSTWESNPRF (R_MFORSTWESNPRFEUFCMA_EUFCMA(A)) &m)
-      (EUFCMA_SPHINCS_PLUS_TW_FX &m); last smt(). 
+      (EUFCMA_SPHINCS_PLUS_TW_FX &m). 
 + move=> OC OCll.
   proc.
   while (true) (nr_trees 0 - size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt).
@@ -4411,7 +4420,8 @@ move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ 
           wp.
           call OCll.
           rnd.
-          by wp; skip => />; smt(size_rcons ddgstblock_ll).
+          wp; skip => /> &2 ltt_szsket.
+          by rewrite -(mu_eq _ predT) 2:ddgstblock_ll => [x |]; 1: smt(size_rcons).
         by wp; skip => />; smt(size_rcons). 
       by wp; skip => />; smt(size_rcons).
     by wp; skip => />; smt(size_rcons).
@@ -4562,6 +4572,44 @@ while (#post /\ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.ad = adz).
     by smt(Top.dist_adrstypes).
   by wp; skip.
 by wp; skip.
+move: (EUFCMA_MFORSTWESNPRF (R_MFORSTWESNPRFEUFCMA_EUFCMA(A)) _ &m); last smt().
+move=> O Oll.
+proc; inline *.
+wp; call (: true).
++ by apply A_forge_ll.
++ proc; inline *.
+  wp => /=.
+  while (true) (d - size sapl).
+  - admit.
+  wp => /=.
+  call Oll.
+  by wp; skip => /> /#.
+wp => /=.
+while (true) (l' - size leaves0).
++ move=> z.
+  wp => /=.
+  while (true) (len - size pkWOTS0).
+  - move=> z'.
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+wp => /=.
+while (true) (d - size R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd).
++ move=> z. 
+  wp => /=.
+  while (true) (nr_trees (size R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd) - size skWOTSnt).
+  - move=> z'.
+    wp => /=.
+    while (true) (l' - size skWOTSlp).
+    * move=> z''.
+      wp => /=.
+      while (true) (len - size skWOTS).
+      + move=> z'''.
+        wp; rnd; skip => /> &2 ltlen_szskw.
+       by rewrite -(mu_eq _ predT) 2:ddgstblock_ll => [x |]; 1: smt(size_rcons).
+      by wp; skip => />; smt(size_rcons).
+    by wp; skip => />; smt(size_rcons).
+  by wp; skip => />; smt(size_rcons).
+by wp; skip => /> /#.
 qed.
  
 end section Proof_SPHINCS_PLUS_TW_EUFCMA.

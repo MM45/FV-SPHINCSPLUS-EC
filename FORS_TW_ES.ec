@@ -2813,7 +2813,7 @@ local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
 proof.
 admit.
 qed.
-*) print O_ITSR_Default.
+*)
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
@@ -2900,7 +2900,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_a
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
 + byequiv=> //.
   proc.
-  inline{1} 3; inline{2} 2; inline{2} 7. search uniq flatten.
+  inline{1} 3; inline{2} 2; inline{2} 7.
   seq 7 14 : (   ad{1} = adz
               /\ ad{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
               /\ ad{1} = ad0{1}

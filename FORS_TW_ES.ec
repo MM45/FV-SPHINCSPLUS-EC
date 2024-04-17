@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder StdBigop.
+require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder StdBigop LoopTransform.
 (*---*) import BS2Int BitChunking Bigint BIA.
 (*---*) import RealOrder.
 
@@ -2786,6 +2786,7 @@ by wp; skip.
 qed.
 
 
+print F_OpenPRE.SM_DT_OpenPRE.
 (* 
   Immediately replace while loops (primarily inner ones) in reduction adversaries
   by the appropriate functional operators utilizing the public seed ps that is used in the oracles.
@@ -2793,6 +2794,160 @@ qed.
   (instead of a local variable) and have reduction adversaries directly use this. 
 *)
 
+local clone import ExactIter as EI with
+  type t <- dgstblock list,
+  
+  op c <- 1,
+  op step <- 1
+  
+  proof *.
+  realize c_gt0 by trivial.
+  realize step_gt0 by trivial.
+
+
+  
+local module O_SMDTOpenPRE_Default_LBody : AdvLoop = {
+  import var O_SMDTOpenPRE_Default
+  var tws : adrs list
+  
+  proc body(ys : dgstblock list, i : int) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tw <- nth witness tws i;
+    x <$ ddgstblocklift;
+    y <- f pp tw x;
+    twy <- (tw, y);
+    xs <- rcons xs x;
+    ys <- rcons ys y;
+    ts <- rcons ts twy;
+    
+    return ys;
+  }
+}.
+
+  
+local module O_SMDTOpenPRE_Default_LBody2 : AdvLoop = {
+  import var O_SMDTOpenPRE_Default
+  import var O_SMDTOpenPRE_Default_LBody
+  var i : int
+   
+  proc body(ys : dgstblock list, j : int) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tw <- nth witness tws (i * l * k * t + j);
+    x <$ ddgstblocklift;
+    y <- f pp tw x;
+    twy <- (tw, y);
+    xs <- rcons xs x;
+    ys <- rcons ys y;
+    ts <- rcons ts twy;
+    
+    return ys;
+  }
+}.
+
+print O_SMDTOpenPRE_Default.
+
+local module O_SMDTOpenPRE_Default_ILBody = {
+  import var O_SMDTOpenPRE_Default
+  import var O_SMDTOpenPRE_Default_LBody
+  
+  proc init1(pp_init : pseed, tws_init : adrs list) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var ys : dgstblock list;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tws <- tws_init;
+    pp <- pp_init;
+    ts <- [];
+    xs <- [];
+    os <- [];
+    ys <- [];
+    
+    ys <@ Loop(O_SMDTOpenPRE_Default_LBody).loop1(ys, d * k * t);
+    
+    return ys;
+  }
+  
+  proc init2(pp_init : pseed, tws_init : adrs list) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var ys : dgstblock list;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tws <- tws_init;
+    pp <- pp_init;
+    ts <- [];
+    xs <- [];
+    os <- [];
+    ys <- [];
+    
+    O_SMDTOpenPRE_Default_LBody2.i <- 0;
+    while (O_SMDTOpenPRE_Default_LBody2.i < s) {
+      ys <@ Loop(O_SMDTOpenPRE_Default_LBody2).loop1(ys, l * k * t);
+      O_SMDTOpenPRE_Default_LBody2.i <- O_SMDTOpenPRE_Default_LBody2.i + 1;
+    }
+    
+    return ys;
+  }
+}.
+
+local equiv test:
+  O_SMDTOpenPRE_Default.init ~ O_SMDTOpenPRE_Default_ILBody.init1 :
+    ={arg} /\ d * k * t <= size tws_init{1} ==> ={res, glob O_SMDTOpenPRE_Default}.
+proof.
+proc.
+inline{2} 7.
+wp => /=.
+while (   ={glob O_SMDTOpenPRE_Default}
+       /\ ys{1} = t{2} 
+       /\ tws_init{1} = O_SMDTOpenPRE_Default_LBody.tws{2}
+       /\ n{2} = d * k * Top.t
+       /\ d * k * Top.t <= size O_SMDTOpenPRE_Default_LBody.tws{2} 
+       /\ size O_SMDTOpenPRE_Default.ts{1} = i{2}
+       /\ size O_SMDTOpenPRE_Default.ts{1} <= d * k * t).
++ inline{2} 1.
+  by wp; rnd; wp; skip => />; smt(size_rcons).
+by wp; skip => />; smt(ge1_d ge1_k ge2_t).
+qed.
+
+local equiv test2:
+  O_SMDTOpenPRE_Default_ILBody.init1 ~ O_SMDTOpenPRE_Default_ILBody.init2 :
+    ={arg} ==> ={res, glob O_SMDTOpenPRE_Default}.
+proof.
+proc.
+rewrite equiv [{1} 7 (loop1_loopk O_SMDTOpenPRE_Default_LBody) (ys, s, l * k * t :@ ys)].
++ wp; skip => />; rewrite dval; smt(ge1_s Top.ge1_l ge1_k ge2_t). 
+inline{1} 7.
+wp => /=.
+while (   ={glob O_SMDTOpenPRE_Default_LBody}
+       /\ i{1} = O_SMDTOpenPRE_Default_LBody2.i{2}
+       /\ t{1} = ys{2} 
+       /\ tws_init{1} = O_SMDTOpenPRE_Default_LBody.tws{2}
+       /\ n{1} = s
+       /\ k{1} = l * Top.k * Top.t
+       /\ i{1} <= s).
++ inline{2} 1.
+  wp => /=.
+  while (   ={glob O_SMDTOpenPRE_Default_LBody, t}
+         /\ j{1} = i{2}
+         /\ i{1} = O_SMDTOpenPRE_Default_LBody2.i{2}
+         /\ k{1} = n{2}
+         /\ k{1} = l * Top.k * Top.t).
+  - inline{1} 1; inline{2} 1.
+    by wp; rnd; wp; skip => /> /#.
+  by wp; skip => /> /#.
+by wp; skip => />; smt(ge1_s).
+qed.
 
 (*
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
@@ -2925,7 +3080,37 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
                        (nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v))))
               /\ size O_SMDTOpenPRE_Default.ts{2} = d * k * t
               /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}).
-  - admit.
+  - while{2} (forall (i j : int), 0 <= i < size pkFORSs{2} => 0 <= j < l =>
+                nth witness (nth witness pkFORSs{2} i) j
+                =
+                let rs = mkseq (fun (u : int) =>
+                            val_bt_trh R_FSMDTOpenPRE_EUFCMA.ps{2} (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trcotype) i) j) 
+                                       (list2tree (take t (drop (i * l * k * t + j * k * t + u * t) R_FSMDTOpenPRE_EUFCMA.leavess{2}))) i) k in
+                  trco R_FSMDTOpenPRE_EUFCMA.ps{2} (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trcotype) i) j)
+                       (flatten (map DigestBlock.val rs)))
+             (s - size pkFORSs{2}).
+    * admit.
+    admit.
+    wp => /=.
+    while (   ps0{1} = O_SMDTOpenPRE_Default.pp{2}
+           /\ ad0{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
+           /\ (forall (i j u v : int), 0 <= i < s => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                nth witness tws_init{2} (i * l * k * t + j * k * t + u * t + v)
+                =
+                set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v))
+           /\ (forall (i j u v : int), 0 <= i < size skFORSs0{1} => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v)
+                =
+                val (nth witness (nth witness (val (nth witness (nth witness skFORSs0{1} i) j)) u) v))
+           /\ (forall (i j u v : int), 0 <= i < size skFORSs0{1} => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                 nth witness O_SMDTOpenPRE_Default.ts{2} (i * l * k * t + j * k * t + u * t + v)
+                 =
+                 (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v),
+                  f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v))
+                    (nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v))))
+           /\ size skFORSs0{1} <= s
+           /\ size O_SMDTOpenPRE_Default.ts{2} <= d * k * t
+           /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}).
   inline{2} 13; inline{2} 12; inline{2} 11.
   wp 30 10 => /=.
   conseq (: _ 
@@ -2996,7 +3181,13 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
             /\ size roots'{1} = size leaves'{1}
             /\ size roots'{1} <= k)
            (k - size roots'{1}).
-  - admit.
+  - move=> _ z.
+    wp; skip => />.
+    progress. rewrite size_rcons mkseqS 1:size_ge0 //.
+    smt(size_rcons). 
+    smt(size_rcons).
+    smt(size_rcons).
+    smt(size_rcons).
   wp => /=.
   call (:   O_CMA_MFORSTWESNPRF.sk{1}.`2 = R_FSMDTOpenPRE_EUFCMA.ps{2}
          /\ O_CMA_MFORSTWESNPRF.sk{1}.`3 = R_FSMDTOpenPRE_EUFCMA.ad{2}
@@ -3088,7 +3279,56 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
         rewrite mkseq0 //.
         smt(ge2_t).
         smt(ge2_t).
-        
+        congr.
+        rewrite H2; 1..4: admit. rewrite valKd /=.
+        congr. rewrite H9. congr.
+        rewrite &(eq_from_nth witness).
+        rewrite size_mkseq size_take; 1:smt(ge2_t).
+        rewrite size_drop. admit. admit.
+        move => i [ge0_i]; rewrite size_mkseq (: size leaves0_L = t) 1:/# => ltt_i.
+        rewrite nth_mkseq 2:nth_take; 1..3: smt(ge2_t).
+        print nth_drop.
+        rewrite nth_drop; 1: admit. trivial. simplify.
+        rewrite H1; 1..4: admit.
+        rewrite H2; 1..4: admit.
+        congr.
+        trivial.
+        rewrite size_rcons.
+        move: H11. rewrite H4.
+        rewrite mem_rcons /=.
+        case => [-> // |].
+        search rcons nth.
+        search take drop.
+        rewrite -(cat_take_drop (0 + 1) (drop _ _)) (take_nth witness) 1:size_drop 1:size_ge0 /= 1:/g /= 1:size_mkseq 1:/#.
+        rewrite take0 /= drop_drop 1:// 1:size_ge0 (addrC 1).
+        case => [idxval /=| -> //].
+        left; left.
+        move: idxval; rewrite nth_drop 1:size_ge0 1:// /=.
+        rewrite /g /= nth_mkseq 1:size_ge0 1:// /=.
+        move=> -> /=.
+        congr.
+        by move: H0 => <- /=.
+        congr; congr.
+        rewrite /chunk nth_mkseq 1:valP 1:size_ge0 1://.
+        rewrite mulzK 2:/#; smt(ge1_a).
+        simplify.
+        by move: H0 => <- /=.
+        move: H11; rewrite size_rcons mem_rcons /=.
+        rewrite H4.
+        case => [| idxind1]; last first.
+        right. move: idxind1. 
+        print drop_nth.
+        rewrite (drop_nth witness (size sigFORSTW{2})) 1:size_ge0 1:/g 1:/= 1:size_mkseq; 1: smt(ge1_k).
+        by simplify => ->.
+        case => [| -> //].
+        rewrite (drop_nth witness (size sigFORSTW{2})) 1:size_ge0 1:/g 1:/= 1:size_mkseq; 1: smt(ge1_k).
+        simplify.
+        rewrite /g /= nth_mkseq 1:size_ge0 1:// /=.
+        move: H0 => <- /= idxssval; right; left.
+        move: idxssval. apply contraLR. case (idxs) => x y z /=. admit.
+        smt(size_rcons).
+        smt(size_rcons).
+        smt(size_rcons).
       wp; rnd; skip => />.
       progress.
       rewrite mem_set //.

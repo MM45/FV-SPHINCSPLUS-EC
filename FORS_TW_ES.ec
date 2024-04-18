@@ -3046,7 +3046,7 @@ local module O_SMDTOpenPRE_Default_ILN = {
         while (u < k) {
           v <- 0;
           while (v < t) {
-            tw <- nth witness tws_init (i * k * l * t + j * k * t + u * t + v);
+            tw <- nth witness tws_init (i * l * k * t + j * k * t + u * t + v);
             x <$ ddgstblocklift;
             y <- f pp tw x;
             twy <- (tw, y);
@@ -3119,23 +3119,7 @@ transitivity O_SMDTOpenPRE_Default_Init_CL.init3
 by apply Eqv_O_SMDTOpenPRE_Default_Init_CL3_ILN.
 qed.
 
-(*
-local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
-  Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
-  <= 
-  Pr[MCO_ITSR.ITSR(R_EUFCMA_ITSR(A), MCO_ITSR.O_ITSR_Default).main() @ &m : res]
-  +
-  Pr[FC_OpenPRE.SM_DT_OpenPRE_C(R_FSMDTOpenPREC_EUFCMA(A), FC_OpenPRE.O_SMDTOpenPRE_Default, FC.O_THFC_Default).main() @ &m : res]
-  +
-  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
-  + 
-  Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
-  +
-  Pr[TRCOC_TCR.SM_DT_TCR_C(R_TRCOSMDTTCRC_EUFCMA(A), TRCOC_TCR.O_SMDTTCR_Default, TRCOC.O_THFC_Default).main() @ &m : res].
-proof.
-admit.
-qed.
-*)
+
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
   <= 
@@ -3348,8 +3332,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
       smt(size_rcons).
       smt(size_rcons).
     wp => /=.
-    while (   size skFORSs0{1} = i0{2}
-           /\ ps0{1} = O_SMDTOpenPRE_Default.pp{2}
+    while (   ps0{1} = O_SMDTOpenPRE_Default.pp{2}
            /\ ad0{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
            /\ ys0{2} = unzip2 O_SMDTOpenPRE_Default.ts{2}
            /\ (forall (i j : int), 0 <= i < size skFORSs0{1} => 0 <= j < l =>
@@ -3378,6 +3361,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
                   f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v))
                     (nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v))))
            /\ all ((=) l \o size) pkFORSs0{1}
+           /\ size skFORSs0{1} = i0{2}
            /\ size skFORSs0{1} <= s
            /\ size skFORSs0{1} = size pkFORSs0{1}
            /\ size O_SMDTOpenPRE_Default.ts{2} = i0{2} * l * k * t
@@ -3432,6 +3416,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
                    (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) j) 0 (u * t + v),
                     f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) j) 0 (u * t + v))
                       (nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + j * k * t + u * t + v))))
+             /\ size skFORSs0{1} = i0{2}
              /\ size skFORSs0{1} < s
              /\ size skFORSs0{1} = size pkFORSs0{1}
              /\ size O_SMDTOpenPRE_Default.ts{2} = i0{2} * l * k * t + j{2} * k * t
@@ -3516,14 +3501,154 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
                        f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) (size skFORSl{1})) 0 (u * t + v))
                          (nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u * t + v))))
                /\ all ((=) t \o size) skFORS2{1}
+               /\ size skFORSs0{1} = i0{2}
+               /\ size skFORSs0{1} = size pkFORSs0{1}
                /\ size skFORSs0{1} < s
                /\ size O_SMDTOpenPRE_Default.ts{2} = i0{2} * l * k * t + j{2} * k * t + u{2} * t
                /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}
                /\ size skFORSl{1} = j{2}
+               /\ size skFORSl{1} = size pkFORSl{1}
                /\ size skFORSl{1} < l
                /\ size skFORS2{1} = u{2}
                /\ size skFORS2{1} <= k).
-        - admit.
+        - wp => /=.
+          while (   ps0{1} = O_SMDTOpenPRE_Default.pp{2}
+                 /\ ad0{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
+                 /\ ys0{2} = unzip2 O_SMDTOpenPRE_Default.ts{2}
+                 /\ (forall (i j u v : int), 0 <= i < s => 0 <= j < l => 0 <= u < k => 0 <= v < t =>                     
+                      nth witness tws_init{2} (i * l * k * t + j * k * t + u * t + v)
+                      =
+                      set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v))
+                 /\ (forall (i j u v : int), 0 <= i < size skFORSs0{1} => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                      nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v)
+                      =
+                      val (nth witness (nth witness (val (nth witness (nth witness skFORSs0{1} i) j)) u) v))
+                 /\ (forall (i j u v : int), 0 <= i < size skFORSs0{1} => 0 <= j < l => 0 <= u < k => 0 <= v < t =>
+                       nth witness O_SMDTOpenPRE_Default.ts{2} (i * l * k * t + j * k * t + u * t + v)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v),
+                        f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + v))
+                          (nth witness O_SMDTOpenPRE_Default.xs{2} (i * l * k * t + j * k * t + u * t + v))))
+                 /\ (forall (j u v : int), 0 <= j < size skFORSl{1} => 0 <= u < k => 0 <= v < t =>
+                      nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + j * k * t + u * t + v)
+                      =
+                      val (nth witness (nth witness (val (nth witness skFORSl{1} j)) u) v))
+                 /\ (forall (j u v : int), 0 <= j < size skFORSl{1} => 0 <= u < k => 0 <= v < t =>
+                       nth witness O_SMDTOpenPRE_Default.ts{2} (size skFORSs0{1} * l * k * t + j * k * t + u * t + v)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) j) 0 (u * t + v),
+                        f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) j) 0 (u * t + v))
+                           (nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + j * k * t + u * t + v))))
+                 /\ (forall (u v : int), 0 <= u < size skFORS2{1} => 0 <= v < t =>
+                      nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u * t + v)
+                      =
+                      val (nth witness (nth witness skFORS2{1} u) v))
+                 /\ (forall (u v : int), 0 <= u < size skFORS2{1} => 0 <= v < t =>
+                       nth witness O_SMDTOpenPRE_Default.ts{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u * t + v)
+                        =
+                        (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) (size skFORSl{1})) 0 (u * t + v),
+                         f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) (size skFORSl{1})) 0 (u * t + v))
+                           (nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u * t + v))))                 
+                 /\ (forall (v : int), 0 <= v < size skFORSt0{1} =>
+                      nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + v)
+                      =
+                      val (nth witness skFORSt0{1} v))
+                 /\ (forall (v : int), 0 <= v < size skFORSt0{1} =>
+                       nth witness O_SMDTOpenPRE_Default.ts{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + v)
+                        =
+                        (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) (size skFORSl{1})) 0 (size skFORS2{1} * t + v),
+                         f O_SMDTOpenPRE_Default.pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (size skFORSs0{1})) (size skFORSl{1})) 0 (size skFORS2{1} * t + v))
+                           (nth witness O_SMDTOpenPRE_Default.xs{2} (size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + v))))
+                 /\ size skFORSs0{1} = i0{2}
+                 /\ size skFORSs0{1} < s
+                 /\ size skFORSs0{1} = size pkFORSs0{1}
+                 /\ size O_SMDTOpenPRE_Default.ts{2} = i0{2} * l * k * t + j{2} * k * t + u{2} * t + v{2}
+                 /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}
+                 /\ size skFORSl{1} = j{2}
+                 /\ size skFORSl{1} = size pkFORSl{1}
+                 /\ size skFORSl{1} < l
+                 /\ size skFORS2{1} = u{2}
+                 /\ size skFORS2{1} < k
+                 /\ size skFORSt0{1} = v{2}
+                 /\ size skFORSt0{1} <= t).
+          * wp => /=. 
+            rnd DigestBlock.val DigestBlock.insubd.
+            wp; skip => />.
+            progress.
+            rewrite insubdK 2://.
+            by move/supp_dmap: H17 => [x [_ ->]]; rewrite valP //.
+            search dmap.
+            print in_dmap1E_can.
+            apply in_dmap1E_can.
+            rewrite insubdK 2://.
+            by move/supp_dmap: H18 => [x [_ ->]]; rewrite valP //.
+            move=> x _ <-; rewrite valKd //.
+            rewrite supp_dmap. exists skFORS_eleL. by rewrite H19.
+            by rewrite valKd.
+            by rewrite map_rcons /=.
+            rewrite nth_rcons.
+            rewrite H11 H10.
+            rewrite (: i1 * l * k * t + j0 * k * t + u0 * t + v0 < size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: admit.
+            simplify. smt().
+            rewrite nth_rcons H10.
+            have thb : i1 * l * k * t + j0 * k * t + u0 * t + v0 < size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1} by admit.
+            rewrite thb.
+            rewrite H1 //.
+            rewrite nth_rcons H11 H10 thb //.
+            rewrite nth_rcons H11 H10.
+            rewrite (:  size skFORSs0{1} * l * k * t + j0 * k * t + u0 * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: admit.
+            smt().
+            rewrite ?nth_rcons H11 H10.
+            rewrite (:  size skFORSs0{1} * l * k * t + j0 * k * t + u0 * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: admit.
+            smt().
+            rewrite ?nth_rcons H11 H10.
+            rewrite (: size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u0 * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: admit.
+            smt().
+            rewrite ?nth_rcons H11 H10.
+            rewrite (: size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + u0 * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: admit.
+            smt().
+            rewrite ?nth_rcons H11 H10.
+            case (v0 < size skFORSt0{1}) => ?.
+            rewrite (: size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: smt().
+            smt().
+            by rewrite (:v0 = size skFORSt0{1}); 1:smt(size_rcons). 
+            rewrite ?nth_rcons H11 H10.
+            case (v0 < size skFORSt0{1}) => ?.
+            rewrite (: size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + v0 <
+    size skFORSs0{1} * l * k * t + size skFORSl{1} * k * t + size skFORS2{1} * t + size skFORSt0{1}); 1: smt().
+            smt().
+            rewrite (:v0 = size skFORSt0{1}) /=; 1:smt(size_rcons). 
+            by rewrite H //.
+            rewrite H //; smt(size_rcons).
+            smt(size_rcons).
+            smt(size_rcons).
+            smt(size_rcons).
+            smt(size_rcons).
+            smt(size_rcons).
+          wp; skip => />.
+          progress.
+          smt().
+          smt().
+          smt(ge2_t).
+          rewrite nth_rcons; case (u0 < size skFORS2{1}) => ?.
+          by rewrite H21.
+          rewrite (: u0 = size skFORS2{1}) 2:/=; 1:smt(size_rcons).
+          by rewrite H23 2:// 1:/#. 
+          case (u0 < size skFORS2{1}) => ?.
+          by rewrite H22.
+          rewrite (: u0 = size skFORS2{1}) 2:/=; 1:smt(size_rcons).
+          by rewrite H24 2:// 1:/#. 
+          by rewrite -cats1 all_cat /=; split; 2: smt().
+          rewrite H25 /#.
+          smt(size_rcons).
+          smt(size_rcons).
+          smt(size_rcons).
+          smt(size_rcons).
         wp; skip => />.
         progress.
         smt(size_rcons ge1_k).
@@ -3563,7 +3688,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
         rewrite H20 1:/# //.        
         rewrite H22. smt().
         smt(size_rcons).
-        smt(size_rcons).
+        rewrite ?size_rcons H10 //.
         smt(size_rcons).
         smt(size_rcons).
         smt(size_rcons).
@@ -3573,7 +3698,6 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
       smt(Top.ge1_l).
       smt(Top.ge1_l).
       smt(Top.ge1_l).
-      smt(Top.ge1_l size_rcons).
       rewrite nth_rcons.
       case (i1 < size pkFORSs0{1}) => ?.
       rewrite H. smt(). trivial. trivial.
@@ -3595,6 +3719,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
       smt(size_rcons size_ge0).
       smt(size_rcons size_ge0).
       rewrite -cats1 all_cat /=; smt(size_rcons size_ge0).
+      smt(size_rcons size_ge0).
       smt(size_rcons size_ge0).
       smt(size_rcons size_ge0).
       smt(size_rcons size_ge0).

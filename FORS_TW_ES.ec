@@ -2786,14 +2786,6 @@ by wp; skip.
 qed.
 
 
-print F_OpenPRE.SM_DT_OpenPRE.
-(* 
-  Immediately replace while loops (primarily inner ones) in reduction adversaries
-  by the appropriate functional operators utilizing the public seed ps that is used in the oracles.
-  To this end, create auxiliary game that is equivalent to original game, but stores ps in a module variable
-  (instead of a local variable) and have reduction adversaries directly use this. 
-*)
-
 local clone import ExactIter as EI with
   type t <- dgstblock list,
   
@@ -2805,8 +2797,7 @@ local clone import ExactIter as EI with
   realize step_gt0 by trivial.
 
 
-  
-local module O_SMDTOpenPRE_Default_LBody : AdvLoop = {
+local module O_SMDTOpenPRE_Default_Init_LoopBody : AdvLoop = {
   import var O_SMDTOpenPRE_Default
   var tws : adrs list
   
@@ -2827,11 +2818,10 @@ local module O_SMDTOpenPRE_Default_LBody : AdvLoop = {
     return ys;
   }
 }.
-
   
-local module O_SMDTOpenPRE_Default_LBody2 : AdvLoop = {
+local module O_SMDTOpenPRE_Default_Init_LoopBodyNest1 : AdvLoop = {
   import var O_SMDTOpenPRE_Default
-  import var O_SMDTOpenPRE_Default_LBody
+  import var O_SMDTOpenPRE_Default_Init_LoopBody
   var i : int
    
   proc body(ys : dgstblock list, j : int) : dgstblock list = {
@@ -2852,11 +2842,36 @@ local module O_SMDTOpenPRE_Default_LBody2 : AdvLoop = {
   }
 }.
 
-print O_SMDTOpenPRE_Default.
-
-local module O_SMDTOpenPRE_Default_ILBody = {
+local module O_SMDTOpenPRE_Default_Init_LoopBodyNest2 : AdvLoop = {
   import var O_SMDTOpenPRE_Default
-  import var O_SMDTOpenPRE_Default_LBody
+  import var O_SMDTOpenPRE_Default_Init_LoopBody
+  import var O_SMDTOpenPRE_Default_Init_LoopBodyNest1
+  var j : int
+   
+  proc body(ys : dgstblock list, u : int) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tw <- nth witness tws (i * l * k * t + j * k * t + u);
+    x <$ ddgstblocklift;
+    y <- f pp tw x;
+    twy <- (tw, y);
+    xs <- rcons xs x;
+    ys <- rcons ys y;
+    ts <- rcons ts twy;
+    
+    return ys;
+  }
+}.
+
+
+local module O_SMDTOpenPRE_Default_Init_CL = {
+  import var O_SMDTOpenPRE_Default
+  import var O_SMDTOpenPRE_Default_Init_LoopBody
+  import var O_SMDTOpenPRE_Default_Init_LoopBodyNest1
+  import var O_SMDTOpenPRE_Default_Init_LoopBodyNest2
   
   proc init1(pp_init : pseed, tws_init : adrs list) : dgstblock list = {
     var x : dgst;
@@ -2872,7 +2887,7 @@ local module O_SMDTOpenPRE_Default_ILBody = {
     os <- [];
     ys <- [];
     
-    ys <@ Loop(O_SMDTOpenPRE_Default_LBody).loop1(ys, d * k * t);
+    ys <@ Loop(O_SMDTOpenPRE_Default_Init_LoopBody).loop1(ys, d * k * t);
     
     return ys;
   }
@@ -2891,18 +2906,45 @@ local module O_SMDTOpenPRE_Default_ILBody = {
     os <- [];
     ys <- [];
     
-    O_SMDTOpenPRE_Default_LBody2.i <- 0;
-    while (O_SMDTOpenPRE_Default_LBody2.i < s) {
-      ys <@ Loop(O_SMDTOpenPRE_Default_LBody2).loop1(ys, l * k * t);
-      O_SMDTOpenPRE_Default_LBody2.i <- O_SMDTOpenPRE_Default_LBody2.i + 1;
+    i <- 0;
+    while (i < s) {
+      ys <@ Loop(O_SMDTOpenPRE_Default_Init_LoopBodyNest1).loop1(ys, l * k * t);
+      i <- i + 1;
+    }
+    
+    return ys;
+  }
+  
+  proc init3(pp_init : pseed, tws_init : adrs list) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var ys : dgstblock list;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    
+    tws <- tws_init;
+    pp <- pp_init;
+    ts <- [];
+    xs <- [];
+    os <- [];
+    ys <- [];
+    
+    i <- 0;
+    while (i < s) {
+      j <- 0;
+      while (j < l) {
+        ys <@ Loop(O_SMDTOpenPRE_Default_Init_LoopBodyNest2).loop1(ys, k * t);
+        j <- j + 1;
+      }
+      i <- i + 1;
     }
     
     return ys;
   }
 }.
 
-local equiv test:
-  O_SMDTOpenPRE_Default.init ~ O_SMDTOpenPRE_Default_ILBody.init1 :
+local equiv Eqv_O_SMDTOpenPRE_Default_Init_Orig_CL1:
+  O_SMDTOpenPRE_Default.init ~ O_SMDTOpenPRE_Default_Init_CL.init1 :
     ={arg} /\ d * k * t <= size tws_init{1} ==> ={res, glob O_SMDTOpenPRE_Default}.
 proof.
 proc.
@@ -2910,9 +2952,9 @@ inline{2} 7.
 wp => /=.
 while (   ={glob O_SMDTOpenPRE_Default}
        /\ ys{1} = t{2} 
-       /\ tws_init{1} = O_SMDTOpenPRE_Default_LBody.tws{2}
+       /\ tws_init{1} = O_SMDTOpenPRE_Default_Init_LoopBody.tws{2}
        /\ n{2} = d * k * Top.t
-       /\ d * k * Top.t <= size O_SMDTOpenPRE_Default_LBody.tws{2} 
+       /\ d * k * Top.t <= size O_SMDTOpenPRE_Default_Init_LoopBody.tws{2} 
        /\ size O_SMDTOpenPRE_Default.ts{1} = i{2}
        /\ size O_SMDTOpenPRE_Default.ts{1} <= d * k * t).
 + inline{2} 1.
@@ -2920,33 +2962,159 @@ while (   ={glob O_SMDTOpenPRE_Default}
 by wp; skip => />; smt(ge1_d ge1_k ge2_t).
 qed.
 
-local equiv test2:
-  O_SMDTOpenPRE_Default_ILBody.init1 ~ O_SMDTOpenPRE_Default_ILBody.init2 :
+local equiv Eqv_O_SMDTOpenPRE_Default_Init_CL1_CL2:
+  O_SMDTOpenPRE_Default_Init_CL.init1 ~ O_SMDTOpenPRE_Default_Init_CL.init2 :
     ={arg} ==> ={res, glob O_SMDTOpenPRE_Default}.
 proof.
 proc.
-rewrite equiv [{1} 7 (loop1_loopk O_SMDTOpenPRE_Default_LBody) (ys, s, l * k * t :@ ys)].
+rewrite equiv [{1} 7 (loop1_loopk O_SMDTOpenPRE_Default_Init_LoopBody) (ys, s, l * k * t :@ ys)].
 + wp; skip => />; rewrite dval; smt(ge1_s Top.ge1_l ge1_k ge2_t). 
 inline{1} 7.
 wp => /=.
-while (   ={glob O_SMDTOpenPRE_Default_LBody}
-       /\ i{1} = O_SMDTOpenPRE_Default_LBody2.i{2}
+while (   ={glob O_SMDTOpenPRE_Default_Init_LoopBody}
+       /\ i{1} = O_SMDTOpenPRE_Default_Init_LoopBodyNest1.i{2}
        /\ t{1} = ys{2} 
-       /\ tws_init{1} = O_SMDTOpenPRE_Default_LBody.tws{2}
+       /\ tws_init{1} = O_SMDTOpenPRE_Default_Init_LoopBody.tws{2}
        /\ n{1} = s
-       /\ k{1} = l * Top.k * Top.t
-       /\ i{1} <= s).
+       /\ k{1} = l * Top.k * Top.t).
 + inline{2} 1.
   wp => /=.
-  while (   ={glob O_SMDTOpenPRE_Default_LBody, t}
+  while (   ={glob O_SMDTOpenPRE_Default_Init_LoopBody, t}
          /\ j{1} = i{2}
-         /\ i{1} = O_SMDTOpenPRE_Default_LBody2.i{2}
+         /\ i{1} = O_SMDTOpenPRE_Default_Init_LoopBodyNest1.i{2}
          /\ k{1} = n{2}
          /\ k{1} = l * Top.k * Top.t).
   - inline{1} 1; inline{2} 1.
     by wp; rnd; wp; skip => /> /#.
   by wp; skip => /> /#.
-by wp; skip => />; smt(ge1_s).
+by wp; skip => /> /#.
+qed.
+
+local equiv Eqv_O_SMDTOpenPRE_Default_Init_CL2_CL3:
+  O_SMDTOpenPRE_Default_Init_CL.init2 ~ O_SMDTOpenPRE_Default_Init_CL.init3 :
+    ={arg} ==> ={res, glob O_SMDTOpenPRE_Default}.
+proof.
+proc.
+while (={glob O_SMDTOpenPRE_Default_Init_LoopBodyNest1, ys}).
++ rewrite equiv [{1} 1 (loop1_loopk O_SMDTOpenPRE_Default_Init_LoopBodyNest1) (ys, l, k * t :@ ys)].
+  - by wp; skip => />; smt(ge1_k ge2_t).
+  inline{1} 1.
+  wp => /=.
+  while (   ={glob O_SMDTOpenPRE_Default_Init_LoopBodyNest1}
+         /\ i{1} = O_SMDTOpenPRE_Default_Init_LoopBodyNest2.j{2}
+         /\ k{1} = Top.k * Top.t
+         /\ n{1} = l
+         /\ t{1} = ys{2}).
+  - inline{2} 1.
+    wp => /=.
+    while (   ={glob O_SMDTOpenPRE_Default_Init_LoopBodyNest1, t}
+           /\ i{1} = O_SMDTOpenPRE_Default_Init_LoopBodyNest2.j{2}
+           /\ k{1} = Top.k * Top.t
+           /\ n{1} = l
+           /\ j{1} = i{2}
+           /\ n{2} = Top.k * Top.t).
+    * inline{1} 1; inline{2} 1.
+      wp; rnd; wp; skip => /> /#.
+    by wp; skip.
+  by wp; skip => /> /#.
+by wp; skip => /> /#.
+qed.
+
+local module O_SMDTOpenPRE_Default_ILN = {
+  import var O_SMDTOpenPRE_Default
+  
+  proc init(pp_init : pseed, tws_init : adrs list) : dgstblock list = {
+    var x : dgst;
+    var y : dgstblock;
+    var ys : dgstblock list;
+    var tw : adrs;
+    var twy : adrs * dgstblock;
+    var i, j, u, v : int;
+    
+    pp <- pp_init;
+    ts <- [];
+    xs <- [];
+    os <- [];
+    ys <- [];
+    i <- 0;
+    while (i < s) {
+      j <- 0;
+      while (j < l) {
+        u <- 0;
+        while (u < k) {
+          v <- 0;
+          while (v < t) {
+            tw <- nth witness tws_init (i * k * l * t + j * k * t + u * t + v);
+            x <$ ddgstblocklift;
+            y <- f pp tw x;
+            twy <- (tw, y);
+            xs <- rcons xs x;
+            ys <- rcons ys y;
+            ts <- rcons ts twy;
+            v <- v + 1;
+          }
+          u <- u + 1;
+        }
+        j <- j + 1;
+      }
+      i <- i + 1;
+    }
+    
+    return ys;
+  }
+}.
+
+local equiv Eqv_O_SMDTOpenPRE_Default_Init_CL3_ILN:
+  O_SMDTOpenPRE_Default_Init_CL.init3 ~ O_SMDTOpenPRE_Default_ILN.init :
+    ={arg} ==> ={res, glob O_SMDTOpenPRE_Default}.
+proof.
+proc.
+while (   ={glob O_SMDTOpenPRE_Default, ys}
+       /\ O_SMDTOpenPRE_Default_Init_LoopBodyNest1.i{1} = i{2}
+       /\ O_SMDTOpenPRE_Default_Init_LoopBody.tws{1} = tws_init{2}).
++ wp => /=.
+  while (   #pre
+         /\ O_SMDTOpenPRE_Default_Init_LoopBodyNest2.j{1} = j{2}).
+  - rewrite equiv [{1} 1 (loop1_loopk O_SMDTOpenPRE_Default_Init_LoopBodyNest2) (ys, k, t :@ ys)].
+    * by wp; skip => />; smt(ge2_t).
+    inline{1} 1.
+    wp => /=.
+    while (   ={glob O_SMDTOpenPRE_Default}
+           /\ O_SMDTOpenPRE_Default_Init_LoopBody.tws{1} = tws_init{2}
+           /\ O_SMDTOpenPRE_Default_Init_LoopBodyNest1.i{1} = i{2}
+           /\ O_SMDTOpenPRE_Default_Init_LoopBodyNest2.j{1} = j{2}
+           /\ i{1} = u{2}
+           /\ t{1} = ys{2}
+           /\ n{1} = Top.k
+           /\ k{1} = Top.t).
+    * wp => /=.
+      while (   #pre
+             /\ j{1} = v{2}).
+      + inline{1} 1.
+        by wp; rnd; wp; skip => /> /#.
+      by wp; skip => /> /#.
+    by wp; skip => /> /#.
+  by wp; skip => /> /#. 
+by wp; skip => /> /#.
+qed.
+
+local equiv Eqv_O_SMDTOpenPRE_Default_Init_Orig_ILN:
+  O_SMDTOpenPRE_Default.init ~ O_SMDTOpenPRE_Default_ILN.init :
+    ={arg} /\ d * k * t <= size tws_init{1} ==> ={res, glob O_SMDTOpenPRE_Default}.
+proof.
+transitivity O_SMDTOpenPRE_Default_Init_CL.init1
+             (={arg} /\ d * k * t <= size tws_init{1} ==> ={res, glob O_SMDTOpenPRE_Default})
+             (={arg} ==> ={res, glob O_SMDTOpenPRE_Default}) => [/# | // | |].
++ by apply Eqv_O_SMDTOpenPRE_Default_Init_Orig_CL1.
+transitivity O_SMDTOpenPRE_Default_Init_CL.init2
+             (={arg} ==> ={res, glob O_SMDTOpenPRE_Default})
+             (={arg} ==> ={res, glob O_SMDTOpenPRE_Default}) => [/# | // | |].
++ by apply Eqv_O_SMDTOpenPRE_Default_Init_CL1_CL2.
+transitivity O_SMDTOpenPRE_Default_Init_CL.init3
+             (={arg} ==> ={res, glob O_SMDTOpenPRE_Default})
+             (={arg} ==> ={res, glob O_SMDTOpenPRE_Default}) => [/# | // | |].
++ by apply Eqv_O_SMDTOpenPRE_Default_Init_CL2_CL3.
+by apply Eqv_O_SMDTOpenPRE_Default_Init_CL3_ILN.
 qed.
 
 (*
@@ -3053,9 +3221,30 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_ITSR] StdOrder.RealOrder.ler_a
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.ler_add.
 + byequiv=> //.
   proc.
+  rewrite equiv [{2} 3 Eqv_O_SMDTOpenPRE_Default_Init_Orig_ILN]; last first.
+  - inline{1} 2; inline{2} 2.
+    wp => />.
+    while (   ={tidx, adl, pp, R_FSMDTOpenPRE_EUFCMA.ad}
+            /\ size adl{1} = tidx{1} * l * k * t
+            /\ 0 <= tidx{1} <= s).
+    * wp => /=.
+      while (   ={tidx, kpidx, adl, pp, R_FSMDTOpenPRE_EUFCMA.ad}
+             /\ size adl{1} = tidx{1} * l * k * t + kpidx{1} * k * t
+             /\ 0 <= tidx{1} < s
+             /\ 0 <= kpidx{1} <= l).
+      + wp => /=.
+        while (   ={tidx, kpidx, tbidx, adl, pp, R_FSMDTOpenPRE_EUFCMA.ad}
+               /\ size adl{1} = tidx{1} * l * k * t + kpidx{1} * k * t + tbidx{1}
+               /\ 0 <= tidx{1} < s
+               /\ 0 <= kpidx{1} < l
+               /\ 0 <= tbidx{1} <= k * t).
+        - by wp; skip => />; smt(size_rcons).
+        by wp; skip => />; smt(ge1_k ge2_t).      
+      by wp; skip => />; smt(Top.ge1_l ge1_k ge2_t).
+    by wp; rnd; skip => />; smt(dval ge1_s Top.ge1_l ge1_k ge2_t).
   inline{1} 3; inline{2} 2; inline{2} 7.
-  inline{2} 16.
-  seq 7 23 : (   ={glob A}
+  inline{2} 17.
+  seq 7 24 : (   ={glob A}
               /\ ad{1} = adz
               /\ ad{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
               /\ ad{1} = ad0{1}
@@ -3091,6 +3280,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
              (s - size pkFORSs{2}).
     * admit.
     admit.
+  (*
     wp => /=.
     while (   ps0{1} = O_SMDTOpenPRE_Default.pp{2}
            /\ ad0{1} = R_FSMDTOpenPRE_EUFCMA.ad{2}
@@ -3111,6 +3301,8 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
            /\ size skFORSs0{1} <= s
            /\ size O_SMDTOpenPRE_Default.ts{2} <= d * k * t
            /\ size O_SMDTOpenPRE_Default.xs{2} = size O_SMDTOpenPRE_Default.ts{2}).
+    admit.
+  *)
   inline{2} 13; inline{2} 12; inline{2} 11.
   wp 30 10 => /=.
   conseq (: _ 

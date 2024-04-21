@@ -142,7 +142,7 @@ proof.
 split=> [| @/pre_f_l ge2_szprefl]. 
 + elim => x' [neqx_xp eqfkx_fkxp].
   by apply (mem_size_ge2 _ x' x) => //; rewrite mem_to_seq 1:is_finite_ispref.
-move: (uniq_to_seq (is_pre_f k (f k x)) (is_finite_ispref k (f k x))).
+move: (uniq_to_seq (is_pre_f k (f k x))).
 move/uniq_size_ge2_mem => /(_ ge2_szprefl) -[x' x''] [#] neqxp_xpp xpin xppin.
 case (x' = x) => [eqx_xp | neqx_xp].
 + exists x''; split; 1: by rewrite -eqx_xp eq_sym. 
@@ -156,7 +156,7 @@ local lemma eqv_img_prefl (k : key) (x x' : input) :
 proof.
 split => [-> // | @/pre_f_l eq_prefl].
 move: (to_seq_finite (is_pre_f k (f k x)) _); 1: by apply is_finite_ispref.  
-rewrite uniq_to_seq 1:is_finite_ispref /= => /(_ x') /iffLR /(_ _).
+rewrite uniq_to_seq  /= => /(_ x') /iffLR /(_ _).
 + by rewrite eq_prefl to_seq_finite 1:is_finite_ispref.
 by rewrite /is_pre_f => ->.
 qed.
@@ -398,7 +398,7 @@ case (y = f k x /\ b) => [[-> ->] | /negb_and neqfkx_y]; last first.
     rewrite mulf_eq0; case (z' \in (pre_f_l k (f k z))) => zpin; [right | left].
     * rewrite dunitE /=; case (z' = x) => [->> | //] /=.
       by rewrite (: f k z = f k x) 1:eqv_img_mem // /#. 
-    by rewrite prratE count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref /#.
+    by rewrite prratE count_uniq_mem 1:uniq_to_seq  /#.
   by rewrite dmap1E /pred1 /(\o) dunitE /#.
 pose flundenum := flatten (undup (map (fun z => pre_f_l k (f k z)) enum)).
 have permenum: perm_eq enum flundenum.
@@ -408,8 +408,8 @@ have permenum: perm_eq enum flundenum.
   - by rewrite mem_undup mapP; exists x'; rewrite enumP.
   rewrite StdBigop.Bigint.BIA.big1_seq /=; 1: move => xl -[@/predC1 neqxl].
   - rewrite mem_undup mapP => -[z /= [zin ->>]].
-    by rewrite count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref /=; smt(eqv_prefl_mem).
-  by rewrite count_uniq_mem 2:to_seq_finite 1:uniq_to_seq 1,2:is_finite_ispref.
+    by rewrite count_uniq_mem 1:uniq_to_seq /=; smt(eqv_prefl_mem).
+  by rewrite count_uniq_mem 2:to_seq_finite 1:uniq_to_seq 1:is_finite_ispref.
 rewrite (eq_big_perm _ _ _ flundenum) // eq_sym (eq_big_perm _ _ _ flundenum) //.
 rewrite ?big_flatten ?big_seq &(eq_bigr) => s /=.
 rewrite mem_undup mapP => -[z /= [zin ->]]; rewrite 2?big_seq.
@@ -428,7 +428,7 @@ case (x \in pre_f_l k (f k z)) => [xin | xnin]; last first.
   right; move/eqv_prefl_mem: (zpin) => <-.
   by rewrite eqi_szfkz /= dunit1E; smt(eqv_img_mem).
 rewrite &(eq_trans _ (inv card%r)) 2:eq_sym; last first.
-+ rewrite (bigD1_cond _ _ _ x) 1,2:// 1:uniq_to_seq 1:is_finite_ispref /=.
++ rewrite (bigD1_cond _ _ _ x) 1,2:// 1:uniq_to_seq /=.
   rewrite -(addr0 (inv card%r)); congr; 1: rewrite -(mulr1 (inv card%r)).
   - congr; 1: rewrite mu1_uni_ll 1:dinput_uni 1:dinput_ll dinput_fu /=.
     * rewrite card_size_to_seq; do 4! congr.
@@ -444,13 +444,13 @@ rewrite (sumr_const_val _ _ ((inv card%r) * (inv i%r))) /= => [z' ^ zpin /eqv_pr
   rewrite dlet_dlet dlet1E /= (sumE_fin _ (pre_f_l k (f k z))).
   - by rewrite uniq_to_seq is_finite_ispref. 
   - move=> z'' /=; apply contraLR => /= znin.
-    by rewrite prratE /= count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref znin /b2i.
-  rewrite (bigD1 _ _ x) 1:// 1:uniq_to_seq 1:is_finite_ispref /=.
+    by rewrite prratE /= count_uniq_mem 1:uniq_to_seq  znin /b2i.
+  rewrite (bigD1 _ _ x) 1:// 1:uniq_to_seq  /=.
   rewrite -(addr0 (inv i%r)); congr; last first.
   - apply big1_seq => z'' @/predC1 [neqxzpp zppin] /=.
     by rewrite mulf_eq0; right; rewrite dmap1E /pred1 /(\o) dunitE /= neqxzpp.
   rewrite -(mulr1 (inv i%r)); congr.
-  - by rewrite prratE count_uniq_mem 1:uniq_to_seq 1:is_finite_ispref xin eqi_szfkz /b2i.
+  - by rewrite prratE count_uniq_mem 1:uniq_to_seq  xin eqi_szfkz /b2i.
   rewrite dmap1E dunitE /pred1 /(\o) /=.
   by move/eqv_img_mem: xin zpin => <- /eqv_img_mem <-.  
 by rewrite count_predT_eq_in 1:// eqi_szfkz /= mulrC invfM -mulrA mulVf 1:/#.
@@ -669,18 +669,17 @@ seq 1 : r prsi j1dj _ 0%r
 hoare. 
 by rnd; skip => />.
 qed.
-  
+
 local lemma pr_SPprob_bigSi &m: 
-  Pr[SPprob.main() @ &m : res]
+  Pr[SPprob(R_DSPR_PRE(A)).main() @ &m : res]
   =
   bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 2 (card + 1)
   +
   bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
 proof.
-rewrite (: Pr[SPprob.main() @ &m : res] = Pr[SPprobA.main() @ &m : res]).
+rewrite (: Pr[SPprob(R_DSPR_PRE(A)).main() @ &m : res] = Pr[SPprobA.main() @ &m : res]).
 + byequiv=> //.
-  proc.
-  call{2} A_find_ll. 
+  proc; inline {1} 3.
   by sim. 
 have ->:
   Pr[SPprobA.main() @ &m : res]
@@ -839,7 +838,7 @@ by wp; rnd; rnd; skip => /> /#.
 qed.
 
 local lemma pr_DSPRSPprob_bigSi &m :
-  Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob.main() @ &m : res]
+  Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob(R_DSPR_PRE(A)).main() @ &m : res]
   =
   Pr[Si.main(1) @ &m : res] 
   -
@@ -847,8 +846,7 @@ local lemma pr_DSPRSPprob_bigSi &m :
 proof.
 rewrite pr_DSPR_bigSiFi pr_SPprob_bigSi.
 field; rewrite -big_split /= subr_eq0 &(eq_big_seq) => i /mem_range rng_i /=.
-rewrite -mulrDl -{1}mul1r -mulrDl (: 1%r + (i%r - 1%r) = i%r) 1:/#.
-by rewrite mulrC mulrA mulVf 1:/#.
+by rewrite -mulrDl -{1}mul1r /= !mulrDl /= 1:/#.
 qed.
 
 local lemma pr_SPR_bigSi &m :
@@ -909,12 +907,12 @@ qed.
 lemma PRE_From_DSPR_SPR &m :
   Pr[PRE(A).main() @ &m : res] 
   <= 
-  max 0%r (Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob.main() @ &m : res])
+  max 0%r (Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob(R_DSPR_PRE(A)).main() @ &m : res])
   +
   3%r * Pr[SPR(R_SPR_PRE(A)).main() @ &m : res].
 proof.
 apply (ler_trans 
-        (Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob.main() @ &m : res] +
+        (Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] - Pr[SPprob(R_DSPR_PRE(A)).main() @ &m : res] +
          3%r * Pr[SPR(R_SPR_PRE(A)).main() @ &m : res])); last first.
 + by apply ler_add; 1: rewrite max_ger. 
 rewrite pr_PRE_bigSi pr_DSPRSPprob_bigSi pr_SPR_bigSi.

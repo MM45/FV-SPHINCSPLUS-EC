@@ -247,7 +247,7 @@ abstract theory SMDTOpenPRE.
       opened <@ O.opened(i);
       dist <@ O.dist_tweaks();
 
-      return 0 <= nrts <= t_smdtopenpre /\ !opened /\ dist /\ f pp tw x = y;  
+      return 0 <= i < nrts /\ 0 <= nrts <= t_smdtopenpre /\ !opened /\ dist /\ f pp tw x = y;  
     }
   }.
 end SMDTOpenPRE.

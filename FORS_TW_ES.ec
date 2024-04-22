@@ -3566,92 +3566,58 @@ seq 3 8 : (   ={glob A, ps, ad}
                  /\ size nodescl <= nr_nodes (size nodest + 1))
                 (nr_nodes (size nodest + 1) - size nodescl).
           + move=> z'.
-            wp; skip => /> &2.
-            rewrite ?size_rcons.
-            progress.
-            rewrite nth_rcons.
-            case (v < size nodescl{2}) => [/# | ?].
+            wp; skip => /> &2 nthndst eqt_szlfs lts_szndss ltl_szndsl ltk_szndsk _ lta_szndst nthndscl _ ltnrn1_szndscl.
+            rewrite ?size_rcons -andbA; split => [v ge0_v ltsz1_v | /#].
+            rewrite nth_rcons; case (v < size nodescl{2}) => [/# | ?].
             have eqsz_v : v = size nodescl{2} by smt().
-            rewrite eqsz_v /=.
-            rewrite /val_bt_trh_gen. 
-            search sub_bt.
-            rewrite (: a - size nodest{2} - 1 = a - (size nodest{2} + 1)) 1:/#.
-            rewrite subbt_list2tree_takedrop. smt(ge1_a size_ge0).
-            smt(ge1_a size_ge0).
-            smt(ge1_a size_ge0).
-            
-            rewrite oget_some (last_nth witness).
-            case (size nodest{2} = 0) => [szn0 |nszn0].
-            rewrite szn0 /= expr1.
-            search take 1.
-            rewrite {3}(: 2 = 1 + 1) 1:// (take_nth witness).
-            rewrite size_drop. smt(size_ge0).
-            simplify.
-            suff : 1 < size leavest{2} - size nodescl{2} * 2 by smt().
-            rewrite ltr_subr_addl /= H0.
-            rewrite (IntOrder.ltr_le_trans (nr_nodes (size nodest{2}))).
-            admit.
-            smt().
-            rewrite (take1_head witness) 1:size_drop. admit. admit.
-            rewrite nth_drop. admit. trivial => /=. 
-            
-            rewrite -cats1 (list2treeS 0) ?expr0 //.
-            rewrite /trhi /=. congr.
-            rewrite ?list2tree1 /=. rewrite -nth0_head nth_drop.
-            admit. trivial. smt().
-            rewrite nszn0 /=.
-            rewrite ?H. smt(size_ge0).
-            (*  2 * size nodescl{2} + 1 < nr_nodes (size nodest{2}) 
-                move: ge1_2aszn2szncl; rewrite lez_eqVlt => -[eq1_2as | gt1_2as].
+            rewrite eqsz_v /val_bt_trh_gen (: a - size nodest{2} - 1 = a - (size nodest{2} + 1)) 1:/# /=.
+            rewrite subbt_list2tree_takedrop 4:oget_some; 1..3: smt(ge1_a size_ge0).
+            have ltnn_2szndscl1 : 2 * size nodescl{2} + 1 < nr_nodes (size nodest{2}).
+            - rewrite &(IntOrder.ltr_le_trans (2 + 2 * (nr_nodes (size nodest{2} + 1) - 1))) 1:/#.
+              by rewrite /nr_nodes mulzDr /= -{1}expr1 -exprD_nneg // /#.
+            have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1 by smt().
+            rewrite (last_nth witness); case (size nodest{2} = 0) => [szn0 | nszn0].
+            - rewrite szn0 /= expr1 {3}(: 2 = 1 + 1) 1:// (take_nth witness) 1:size_drop 2:/=; 1,2: smt(size_ge0). 
+              rewrite (take1_head witness) 1:size_drop 3:nth_drop 2:/= 4://; 1..3: smt(size_ge0). 
+              rewrite -cats1 (list2treeS 0) ?expr0 1..3:// /trhi /=. 
+              by rewrite ?list2tree1 /= -nth0_head nth_drop; smt(size_ge0).
+            rewrite nszn0 /= (: 2 ^ (size nodest{2} + 1) = 2 ^ (size nodest{2}) + 2 ^ (size nodest{2})).
+            + by rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
+            rewrite take_take_drop_cat 1,2:expr_ge0 1,2://.
+            rewrite drop_drop 1:expr_ge0 1://; 1: smt(IntOrder.expr_ge0).
+            rewrite (list2treeS (size nodest{2})) 1:size_ge0 1,2:size_take 1,3:expr_ge0 1,3:// 1,2:size_drop; 1,3: smt(size_ge0 IntOrder.expr_ge0).
+            + rewrite eqt_szlfs /t (: 2 ^ a = 2 ^ (a - size nodest{2}) * 2 ^ (size nodest{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              pose szn2 := 2 ^ (size nodest{2}). 
+              rewrite (: 2 ^ (a - size nodest{2}) * szn2 - size nodescl{2} * (szn2 + szn2) = (2 ^ (a - size nodest{2}) - 2 * size nodescl{2}) * szn2) 1:/#.
+              pose mx := max _ _; rewrite (: 2 ^ (size nodest{2}) < mx) // /mx.
+              pose sb := ((_ - _ * _) * _)%Int; rewrite &(IntOrder.ltr_le_trans sb) /sb 2:maxrr.
+              by rewrite ltr_pmull 1:expr_gt0 // /#.
+            + rewrite eqt_szlfs /t (: 2 ^ a = 2 ^ (a - size nodest{2}) * 2 ^ (size nodest{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
+              pose szn2 := 2 ^ (size nodest{2}). 
+              rewrite (: 2 ^ (a - size nodest{2}) * szn2 - (szn2 + size nodescl{2} * (szn2 + szn2)) = (2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1) * szn2) 1:/#.
+              pose sb := ((_ - _ - _) * _)%Int.
+              move: ge1_2aszn2szncl; rewrite lez_eqVlt => -[eq1_2as | gt1_2as].
               - by rewrite /sb -eq1_2as /= lez_maxr 1:expr_ge0.
               rewrite lez_maxr /sb 1:mulr_ge0 2:expr_ge0 //= 1:subr_ge0 1:ler_subr_addr.
-              - rewrite &(IntOrder.ler_trans (1 + 2 * (nr_nodes (size nodes{2} + 1) - 1))) 1:/#.
+              - rewrite &(IntOrder.ler_trans (1 + 2 * (nr_nodes (size nodest{2} + 1) - 1))) 1:/#.
                 by rewrite /nr_nodes mulzDr -{1}(expr1 2) -exprD_nneg // /#.
-              rewrite (: szn2 < (2 ^ (h' - size nodes{2}) - 2 * size nodescl{2} - 1) * szn2) //.    
-              by rewrite ltr_pmull 1:expr_gt0.*)
-            
-            admit.
-            smt(size_ge0).
-            admit.
-            simplify.
-            rewrite (: 2 ^ (size nodest{2} + 1) = 2 ^ (size nodest{2}) + 2 ^ (size nodest{2})).
-            + by rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
-            rewrite take_take_drop_cat. rewrite expr_ge0 //.
-            rewrite expr_ge0 //.
-            
-            rewrite (list2treeS (size nodest{2})) 1:size_ge0.
-            admit.
-            admit.
-            rewrite (: a - (size nodest{2} - 1) - 1 = a - size nodest{2}) 1:/#. rewrite 2?subbt_list2tree_takedrop.
-            smt(ge1_a size_ge0).
-            
-            admit.
-            smt(ge1_a size_ge0).
-            smt(ge1_a size_ge0).
-            admit.
-            smt(ge1_a size_ge0).
-            rewrite ?oget_some.
-            rewrite /= /trhi /=. congr.
-            rewrite /val_bt_trh_gen /= /trhi /=.
-            rewrite drop_drop. rewrite expr_ge0 //.
-            admit.
-            do 2! congr. congr. smt().
-            rewrite /updhbidx /=. admit.
-            congr. smt().
-            rewrite /updhbidx /=. admit.
-            smt().
-            smt().
-          wp; skip => /> &2.
-          progress. smt(). rewrite /nr_nodes expr_ge0 1://. 
-          smt(expr_ge0).
-          rewrite nth_rcons.
-          case (u < size nodest{2}) => [/# | /lezNgt gesz_u].
+              rewrite (: szn2 < (2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1) * szn2) //.    
+              by rewrite ltr_pmull 1:expr_gt0.
+            rewrite 2?nthndst /=; 1..4: smt(size_ge0).
+            rewrite (: a - (size nodest{2} - 1) - 1 = a - size nodest{2}) 1:/#.
+            rewrite 2?subbt_list2tree_takedrop 3,6://; 1..4: smt(size_ge0).
+            rewrite oget_some /val_bt_trh_gen /trhi /updhbidx /=; do 4! congr => [/# | /= | /# | /=].
+            + rewrite /nr_nodes mulrDr mulrA; congr.
+              by rewrite eq_sym mulrAC -{1}expr1 -exprD_nneg 1:// /#.
+            rewrite /nr_nodes mulrDr -addrA; congr.
+            by rewrite eq_sym mulrCA; congr; rewrite -{1}expr1 -exprD_nneg 1:// /#.
+          wp; skip => /> &2 nthndst eqt_szlfs lts_szndss ltl_szndsl ltk_szndsk _ lta_szndst.
+          split => [| ndscl] ; 1: by rewrite expr_ge0 /#.
+          split => [/# | /lezNgt genn1_szndscl nthndscl lenn1_szndscl].
+          rewrite ?size_rcons -andbA; split => [u v ge0_u ltsz1_u ge0_v ltnnu1_v | /#].
+          rewrite nth_rcons; case (u < size nodest{2}) => [/# | /lezNgt gesz_u].
           have eqsz_u : u = size nodest{2} by smt(size_rcons).
-          rewrite eqsz_u /= H7.
-          have ->: size nodescl0 = nr_nodes (size nodest{2} + 1) by smt().
-          rewrite -eqsz_u /= /#. trivial.
-          smt(size_rcons).
-          smt(size_rcons).
+          by rewrite eqsz_u /= nthndscl 1:/# //.
         wp => /=.
         while (   #pre
                /\ leaves1{1} = leavest{2}
@@ -3661,24 +3627,13 @@ seq 3 8 : (   ={glob A, ps, ad}
                /\ idxt{1} = size roots{1}
                /\ size leavest{2} <= t).
         * by wp; skip => />; smt(size_rcons).
-        wp; skip => />.
-        progress.
-        smt(ge2_t).
-        smt().
-        smt().
-        smt().
-        smt().
-        smt(ge1_a).
-        smt(ge1_a).
-        smt(ge1_a).
-        rewrite H17.
-        smt(ge1_a).
-        rewrite expr_gt0 //.
-        simplify.
-        rewrite /val_bt_trh /nr_nodes /= expr0 /=. congr. smt().
+        wp; skip => /> &2 eqszpksks eqszndssks _ lts_szsks eqszpkskl eqszndsskl _ ltl_szskl eqszlfsrsk _ eqszndslfsk _ ltk_szrsk ltk_szlfsk.
+        split => [| lfs /lezNgt get_szlfs _ let_szlfs]; 1: smt(ge2_t).
+        split => [ | ndst ]; 1: smt(ge1_a).
+        split => [/# | /lezNgt gea_szndst nthndst eqt_szlfs lts_szndss ltl_szndsl ltk_szndsk lea_szndst].
+        rewrite nthndst 2:expr_gt0 2..3:// 2:/=; 1: smt(ge1_a).
         rewrite (: a - (a - 1) - 1 = 0) 1:/#.
-        by rewrite int2bs0s rev_nil subbt_empty /=.
-        smt().
+        by rewrite int2bs0s rev_nil subbt_empty /nr_nodes /= expr0 /#.
       by wp; skip => />; smt(ge1_k).
     by wp; skip => />; smt(Top.ge1_l size_rcons).
   by wp; skip => />; smt(ge1_s).
@@ -5018,13 +4973,16 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
   rewrite nthxs 3:// 1:divz_ge0 2:ltz_divLR 4:modz_ge0 5:ltz_pmod 6:// 6:bs2int_ge0 6:bsltt 6://; 1..5: smt(Top.ge1_l Index.valP dval).
   rewrite -eqlf /= /chunk ?nth_mkseq 1:valP 1:mulzK 2,3://; 1: smt(ge1_a).
   by do ? congr => /=; rewrite nth_mkseq 1:valP 1:mulzK 2://;1: smt(ge1_a).
+have ->:
+  Pr[EUF_CMA_MFORSTWESNPRF_V.main() @ &m : (res /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR) /\ !EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE]
+  =
+  Pr[EUF_CMA_MFORSTWESNPRF_VI.main() @ &m : res /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR /\ !EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE].
++ by byequiv Eqv_EUF_CMA_MFORSTWESNPRF_V_VI.
 rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler_add.
 + byequiv=> //.
   proc.
-  inline{1} 3.
   inline{2} 5; inline{2} 4.
-  inline{1} FL_FORS_TW_ES_NPRF.gen_pkFORS.
-  inline{1} FL_FORS_TW_ES_NPRF.gen_leaves_single_tree.
+  admit.
 admit.
 qed.
 

@@ -22,13 +22,6 @@ type out_t.
 
 op f : pp_t -> tw_t -> in_t -> out_t.
 
-(*
-op gd : in_t -> df_t.
-
-op fc : df_t -> pp_t -> tw_t -> in_t -> out_t.
-axiom in_collection: exists (df : df_t), fc df = f.
-*)
-
 op [lossless] dpp : pp_t distr.
 op [lossless full uniform] din : in_t distr.
 

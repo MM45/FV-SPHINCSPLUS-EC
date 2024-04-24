@@ -828,59 +828,75 @@ rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem.
 by rewrite eq_tw eq_ii eq_pp; congr; smt(Si_eq_sem).
 qed.
 
+local lemma ef0 ii jj :
+   !(0 <= jj /\ 0 < ii) =>
+     phoare [Si_early_fail.main : arg = (ii,jj) ==> res ] = 0%r.
+proof.
+move => bdij.
+case (jj < 0) => bdj.
++ hoare.
+  proc.
+  do 6!(wp;call (: true);1:by auto).
+  by call(:true);auto; smt().
+
+hoare.
+proc => /=;inline *;wp.  call(:true);1:by auto.
+wp;while(
+     O_SMDTOpenPRE_Default_early_fail._j = jj /\ _j = jj 
+  /\ O_SMDTOpenPRE_Default_early_fail._i = ii /\ _i = ii
+  /\ 0 <= size O_SMDTOpenPRE_Default.ts <= min (size tws_init) t 
+  /\ (jj < min (size tws_init) t => jj < size O_SMDTOpenPRE_Default.ts => 
+         !O_SMDTOpenPRE_Default_early_fail.r)); last 
+  by wp;call(:true);auto => />;smt(ge0_t size_ge0).
+sp;if; by auto => />;smt(size_rcons size_ge0 rngprefl_image).
+qed.
+
+local lemma is0 ii jj :
+   !(0 <= jj /\ 0 < ii) =>
+     phoare [Si_inverse_sample.main : arg = (ii,jj) ==> res ] = 0%r.
+proof.
+move => bdij.
+case (jj < 0) => bdj.
++ hoare.
+  proc.
+  do 6!(wp;call (: true);1:by auto).
+  by call(:true);auto; smt().
+
+hoare.
+proc => /=;inline *;wp.  call(:true);1:by auto.
+wp;while(
+     O_SMDTOpenPRE_Default_early_fail._j = jj /\ _j = jj 
+  /\ O_SMDTOpenPRE_Default_early_fail._i = ii /\ _i = ii
+  /\ 0 <= size O_SMDTOpenPRE_Default.ts <= min (size tws_init) t 
+  /\ (jj < min (size tws_init) t => jj < size O_SMDTOpenPRE_Default.ts => 
+         !O_SMDTOpenPRE_Default_early_fail.r)); last 
+  by wp;call(:true);auto => />;smt(ge0_t size_ge0).
+sp;if;2: by auto => />;smt(size_rcons size_ge0 rngprefl_image). search pre_f_l .
+by rcondf 5; auto => />;smt(size_rcons size_ge0 rngprefl_image supp_dmap).
+qed.
+
+
 local lemma pr_Sief_Siis (ii jj : int) &m:
   Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
   =
   Pr[Si_inverse_sample.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x].
 proof.
-case (0 <= jj) => bdj;last first.
+case (0 <= jj /\ 0 < ii) => bdj;last first.
 + have ->:
     Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x] = 0%r.
-  - byphoare (_: arg.`2 < 0 ==> _) => //=;2:smt().
-    hoare.
-    proc.
-    do 6!(wp;call (: true);1:by auto).
-    by call(:true);auto; smt().
-  byphoare (_: arg.`2 < 0 ==> _) => //=;2:smt().
-  hoare.
-  proc.
-  do 6!(wp;call (: true);1:by auto).
-  by call(:true);auto; smt().
-  
-case (0 < ii) => bdi;last first.
-+ have ->:
-    Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x] = 0%r.
-  - byphoare (_: arg.`1 <= 0 /\ _j = jj /\ _i = ii ==> _) => //=;2:smt().
-    hoare.
-    proc => /=;inline *;wp.  call(:true);1:by auto.
-    wp;while(
-         O_SMDTOpenPRE_Default_early_fail._j = jj /\ _j = jj 
-      /\ O_SMDTOpenPRE_Default_early_fail._i = ii /\ _i = ii
-      /\ 0 <= size O_SMDTOpenPRE_Default.ts <= min (size tws_init) t 
-      /\ (jj < min (size tws_init) t => jj < size O_SMDTOpenPRE_Default.ts => 
-             !O_SMDTOpenPRE_Default_early_fail.r)); last 
-      by wp;call(:true);auto => />;smt(ge0_t size_ge0).
-    sp;if; by auto => />;smt(size_rcons size_ge0 rngprefl_image).
-  byphoare (_: arg.`1 <= 0 /\ _j = jj /\ _i = ii ==> _) => //=;2:smt().
-  hoare.
-  proc => /=;inline *;wp.  call(:true);1:by auto.
-  wp;while(
-       O_SMDTOpenPRE_Default_early_fail._j = jj /\ _j = jj 
-    /\ O_SMDTOpenPRE_Default_early_fail._i = ii /\ _i = ii
-    /\ 0 <= size O_SMDTOpenPRE_Default.ts <= min (size tws_init) t 
-    /\ (jj < min (size tws_init) t => jj < size O_SMDTOpenPRE_Default.ts => 
-           !O_SMDTOpenPRE_Default_early_fail.r)); last 
-    by wp;call(:true);auto => />;smt(ge0_t size_ge0).
-  sp;if;2: by auto => />;smt(size_rcons size_ge0 rngprefl_image). search pre_f_l .
-  by rcondf 5; auto => />;smt(size_rcons size_ge0 rngprefl_image supp_dmap).
-
+  - have : Pr[Si_early_fail.main(ii,jj) @ &m : res] = 0%r. 
+    + byphoare (ef0 ii jj bdj) => //. 
+      by rewrite Pr[mu_split OPREg.x' <> OPREg.x];smt(mu_bounded).
+  have : Pr[Si_inverse_sample.main(ii,jj) @ &m : res] = 0%r. 
+  + byphoare (is0 ii jj bdj) => //. 
+  by rewrite Pr[mu_split OPREg.x' <> OPREg.x];smt(mu_bounded).    
 by byequiv (pr_Sief_Siis_eq ii jj _ _) => /#.
 qed.
 
 local equiv pr_Siis_Siisa_eq (ii jj : int) :
    Si_inverse_sample.main ~ Si_inverse_sample_alt.main :
      arg{2}.`1 = ii /\ arg{2}.`2=jj /\ ={arg,glob A}
-             ==> (res /\ OPREg.x'<>OPREg.x){1} = (res /\ OPREg.x' <> OPREg.x){2}.
+             ==> ={res} /\ ((res /\ OPREg.x'<>OPREg.x){1} = (res /\ OPREg.x' <> OPREg.x){2}).
 proc.
 inline *.
 swap {1} [4..5] -3; swap {2} [6..7] -5.
@@ -1018,6 +1034,7 @@ local lemma pr_Siis_Siisa (ii jj : int) &m:
 
 
 local lemma PrSiis_Siisa_sub (_ii _jj : int) &1 &2 :
+(glob A){1} = (glob A){2} =>
 Pr[Si.main(_ii, _jj) @ &1 : res]=
 Pr[Si_inverse_sample_alt.same_as_si(_ii, _jj) @ &2 :
       res.`3 = _jj 
@@ -1027,7 +1044,32 @@ Pr[Si_inverse_sample_alt.same_as_si(_ii, _jj) @ &2 :
    /\ ! res.`5 
    /\ res.`6 
    /\ f res.`1 res.`7 OPREg.x' = res.`8].
-admitted.
+proof.
+move => ga.
+have -> : Pr[Si.main(_ii, _jj) @ &1 : res] = 
+          Pr[Si_early_fail.main(_ii, _jj) @ &1 : res]
+  by byequiv (pr_Si_Sief_eq _ii _jj).
+
+have -> : Pr[Si_early_fail.main(_ii, _jj) @ &1 : res] = 
+          Pr[Si_inverse_sample.main(_ii, _jj) @ &1 : res].
+case (0 <= _jj /\ 0 < _ii) => bdj;last first.
++ have ->: Pr[Si_early_fail.main(_ii,_jj) @ &1 : res] = 0%r. 
+    + byphoare (ef0 _ii _jj bdj) => //.
+    byphoare (is0 _ii _jj bdj) => //. 
+  by byequiv (pr_Sief_Siis_eq _ii _jj _ _) => /#.
+
+have -> : Pr[Si_inverse_sample.main(_ii, _jj) @ &1 : res] = 
+          Pr[Si_inverse_sample_alt.main(_ii, _jj) @ &1 : res]
+  by byequiv (pr_Siis_Siisa_eq _ii _jj).
+
+byequiv (: arg{1} = (_ii,_jj) /\ arg{2} = (_ii,_jj) /\ (glob A){1} = (glob A){2} ==> _) => //. 
+proc*;inline {1} 1. 
+wp;seq 3 1 : #post; last by auto => />;smt(drat_ll).
+inline *;wp => /=;sp 2 2. 
+conseq (_: _ ==> ={OPREg.i,O_SMDTOpenPRE_Default_early_fail.r,O_SMDTOpenPRE_Default.ts,
+                  O_SMDTOpenPRE_Default.os,OPREg.pp,OPREg.x'});1: by smt().
+by sim.
+qed.
 
 local lemma pr_cond_neqxxp_Si (_ii,_jj : int) &m:
   Pr[Si.main(_ii,_jj) @ &m : res /\ OPREg.x' <> OPREg.x]
@@ -1119,7 +1161,7 @@ by auto => />;smt(nth_rcons size_rcons).
    /\ (0 <= res.`4 && res.`4 <= t) /\ !res.`5 /\ res.`6 
    /\ f res.`1 res.`7 OPREg.x' = res.`8) => //.
   rewrite /prsi; bypr => //= &m' [eqglob [-> ->]].
-  by rewrite eq_sym; apply (PrSiis_Siisa_sub _ii _jj).
+  by rewrite eq_sym; apply (PrSiis_Siisa_sub _ii _jj  &m &m' _) => /#.
 
 + rnd (fun x => x <>  OPREg.x').
   auto  => /> &hr *; rewrite ifF 1:/# prratE /= /i1di;congr;last by smt(). 

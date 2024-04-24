@@ -828,6 +828,26 @@ rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem.
 by rewrite eq_tw eq_ii eq_pp; congr; smt(Si_eq_sem).
 qed.
 
+local lemma opreg0  :
+     phoare [ OPREg(A,O_SMDTOpenPRE_Default).main : true ==> res /\ !((0 <= OPREg.i && OPREg.i < t))] = 0%r.
+proof.
+hoare.
+proc.
+do 6!(wp;call (: true);1:by auto).
+by call(:true);auto; smt(size_ge0 rngprefl_image).
+qed.
+
+local lemma si0 ii jj :
+   !(0 <= jj /\ 0 < ii) =>
+     phoare [Si.main : arg = (ii,jj) ==> res ] = 0%r.
+proof.
+move => bdij.
+hoare.
+proc.
+do 6!(wp;call (: true);1:by auto).
+by call(:true);auto; smt(size_ge0 rngprefl_image).
+qed.
+
 local lemma ef0 ii jj :
    !(0 <= jj /\ 0 < ii) =>
      phoare [Si_early_fail.main : arg = (ii,jj) ==> res ] = 0%r.
@@ -1076,18 +1096,13 @@ local lemma pr_cond_neqxxp_Si (_ii,_jj : int) &m:
   =
   (_ii%r - 1%r) / _ii%r * Pr[Si.main(_ii,_jj) @ &m : res].
 proof.
-case (0 < _ii /\ 0 <= _jj) => bdij;last first.
+case (0 <= _jj /\ 0 < _ii) => bdij;last first.
 + rewrite (: Pr[Si.main(_ii,_jj) @ &m : res] = 0%r) 2:mulr0.
-  - byphoare (_: arg.`1 <= 0 \/ arg.`2 < 0 ==> _) => //=;2:smt().
-    hoare.
-    proc.
-    do 6!(wp;call (: true);1:by auto).
-    by call(:true);auto; smt(size_ge0 rngprefl_image).
-  byphoare (_: arg.`1 <= 0 \/ arg.`2 < 0 ==> _) => //=;2:smt().
-  hoare.
-  proc.
-  do 6!(wp;call (: true);1:by auto).
-  by call(:true);auto; smt(size_ge0 rngprefl_image).
+  + byphoare (si0 _ii _jj bdij) => //.
+  + have : Pr[Si.main(_ii,_jj) @ &m : res] = 0%r. 
+    + byphoare (si0 _ii _jj bdij) => //. 
+      by rewrite Pr[mu_split OPREg.x' <> OPREg.x];smt(mu_bounded).
+
 rewrite pr_Si_Sief pr_Sief_Siis pr_Siis_Siisa mulrC.
 pose prsi := Pr[Si.main(_ii,_jj) @ &m : res].
 pose i1di := (_ii%r - 1%r) / _ii%r.
@@ -1184,62 +1199,74 @@ local lemma pr_OpenPRE_bigSi &m :
     +
     bigi predT (fun (i : int) => Pr[Si.main(i,j) @ &m : res]) 2 (card + 1)) 0 t.
 proof.
-(* have ->: Pr[PRE(A).main() @ &m : res] = Pr[PREg.main() @ &m : res].
-+ by byequiv=> //=; sim.
-*)
-rewrite (: Pr[Si.main(1,j) @ &m : res] = (fun (ii jj : int) => Pr[Si.main(ii,jj) @ &m : res]) 1 j) //.
+have ->: Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res] = Pr[OPREg(A,O_SMDTOpenPRE_Default).main() @ &m : res]
+   by byequiv=> //=; sim.
+rewrite Pr[mu_split (0 <= OPREg.i < t)]; rewrite -(addr0 (big _ _ _));congr;last by byphoare opreg0.
+have -> : 
+  Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < t] =
+  bigi predT (fun (_jj : int) => Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ OPREg.i = _jj]) 0 t.
++ suff : 
+  forall _j, 0<=_j =>
+    Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < _j] =
+      bigi predT (fun (_jj : int) => Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ OPREg.i = _jj]) 0 _j;
+    1: by move => H; move : (H t ge0_t). 
+  elim => /= [ | _j ge0_j jh].
+  + rewrite range_geq 1:// big_nil.
+    by byphoare (: _ ==> false) => // /#.
+  rewrite rangeSr 1:/# big_rcons /predT /= -/predT.
+  by rewrite -jh Pr[mu_split (0 <= OPREg.i && OPREg.i < _j)]; smt().
+
+apply eq_big_int => jj jjr /=.
+rewrite (: Pr[Si.main(1,jj) @ &m : res] = (fun (ii : int) => Pr[Si.main(ii,jj) @ &m : res]) 1) //.
 rewrite -big_consT -range_ltn; 1: smt(card_gt0).
-rewrite Pr[mu_split (1 <= size (pre_f_l PREg.k PREg.y) <= card)] -(addr0 (big _ _ _)).
-congr; last first.
-+ byphoare => //=.
+rewrite Pr[mu_split (1 <= size (pre_f_l OPREg.pp OPREg.tw OPREg.y) <= card)] -(addr0 (big _ _ _)).
+congr; last first.  admit. 
+(* 
++ byphoare opreg0 => //. smt().
   hoare.
   proc.
   call (: true).
   wp; rnd; rnd; skip => /> k kin x xin x'.
-  by rewrite rngprefl_image.
+  by rewrite rngprefl_image. *)
 suff:
-  forall (i : int),
-    0 <= i => 
-      Pr[PREg.main() @ &m : res /\ 1 <= size (pre_f_l PREg.k PREg.y) <= i]
+  forall (_i : int),
+    0 <= _i => 
+      Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : (res /\ OPREg.i = jj) /\ 1 <= size (pre_f_l OPREg.pp OPREg.tw OPREg.y) <= _i]
       =
-      bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 1 (i + 1).
-+ by move => /(_ card); smt(size_ge0).
-elim => /= [ | i ge0_i ih].
+      bigi predT (fun (i : int) => Pr[Si.main(i,jj) @ &m : res]) 1 (_i + 1).
++ move => /(_ card _);  smt(size_ge0).
+elim => /= [ | ii ge0_i ih].
 + rewrite range_geq 1:// big_nil.
   by byphoare (: _ ==> false) => // /#.
-rewrite (: i + 2 = i + 1 + 1) 1:// rangeSr 1:/# big_rcons /predT /= -/predT.
-rewrite -ih Pr[mu_split (size (pre_f_l PREg.k PREg.y) = i + 1)] addrC.
-congr; last first.
-+ byequiv => //=.
-  proc.
-  call (: true).
-  wp; rnd; rnd; skip => /> /#.
-byequiv => //=.
-proc.
-call (: true).
-by wp; rnd; rnd; skip => /> /#.
-
- admit. 
+rewrite (: ii + 2 = ii + 1 + 1) 1:// rangeSr 1:/# big_rcons /predT /= -/predT.
+rewrite -ih Pr[mu_split (size (pre_f_l OPREg.pp OPREg.tw OPREg.y) = ii + 1)] addrC.
+congr; 1: by smt(mu_eq). 
+byequiv => //. 
+proc;inline *;wp;call(: ={glob O_SMDTOpenPRE_Default});1: by sim.
+conseq (: _ ==> ={OPREg.pp, OPREg.ys, glob O_SMDTOpenPRE_Default, glob A}) => /=;1: by smt().
+by sim.  
 qed.
 
 
 local lemma pr_DSPR_bigSiFi &m :
   Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
   =
-  Pr[Si.main(1) @ &m : res] 
+ bigi predT (fun jj =>
+  Pr[Si.main(1,jj) @ &m : res] 
   +
-  bigi predT (fun (i : int) => (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1)
+  bigi predT (fun (ii : int) => (ii%r - 1%r) / ii%r * Pr[Si.main(ii,jj) @ &m : res]) 2 (card + 1)
   +
-  bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
+  bigi predT (fun (ii : int) => Pr[Fi.main(ii,jj) @ &m : res]) 2 (card + 1)) 0 t.
 proof. admit. qed.
 
 
 local lemma pr_SPprob_bigSi &m: 
   Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
   =
-  bigi predT (fun (i : int) => Pr[Si.main(i) @ &m : res]) 2 (card + 1)
+ bigi predT (fun jj =>
+  bigi predT (fun (ii : int) => Pr[Si.main(ii,jj) @ &m : res]) 2 (card + 1)
   +
-  bigi predT (fun (i : int) => Pr[Fi.main(i) @ &m : res]) 2 (card + 1).
+  bigi predT (fun (ii : int) => Pr[Fi.main(ii,jj) @ &m : res]) 2 (card + 1)) 0 t.
 proof. admit. qed.
 
 
@@ -1248,21 +1275,22 @@ local lemma pr_DSPRSPprob_bigSi &m :
   -
   Pr[SM_DT_SPprob(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res]
   =
-  Pr[Si.main(1) @ &m : res] 
+ bigi predT (fun jj =>
+  Pr[Si.main(1,jj) @ &m : res] 
   -
-  bigi predT (fun (i : int) => 1%r / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
+  bigi predT (fun (ii : int) => 1%r / ii%r * Pr[Si.main(ii,jj) @ &m : res]) 2 (card + 1)) 0 t.
 proof.
-rewrite pr_DSPR_bigSiFi pr_SPprob_bigSi.
+rewrite pr_DSPR_bigSiFi pr_SPprob_bigSi sumrN -big_split; apply eq_bigr => jj _ /=. 
 field; rewrite -big_split /= subr_eq0 &(eq_big_seq) => i /mem_range rng_i /=.
-rewrite -mulrDl -{1}mul1r -mulrDl (: 1%r + (i%r - 1%r) = i%r) 1:/#.
-by rewrite mulrC mulrA mulVf 1:/#.
+by smt(). 
 qed.
 
 
 local lemma pr_TCR_bigSi &m :
   Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res]
   =
-  bigi predT (fun (i : int) => (i%r - 1%r) / i%r * Pr[Si.main(i) @ &m : res]) 2 (card + 1).
+ bigi predT (fun jj =>
+  bigi predT (fun (ii : int) => (ii%r - 1%r) / ii%r * Pr[Si.main(ii,jj) @ &m : res]) 2 (card + 1)) 0 t.
 proof. admit. qed.
 
 
@@ -1283,7 +1311,8 @@ apply (ler_trans
          +
          3%r * Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res])); last first.
 + by apply ler_add; 1: rewrite maxrr.
-rewrite pr_OpenPRE_bigSi pr_DSPRSPprob_bigSi pr_TCR_bigSi.
+rewrite pr_OpenPRE_bigSi pr_DSPRSPprob_bigSi pr_TCR_bigSi mulr_sumr -big_split; apply ler_sum_seq => jj. 
+rewrite mem_range => jb _ /=. 
 rewrite -addrA &(ler_add) 1:// addrC mulrC mulr_suml sumrB /=.
 apply ler_sum_seq => i /mem_range rng_i _ /=.
 rewrite mulrC 2!mulrA mulrDr /= divrr 1:/# /=.

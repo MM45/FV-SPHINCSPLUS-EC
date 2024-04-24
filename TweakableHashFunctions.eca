@@ -332,7 +332,7 @@ abstract theory SMDTTCR.
       nrts <@ O.nr_targets();
       dist <@ O.dist_tweaks();
 
-      return 0 <= nrts <= t_smdttcr /\ dist /\ x <> x' /\ f pp tw x = f pp tw x';  
+      return 0 <= i < nrts /\ 0 <= nrts <= t_smdttcr /\ dist /\ x <> x' /\ f pp tw x = f pp tw x';  
     }
   }.
 end SMDTTCR.
@@ -422,7 +422,7 @@ abstract theory SMDTDSPR.
       nrts <@ O.nr_targets();
       dist <@ O.dist_tweaks();
 
-      return 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x;
+      return 0 <= i < nrts /\ 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x;
     }
   }.
 
@@ -450,7 +450,7 @@ abstract theory SMDTDSPR.
       nrts <@ O.nr_targets();
       dist <@ O.dist_tweaks();
 
-      return 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x = b;
+      return 0 <= i < nrts /\ 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x = b;
     }
   }.
 end SMDTDSPR.

@@ -267,7 +267,7 @@ declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) :
 declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) :
   islossless O.open => islossless A(O).find.
 
-local module OPREg(A0 : Adv_SMDTOpenPRE, O : Oracle_SMDTOpenPRE) = {
+local module OPREg = {
    
     var pp : pp_t
     var tw : tw_t
@@ -279,20 +279,20 @@ local module OPREg(A0 : Adv_SMDTOpenPRE, O : Oracle_SMDTOpenPRE) = {
     var nrts : int
     var opened : bool
     var dist : bool
+    var b : bool
 
-
-    module A = A0(O)
+    module A = A(O_SMDTOpenPRE_Default)
     
     proc main() : bool = {
       
       pp <$ dpp;
       tws <@ A.pick();
-      ys <@ O.init(pp, tws);
+      ys <@ O_SMDTOpenPRE_Default.init(pp, tws);
       (i, x) <@ A.find(pp, ys);
-      (tw, y) <@ O.get(i);
-      nrts <@ O.nr_targets();
-      opened <@ O.opened(i);
-      dist <@ O.dist_tweaks();
+      (tw, y) <@ O_SMDTOpenPRE_Default.get(i);
+      nrts <@ O_SMDTOpenPRE_Default.nr_targets();
+      opened <@ O_SMDTOpenPRE_Default.opened(i);
+      dist <@ O_SMDTOpenPRE_Default.dist_tweaks();
       
       return
         (0 <= i && i < nrts) /\
@@ -300,8 +300,30 @@ local module OPREg(A0 : Adv_SMDTOpenPRE, O : Oracle_SMDTOpenPRE) = {
     }
   }.
 
+local module DSPRg = {
+  include var OPREg [-main]
+
+  module A = R_DSPR_OpenPRE(A,O_SMDTDSPR_Default)
+  
+  proc main() : bool = {
+    
+    pp <$ dpp;
+    O_SMDTDSPR_Default.init(pp);
+    A.pick();
+    (i, b) <@ A.guess(pp);
+    (tw, x) <@ O_SMDTDSPR_Default.get(i);
+    nrts <@ O_SMDTDSPR_Default.nr_targets();
+    dist <@ O_SMDTDSPR_Default.dist_tweaks();
+    
+    return 
+     (0 <= i && i < nrts) /\
+      (0 <= nrts && nrts <= t) /\ dist /\ spexists f pp tw x = b;
+  }
+}.
+
+
 local module Si = {
-  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+  include var OPREg[-main]
   
   proc main(_i : int, _j : int) : bool = {
     
@@ -327,7 +349,7 @@ local module Si = {
 }.
 
 local module Fi = {
-  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+  include var OPREg [-main]
 
   proc main(_i : int, _j : int) : bool = {
     pp <$ dpp;
@@ -408,7 +430,7 @@ local module O_SMDTOpenPRE_Default_early_fail = {
 }.
 
 local module Si_early_fail = {
-  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+  include var OPREg [-main]
   
   proc main(_i : int, _j : int) : bool = {
     
@@ -498,7 +520,7 @@ local module O_SMDTOpenPRE_Default_inverse_sample = {
 }.
 
 local module Si_inverse_sample = {
-  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+  include var OPREg [-main]
   
   proc main(_i : int, _j : int) : bool = {
     
@@ -707,7 +729,7 @@ local module O_SMDTOpenPRE_Default_inverse_sample_alt = {
 }.
 
 local module Si_inverse_sample_alt = {
-  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+  include var OPREg [-main]
   
   proc same_as_si(_i : int, _j : int) = {
     O_SMDTOpenPRE_Default_early_fail.r <- true;
@@ -829,12 +851,21 @@ by rewrite eq_tw eq_ii eq_pp; congr; smt(Si_eq_sem).
 qed.
 
 local lemma opreg0  :
-     phoare [ OPREg(A,O_SMDTOpenPRE_Default).main : true ==> res /\ !((0 <= OPREg.i && OPREg.i < t))] = 0%r.
+     phoare [ OPREg.main : true ==> res /\ !((0 <= OPREg.i && OPREg.i < t))] = 0%r.
 proof.
 hoare.
 proc.
 do 6!(wp;call (: true);1:by auto).
 by call(:true);auto; smt(size_ge0 rngprefl_image).
+qed.
+
+local lemma dspr0  :
+     phoare [ DSPRg.main : true ==> res /\ !((0 <= OPREg.i && OPREg.i < t))] = 0%r.
+proof.
+hoare.
+proc.
+do 6!(wp;call (: true);1:by auto).
+by auto => />;smt(size_ge0 rngprefl_image).
 qed.
 
 local lemma si0 ii jj :
@@ -1199,16 +1230,16 @@ local lemma pr_OpenPRE_bigSi &m :
     +
     bigi predT (fun (i : int) => Pr[Si.main(i,j) @ &m : res]) 2 (card + 1)) 0 t.
 proof.
-have ->: Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res] = Pr[OPREg(A,O_SMDTOpenPRE_Default).main() @ &m : res]
+have ->: Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res] = Pr[OPREg.main() @ &m : res]
    by byequiv=> //=; sim.
 rewrite Pr[mu_split (0 <= OPREg.i < t)]; rewrite -(addr0 (big _ _ _));congr;last by byphoare opreg0.
 have -> : 
-  Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < t] =
-  bigi predT (fun (_jj : int) => Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ OPREg.i = _jj]) 0 t.
+  Pr[OPREg.main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < t] =
+  bigi predT (fun (_jj : int) => Pr[OPREg.main() @ &m : res /\ OPREg.i = _jj]) 0 t.
 + suff : 
   forall _j, 0<=_j =>
-    Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < _j] =
-      bigi predT (fun (_jj : int) => Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : res /\ OPREg.i = _jj]) 0 _j;
+    Pr[OPREg.main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < _j] =
+      bigi predT (fun (_jj : int) => Pr[OPREg.main() @ &m : res /\ OPREg.i = _jj]) 0 _j;
     1: by move => H; move : (H t ge0_t). 
   elim => /= [ | _j ge0_j jh].
   + rewrite range_geq 1:// big_nil.
@@ -1228,7 +1259,7 @@ congr;last first.
 suff:
   forall (_i : int),
     0 <= _i => 
-      Pr[OPREg(A, O_SMDTOpenPRE_Default).main() @ &m : (res /\ OPREg.i = jj) /\ 1 <= size (pre_f_l OPREg.pp OPREg.tw OPREg.y) <= _i]
+      Pr[OPREg.main() @ &m : (res /\ OPREg.i = jj) /\ 1 <= size (pre_f_l OPREg.pp OPREg.tw OPREg.y) <= _i]
       =
       bigi predT (fun (i : int) => Pr[Si.main(i,jj) @ &m : res]) 1 (_i + 1).
 + move => /(_ card _);  smt(size_ge0).
@@ -1254,7 +1285,57 @@ local lemma pr_DSPR_bigSiFi &m :
   bigi predT (fun (ii : int) => (ii%r - 1%r) / ii%r * Pr[Si.main(ii,jj) @ &m : res]) 2 (card + 1)
   +
   bigi predT (fun (ii : int) => Pr[Fi.main(ii,jj) @ &m : res]) 2 (card + 1)) 0 t.
-proof. admit. qed.
+proof.
+rewrite (: Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res] = Pr[DSPRg.main() @ &m : res]);
+   1: by byequiv=> //=; proc; inline *; sim.
+rewrite Pr[mu_split (0 <= OPREg.i < t)]; rewrite -(addr0 (big _ _ _));congr;last by byphoare dspr0.
+have -> : 
+  Pr[DSPRg.main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < t] =
+  bigi predT (fun (_jj : int) => Pr[DSPRg.main() @ &m : res /\ OPREg.i = _jj]) 0 t.
++ suff : 
+  forall _j, 0<=_j =>
+    Pr[DSPRg.main() @ &m : res /\ 0 <= OPREg.i && OPREg.i < _j] =
+      bigi predT (fun (_jj : int) => Pr[DSPRg.main() @ &m : res /\ OPREg.i = _jj]) 0 _j;
+    1: by move => H; move : (H t ge0_t). 
+  elim => /= [ | _j ge0_j jh].
+  + rewrite range_geq 1:// big_nil.
+    by byphoare (: _ ==> false) => // /#.
+  rewrite rangeSr 1:/# big_rcons /predT /= -/predT.
+  by rewrite -jh Pr[mu_split (0 <= OPREg.i && OPREg.i < _j)]; smt().
+
+
+apply eq_big_int => jj jjr /=.
+rewrite Pr[mu_split (1 <= size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <= card)].
+rewrite -(addr0 (big _ _ _)) addrA -addrA (addrC 0%r) addrA; congr; last first.
++ byphoare (: _ ==> false) => //=.
+  by rewrite rngprefl_image.
+have prsp :
+  forall (i : int), 0 <= i =>
+    Pr[DSPRg.main() @ &m : (res /\ OPREg.i = jj) /\ 1 <= size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <= i]
+    =
+    bigi predT (fun (j : int) => Pr[DSPRg.main() @ &m : (res /\ OPREg.i = jj)  /\ size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x))= j]) 1 (i + 1).
++ elim => [/= | i ge0_i ih].
+  - rewrite range_geq // big_nil.
+    by byphoare (: _ ==> false) => // /#.
+  rewrite rangeSr 1:/# big_rcons /predT /= -/predT -ih.
+  rewrite Pr[mu_split (size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <> i + 1)]; congr.
+  - by byequiv (: _ ==> ={res, glob OPREg}); [sim | trivial | smt()].
+  by byequiv (: _ ==> ={res, glob OPREg}); [sim | trivial | smt()].
+rewrite prsp 2:range_ltn; 1,2: smt(card_gt0).
+rewrite big_cons /predT /= -/predT -addrA; congr.
++ admit.
+rewrite -big_split /= &(eq_big_seq) => i /mem_range rng_i /=.
+rewrite Pr[mu_split (f OPREg.pp OPREg.tw OPREg.x' =f OPREg.pp OPREg.tw OPREg.x)]; congr; last first.
++ admit.
+rewrite -andbA mulrAC.
+have ->:
+  Pr[DSPRg.main() @ &m : (res /\ OPREg.i = jj) /\ size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) = i  
+                             /\ (f OPREg.pp OPREg.tw OPREg.x' =f OPREg.pp OPREg.tw OPREg.x)]
+  =
+  Pr[Si.main(i,jj) @ &m : res /\ OPREg.x' <> OPREg.x].
++ admit.
+by apply pr_cond_neqxxp_Si.
+qed.
 
 
 local lemma pr_SPprob_bigSi &m: 

@@ -7,10 +7,6 @@ import RField.
 
 require TweakableHashFunctions.
 
-(*
-type df_t.
-*)
-
 type pp_t.
 type tw_t.
 type in_t.
@@ -70,7 +66,6 @@ module (R_TCR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTTCR) (O : Oracle_SMDTTCR) 
     proc init(pp_init : pp_t, tws_init : tw_t list) : out_t list = {
       var x : in_t;
       var y : out_t;
-      var ys : out_t list;
       var tw : tw_t;
       var twy : tw_t * out_t;
       
@@ -272,20 +267,43 @@ declare axiom A_pick_ll (O <: Oracle_SMDTOpenPRE {-A}) :
 declare axiom A_find_ll (O <: Oracle_SMDTOpenPRE {-A}) :
   islossless O.open => islossless A(O).find.
 
+local module OPREg(A0 : Adv_SMDTOpenPRE, O : Oracle_SMDTOpenPRE) = {
+   
+    var pp : pp_t
+    var tw : tw_t
+    var tws : tw_t list
+    var x, x' : in_t
+    var y : out_t
+    var ys : out_t list
+    var i : int
+    var nrts : int
+    var opened : bool
+    var dist : bool
+
+
+    module A = A0(O)
+    
+    proc main() : bool = {
+      
+      pp <$ dpp;
+      tws <@ A.pick();
+      ys <@ O.init(pp, tws);
+      (i, x) <@ A.find(pp, ys);
+      (tw, y) <@ O.get(i);
+      nrts <@ O.nr_targets();
+      opened <@ O.opened(i);
+      dist <@ O.dist_tweaks();
+      
+      return
+        (0 <= i && i < nrts) /\
+        (0 <= nrts && nrts <= t) /\ !opened /\ dist /\ f pp tw x = y;
+    }
+  }.
 
 local module Si = {
-  var x, x' : in_t
+  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
   
   proc main(_i : int, _j : int) : bool = {
-    var pp : pp_t;
-    var tw : tw_t;
-    var tws : tw_t list;
-    var y : out_t;
-    var ys : out_t list;
-    var nrts : int;
-    var opened, dist : bool;
-    var twsO : tw_t list;
-    var i : int;
     
     pp <$ dpp;
     
@@ -309,18 +327,9 @@ local module Si = {
 }.
 
 local module Fi = {
+  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
+
   proc main(_i : int, _j : int) : bool = {
-    var pp : pp_t;
-    var tw : tw_t;
-    var tws : tw_t list;
-    var y : out_t;
-    var ys : out_t list;
-    var nrts : int;
-    var opened, dist : bool;    
-    var x, x' : in_t;
-    var twsO : tw_t list;
-    var i : int;
-    
     pp <$ dpp;
     
     tws <@ A(O_SMDTOpenPRE_Default).pick();
@@ -399,18 +408,9 @@ local module O_SMDTOpenPRE_Default_early_fail = {
 }.
 
 local module Si_early_fail = {
-  var x, x' : in_t
+  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
   
   proc main(_i : int, _j : int) : bool = {
-    var pp : pp_t;
-    var tw : tw_t;
-    var tws : tw_t list;
-    var y : out_t;
-    var ys : out_t list;
-    var nrts : int;
-    var opened, dist : bool;
-    var twsO : tw_t list;
-    var i : int;
     
     O_SMDTOpenPRE_Default_early_fail.r <- true;
     O_SMDTOpenPRE_Default_early_fail._i <- _i;
@@ -498,18 +498,9 @@ local module O_SMDTOpenPRE_Default_inverse_sample = {
 }.
 
 local module Si_inverse_sample = {
-  var x, x' : in_t
+  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
   
   proc main(_i : int, _j : int) : bool = {
-    var pp : pp_t;
-    var tw : tw_t;
-    var tws : tw_t list;
-    var y : out_t;
-    var ys : out_t list;
-    var nrts : int;
-    var opened, dist : bool;
-    var twsO : tw_t list;
-    var i : int;
     
     O_SMDTOpenPRE_Default_early_fail.r <- true;
     O_SMDTOpenPRE_Default_early_fail._i <- _i;
@@ -716,19 +707,9 @@ local module O_SMDTOpenPRE_Default_inverse_sample_alt = {
 }.
 
 local module Si_inverse_sample_alt = {
-  var x, x' : in_t
+  include var OPREg(A,O_SMDTOpenPRE_Default) [-main]
   
   proc same_as_si(_i : int, _j : int) = {
-    var pp : pp_t;
-    var tw : tw_t;
-    var tws : tw_t list;
-    var y : out_t;
-    var ys : out_t list;
-    var nrts : int;
-    var opened, dist : bool;
-    var twsO : tw_t list;
-    var i : int;
-
     O_SMDTOpenPRE_Default_early_fail.r <- true;
     O_SMDTOpenPRE_Default_early_fail._i <- _i;
     O_SMDTOpenPRE_Default_early_fail._j <- _j;
@@ -763,40 +744,39 @@ local module Si_inverse_sample_alt = {
   }
 }.
 
-local lemma pr_Si_Sief (ii jj : int) &m:
-  Pr[Si.main(ii,jj) @ &m : res /\ Si.x' <> Si.x]
-  =
-  Pr[Si_early_fail.main(ii,jj) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x].
-proof.
-byequiv (: _i{1} = ii /\ _j{1} = jj /\ ={glob A,_i,_j} ==> 
-     ={res} /\ (res{2} => ={x, x'}(Si, Si_early_fail))) => [| // | /#].
+local lemma pr_Si_Sief_eq (ii jj : int) :
+ equiv [ Si.main ~ Si_early_fail.main :
+   _i{1} = ii /\ _j{1} = jj /\ ={glob A,_i,_j} ==> 
+     ={res} /\ (res{2} => ={OPREg.x, OPREg.x'})].
+proof. 
 proc => /=; inline *.
 swap {2} [4..11] -3.
-seq 8 8 : (#pre /\ ={pp,tws,tws_init,glob O_SMDTOpenPRE_Default} 
-     /\ O_SMDTOpenPRE_Default.ts{2} = [] /\ pp{1} = O_SMDTOpenPRE_Default.pp{2}); 
+seq 8 8 : (#pre /\ ={OPREg.pp,OPREg.tws,tws_init,glob O_SMDTOpenPRE_Default} 
+     /\ O_SMDTOpenPRE_Default.ts{2} = [] 
+     /\ OPREg.pp{1} = O_SMDTOpenPRE_Default.pp{2}); 
    1: by  swap {1} 6 -5; swap {2} 6 -5; sp 1 1; conseq />;sim.
 sp 0 3.
-seq 3 3 : ( ={tws_init,pp,glob A,_i,_j,pp, O_SMDTOpenPRE_Default.pp} 
+seq 3 3 : ( ={tws_init,glob A,_i,_j,OPREg.pp, O_SMDTOpenPRE_Default.pp} 
    /\ size O_SMDTOpenPRE_Default.ts{1} = size O_SMDTOpenPRE_Default.ts{2} 
-   /\ pp{1} = O_SMDTOpenPRE_Default.pp{2} 
+   /\ OPREg.pp{1} = O_SMDTOpenPRE_Default.pp{2} 
    /\ O_SMDTOpenPRE_Default_early_fail._i{2} = _i{2} 
    /\ O_SMDTOpenPRE_Default_early_fail._j{2} = _j{2} 
    /\ _i{1} = ii /\ _j{1} = jj 
    /\ (O_SMDTOpenPRE_Default_early_fail.r{2} => 
-         ={ys,O_SMDTOpenPRE_Default.os, O_SMDTOpenPRE_Default.xs, O_SMDTOpenPRE_Default.ts} 
+         ={OPREg.ys,O_SMDTOpenPRE_Default.os, O_SMDTOpenPRE_Default.xs, O_SMDTOpenPRE_Default.ts} 
        /\ (0 <= _j{1} < min (size O_SMDTOpenPRE_Default.ts{1}) t => (
-           size (pre_f_l pp{1} 
+           size (pre_f_l OPREg.pp{1} 
              (nth witness O_SMDTOpenPRE_Default.ts{1} _j{1}).`1 
                (nth witness O_SMDTOpenPRE_Default.ts{1} _j{1}).`2) = _i{1})))
    /\ (!O_SMDTOpenPRE_Default_early_fail.r{2} => 
     (0 <= _j{1} < min (size O_SMDTOpenPRE_Default.ts{1}) t /\
-           size (pre_f_l pp{1} 
+           size (pre_f_l OPREg.pp{1} 
              (nth witness O_SMDTOpenPRE_Default.ts{1} _j{1}).`1 
                (nth witness O_SMDTOpenPRE_Default.ts{1} _j{1}).`2) <> _i{1}))
 ); last first. 
 + case (O_SMDTOpenPRE_Default_early_fail.r{2}).
   + wp;call (: ={glob O_SMDTOpenPRE_Default}); 1: by sim.
-    by skip => /> /#.
+    by skip => /> /#.  
   wp  => /=. 
   call{1} (A_find_ll O_SMDTOpenPRE_Default); 1: by islossless. 
   call{2} (A_find_ll O_SMDTOpenPRE_Default_early_fail); 1: by islossless.
@@ -806,14 +786,56 @@ wp;while (#post); last by auto => /> /#.
 by sp;if{2};auto => />;smt(nth_rcons size_rcons size_ge0).
 qed.
 
-local lemma pr_Sief_Siis (ii jj : int) &m:
-  Pr[Si_early_fail.main(ii,jj) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x]
+local lemma pr_Si_Sief (ii jj : int) &m:
+  Pr[Si.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
   =
-  Pr[Si_inverse_sample.main(ii,jj) @ &m : res /\ Si_inverse_sample.x' <> Si_inverse_sample.x].
+  Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
+ by byequiv (pr_Si_Sief_eq ii jj) => [ // | /#].
+
+local lemma pr_Sief_Siis_eq (ii jj : int) :
+   0<=jj => 0 < ii =>
+  equiv [ Si_early_fail.main ~ Si_inverse_sample.main :
+    arg{2}.`1 = ii /\ arg{2}.`2=jj /\ ={arg,glob A} ==> 
+     ={res} /\ OPREg.x{1} = OPREg.x{2} 
+     /\ OPREg.x'{1} = OPREg.x'{2}].
+proof. 
+move => hj hi;proc => /=.
+inline {1} 6; inline {2} 6.
+swap {1} [4..11] -3.
+swap {2} [4..11] -3.
+seq 8 8 : (#pre /\ ={OPREg.pp,OPREg.tws,tws_init,glob O_SMDTOpenPRE_Default, glob A} 
+     /\ O_SMDTOpenPRE_Default.ts{2} = [] 
+     /\ OPREg.pp{1} = O_SMDTOpenPRE_Default.pp{2}); 1: by wp;call(:true);auto => />.
+sp 3 3.
+seq 3 3 :(#{/~O_SMDTOpenPRE_Default.ts{2} = []}
+           {~O_SMDTOpenPRE_Default_early_fail.r{1} = true}
+           {~O_SMDTOpenPRE_Default_early_fail.r{2} = true}pre 
+            /\ ={OPREg.ys,O_SMDTOpenPRE_Default_early_fail.r}); last first.  
++ inline *;wp;call(: ={glob O_SMDTOpenPRE_Default}); 1: by sim.
+  by auto => />.  
+
+wp; while(#{/~O_SMDTOpenPRE_Default.ts{2} = []}
+           {~O_SMDTOpenPRE_Default_early_fail.r{1} = true}
+           {~O_SMDTOpenPRE_Default_early_fail.r{2} = true}pre 
+           /\ ={ys,O_SMDTOpenPRE_Default_early_fail.r}); 
+   last by auto => />.
+sp;if;1,3: by auto => />.
+wp. 
+call (: ={pp,tw,ii} /\ 0 < arg{1}.`3 ==> ={res}); last by auto => />. 
+bypr (res{1}) (res{2}) => //=.
+move=> &1 &2 /> -[] x y r eq_pp eq_tw eq_ii gt0_ii.
+rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem. 
+by rewrite eq_tw eq_ii eq_pp; congr; smt(Si_eq_sem).
+qed.
+
+local lemma pr_Sief_Siis (ii jj : int) &m:
+  Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
+  =
+  Pr[Si_inverse_sample.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x].
 proof.
 case (0 <= jj) => bdj;last first.
 + have ->:
-    Pr[Si_early_fail.main(ii,jj) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x] = 0%r.
+    Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x] = 0%r.
   - byphoare (_: arg.`2 < 0 ==> _) => //=;2:smt().
     hoare.
     proc.
@@ -827,7 +849,7 @@ case (0 <= jj) => bdj;last first.
   
 case (0 < ii) => bdi;last first.
 + have ->:
-    Pr[Si_early_fail.main(ii,jj) @ &m : res /\ Si_early_fail.x' <> Si_early_fail.x] = 0%r.
+    Pr[Si_early_fail.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x] = 0%r.
   - byphoare (_: arg.`1 <= 0 /\ _j = jj /\ _i = ii ==> _) => //=;2:smt().
     hoare.
     proc => /=;inline *;wp.  call(:true);1:by auto.
@@ -852,63 +874,31 @@ case (0 < ii) => bdi;last first.
   sp;if;2: by auto => />;smt(size_rcons size_ge0 rngprefl_image). search pre_f_l .
   by rcondf 5; auto => />;smt(size_rcons size_ge0 rngprefl_image supp_dmap).
 
-byequiv (: arg{2}.`1 = ii /\ arg{2}.`2=jj /\ ={arg,glob A} ==> 
-     ={res} /\ Si_early_fail.x{1} = Si_inverse_sample.x{2} 
-     /\ Si_early_fail.x'{1} = Si_inverse_sample.x'{2}) => //=.
-proc => /=.
-inline {1} 6; inline {2} 6.
-swap {1} [4..11] -3.
-swap {2} [4..11] -3.
-seq 8 8 : (#pre /\ ={pp,tws,tws_init,glob O_SMDTOpenPRE_Default, glob A} 
-     /\ O_SMDTOpenPRE_Default.ts{2} = [] 
-     /\ pp{1} = O_SMDTOpenPRE_Default.pp{2}); 1: by wp;call(:true);auto => />.
-sp 3 3.
-seq 3 3 :(#{/~O_SMDTOpenPRE_Default.ts{2} = []}
-           {~O_SMDTOpenPRE_Default_early_fail.r{1} = true}
-           {~O_SMDTOpenPRE_Default_early_fail.r{2} = true}pre 
-            /\ ={ys0,ys,O_SMDTOpenPRE_Default_early_fail.r}); last first.  
-+ inline *;wp;call(: ={glob O_SMDTOpenPRE_Default}); 1: by sim.
-  by auto => />.  
-
-wp; while(#{/~O_SMDTOpenPRE_Default.ts{2} = []}
-           {~O_SMDTOpenPRE_Default_early_fail.r{1} = true}
-           {~O_SMDTOpenPRE_Default_early_fail.r{2} = true}pre 
-           /\ ={ys0,O_SMDTOpenPRE_Default_early_fail.r}); last by auto => />.
-sp;if;1,3: by auto => />.
-wp. 
-call (: ={pp,tw,ii} /\ 0 < arg{1}.`3 ==> ={res}); last by auto => />. 
-bypr (res{1}) (res{2}) => //=.
-move=> &1 &2 /> -[] x y r eq_pp eq_tw eq_ii gt0_ii.
-rewrite Si_early_fail_sample_sem_opsem Si_inverse_sample_sample_sem_opsem. 
-by rewrite eq_tw eq_ii eq_pp; congr; smt(Si_eq_sem).
+by byequiv (pr_Sief_Siis_eq ii jj _ _) => /#.
 qed.
 
-local lemma pr_Siis_Siisa (ii jj : int) &m:  
-  Pr[Si_inverse_sample.main(ii,jj) @ &m : res /\ Si_inverse_sample.x' <> Si_inverse_sample.x]
-  =
-  Pr[Si_inverse_sample_alt.main(ii,jj) @ &m : res /\ Si_inverse_sample_alt.x' <> Si_inverse_sample_alt.x].
-proof.
-byequiv (: arg{2}.`1 = ii /\ arg{2}.`2=jj /\ ={arg,glob A}
-             ==> res{1} /\ Si_inverse_sample.x'{1} <> Si_inverse_sample.x{1} 
-                 <=>
-                 res{2} /\ Si_inverse_sample_alt.x'{2} <> Si_inverse_sample_alt.x{2}) => //.
-proc; inline *.
+local equiv pr_Siis_Siisa_eq (ii jj : int) :
+   Si_inverse_sample.main ~ Si_inverse_sample_alt.main :
+     arg{2}.`1 = ii /\ arg{2}.`2=jj /\ ={arg,glob A}
+             ==> (res /\ OPREg.x'<>OPREg.x){1} = (res /\ OPREg.x' <> OPREg.x){2}.
+proc.
+inline *.
 swap {1} [4..5] -3; swap {2} [6..7] -5.
-seq 2 2 : (#pre /\ ={pp,tws});1: by sim />.
+seq 2 2 : (#pre /\ ={OPREg.pp,OPREg.tws});1: by sim />.
 
 splitwhile {1} 11 : (size O_SMDTOpenPRE_Default.ts < jj).
 unroll {1} 12.
 
-seq 11 13 : (={_j,_i,ys0,pp_init,glob O_SMDTOpenPRE_Default_early_fail,tws,tws_init, glob A,pp} 
-       /\ tws_init{1} = tws{1} 
+seq 11 13 : (={_j,_i,ys,pp_init,glob O_SMDTOpenPRE_Default_early_fail,OPREg.tws,tws_init, glob A,OPREg.pp} 
+       /\ tws_init{1} = OPREg.tws{1} 
        /\ _i{1} = ii /\ _j{1} = jj 
        /\ size O_SMDTOpenPRE_Default.ts{2} = size O_SMDTOpenPRE_Default.xs{2} 
-       /\ size ys0{2} = size O_SMDTOpenPRE_Default.ts{2} 
+       /\ size ys{2} = size O_SMDTOpenPRE_Default.ts{2} 
        /\ (0 <= jj => size O_SMDTOpenPRE_Default.ts{1} <= jj)
        /\ O_SMDTOpenPRE_Default_early_fail._j{1} = jj
        /\ O_SMDTOpenPRE_Default_early_fail._i{1} = ii
        /\ O_SMDTOpenPRE_Default.pp{1} = pp_init{1} 
-       /\ pp{1} = pp_init{1}
+       /\ OPREg.pp{1} = pp_init{1}
        /\ size O_SMDTOpenPRE_Default.ts{1} <= min (size tws_init{1}) t
        /\ (!(size O_SMDTOpenPRE_Default.ts{1} < min (size tws_init{1}) t /\
             size O_SMDTOpenPRE_Default.ts{1} < jj))). 
@@ -918,22 +908,22 @@ seq 11 13 : (={_j,_i,ys0,pp_init,glob O_SMDTOpenPRE_Default_early_fail,tws,tws_i
   by auto => />;smt(ge0_t size_ge0).
 if{2}; last first. 
 + if{1};last first. 
-  + rnd{2};wp;call(: ={glob O_SMDTOpenPRE_Default_early_fail}); 1: by sim.
+  + wp;rnd{2};wp;call(: ={glob O_SMDTOpenPRE_Default_early_fail}); 1: by sim.
     wp;while (#pre);1: by exfalso;smt().
-    by auto => />;smt(drat_ll). 
+    auto => />;smt(drat_ll). 
   unroll {2} 1.
 + rcondt{2} 1; 1: by auto.
   rcondf{1} 2; 1: by auto => /#.
   rnd{2};wp;call(: ={glob O_SMDTOpenPRE_Default_early_fail}); 1: by sim.
   wp;while (
-     ={_j,_i,ys0,pp_init,tws, tws_init, glob A, pp,glob O_SMDTOpenPRE_Default_early_fail} /\
-    tws_init{1} = tws{1} /\
+     ={_j,_i,ys,pp_init,OPREg.tws, tws_init, glob A, OPREg.pp,glob O_SMDTOpenPRE_Default_early_fail} /\
+    tws_init{1} = OPREg.tws{1} /\
     _i{1} = ii /\
     _j{1} = jj /\
     O_SMDTOpenPRE_Default_early_fail._j{1} = jj /\
     O_SMDTOpenPRE_Default_early_fail._i{1} = ii /\
     O_SMDTOpenPRE_Default.pp{1} = pp_init{1} /\
-    pp{1} = pp_init{1} /\ 
+    OPREg.pp{1} = pp_init{1} /\ 
     size O_SMDTOpenPRE_Default.ts{1} <= min (size tws_init{1}) t /\
     (0 <= jj => !size O_SMDTOpenPRE_Default.ts{1} <= jj)
    ). 
@@ -943,17 +933,17 @@ if{2}; last first.
 
 rcondt{1} 1; 1: by auto => /#.
 rcondt{1} 2; 1: by auto => /#.
-sp;seq 1 1 : (#pre /\ y1{1} = O_SMDTOpenPRE_Default_inverse_sample_alt.yj{2} /\
-       (y1 \in dmap din (f pp (nth witness tws_init (size O_SMDTOpenPRE_Default.ts)))){1});1: by auto.
+sp;seq 1 1 : (#pre /\ y0{1} = O_SMDTOpenPRE_Default_inverse_sample_alt.yj{2} /\
+       (y0 \in dmap din (f pp (nth witness tws_init (size O_SMDTOpenPRE_Default.ts)))){1});1: by auto.
 if;1: by auto.
 + case <- {2} 17.
   swap {2} [17..18] -16.
   swap {2} [25..26] -22.
   sp 0 2.
-  seq 1 2 : (#pre /\ xt{1} = Si_inverse_sample_alt.x{2}); 1: by
+  seq 1 2 : (#pre /\ xt{1} = OPREg.x{2}); 1: by
     auto => />;smt(rngprefl_image supp_dmap).
 wp;call(: jj \in O_SMDTOpenPRE_Default.os,
-       nth witness O_SMDTOpenPRE_Default.xs{1} jj = Si_inverse_sample_alt.x{2} 
+       nth witness O_SMDTOpenPRE_Default.xs{1} jj = OPREg.x{2} 
     /\ ={O_SMDTOpenPRE_Default.os} 
     /\ O_SMDTOpenPRE_Default_early_fail._j{1} = jj 
     /\ O_SMDTOpenPRE_Default_early_fail._i{1} = ii 
@@ -975,17 +965,17 @@ wp;call(: jj \in O_SMDTOpenPRE_Default.os,
  + by move => *;proc;auto => />;smt(mem_rcons nth_default nth_neg).
  + by move => *; proc;auto => />;smt(mem_rcons). 
  wp; while (
-       ={_j,_i,ys0,pp_init,tws, tws_init, glob A, pp} 
-    /\ tws_init{1} = tws{1} 
+       ={_j,_i,ys,pp_init,OPREg.tws, tws_init, glob A, OPREg.pp} 
+    /\ tws_init{1} = OPREg.tws{1} 
     /\ _i{1} = ii 
     /\ _j{1} = jj 
-    /\ nth witness O_SMDTOpenPRE_Default.xs{1} jj = Si_inverse_sample_alt.x{2} 
+    /\ nth witness O_SMDTOpenPRE_Default.xs{1} jj = OPREg.x{2} 
     /\ O_SMDTOpenPRE_Default_early_fail._j{1} = jj 
     /\ O_SMDTOpenPRE_Default_early_fail._i{1} = ii 
     /\ O_SMDTOpenPRE_Default.pp{1} = pp_init{1} 
-    /\ pp{1} = pp_init{1} 
+    /\ OPREg.pp{1} = pp_init{1} 
     /\ size O_SMDTOpenPRE_Default.ts{2} = size O_SMDTOpenPRE_Default.xs{2} 
-    /\ size ys0{2} = size O_SMDTOpenPRE_Default.ts{2} 
+    /\ size ys{2} = size O_SMDTOpenPRE_Default.ts{2} 
     /\ size O_SMDTOpenPRE_Default.ts{1} <= min (size tws_init{1}) t 
     /\ (O_SMDTOpenPRE_Default_early_fail._i{1}, O_SMDTOpenPRE_Default_early_fail.r{1},
         O_SMDTOpenPRE_Default_early_fail._j{1}, O_SMDTOpenPRE_Default.os{1}, 
@@ -1004,8 +994,8 @@ wp;call(: jj \in O_SMDTOpenPRE_Default.os,
 
 rnd{2};wp;call(: ={glob O_SMDTOpenPRE_Default_early_fail}); 1: by sim.
 wp;while (
-       ={_j,_i,ys0,pp_init,tws, tws_init, glob A, pp,glob O_SMDTOpenPRE_Default_early_fail} 
-    /\ tws_init{1} = tws{1} 
+       ={_j,_i,ys,pp_init,OPREg.tws, tws_init, glob A, OPREg.pp,glob O_SMDTOpenPRE_Default_early_fail} 
+    /\ tws_init{1} = OPREg.tws{1} 
     /\ _i{1} = ii 
     /\ _j{1} = jj 
     /\ O_SMDTOpenPRE_Default_early_fail._j{1} = jj 
@@ -1020,6 +1010,13 @@ wp;while (
 by auto=>/> ;smt(drat_ll size_ge0 size_rcons ge0_t). 
 qed.
 
+local lemma pr_Siis_Siisa (ii jj : int) &m:  
+  Pr[Si_inverse_sample.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
+  =
+  Pr[Si_inverse_sample_alt.main(ii,jj) @ &m : res /\ OPREg.x' <> OPREg.x]
+ by byequiv (pr_Siis_Siisa_eq ii jj) => /#.
+
+
 local lemma PrSiis_Siisa_sub (_ii _jj : int) &1 &2 :
 Pr[Si.main(_ii, _jj) @ &1 : res]=
 Pr[Si_inverse_sample_alt.same_as_si(_ii, _jj) @ &2 :
@@ -1029,11 +1026,11 @@ Pr[Si_inverse_sample_alt.same_as_si(_ii, _jj) @ &2 :
    /\ (0 <= res.`4 && res.`4 <= t) 
    /\ ! res.`5 
    /\ res.`6 
-   /\ f res.`1 res.`7 Si_inverse_sample_alt.x' = res.`8].
+   /\ f res.`1 res.`7 OPREg.x' = res.`8].
 admitted.
 
 local lemma pr_cond_neqxxp_Si (_ii,_jj : int) &m:
-  Pr[Si.main(_ii,_jj) @ &m : res /\ Si.x' <> Si.x]
+  Pr[Si.main(_ii,_jj) @ &m : res /\ OPREg.x' <> OPREg.x]
   =
   (_ii%r - 1%r) / _ii%r * Pr[Si.main(_ii,_jj) @ &m : res].
 proof.
@@ -1061,7 +1058,7 @@ seq 1 :
     /\ 0 <= _nrts <= t 
     /\ !_opened 
     /\ _dist 
-    /\ f _pp _tw Si_inverse_sample_alt.x' = _y)) 
+    /\ f _pp _tw OPREg.x' = _y)) 
    prsi i1di _ 0%r 
       (((!O_SMDTOpenPRE_Default_early_fail.r) = 
            (0 <= _jj < _nrts 
@@ -1082,9 +1079,9 @@ seq 1 :
           nth witness _tws{hr} _jj = 
              (nth witness O_SMDTOpenPRE_Default.ts{hr} _jj).`1)) => //.
   + inline 1; wp => /=; swap  11 -2. 
-    seq 9 : (#{/~tw = (nth witness O_SMDTOpenPRE_Default.ts i).`1}
+    seq 9 : (#{/~OPREg.tw = (nth witness O_SMDTOpenPRE_Default.ts OPREg.i).`1}
           {~(_jj < size O_SMDTOpenPRE_Default.ts => 
-              y = (nth witness O_SMDTOpenPRE_Default.ts i).`2)}post); last
+              OPREg.y = (nth witness O_SMDTOpenPRE_Default.ts OPREg.i).`2)}post); last
       by inline *;auto;call(:true); auto. 
   inline *;wp => /=. 
   while (#post 
@@ -1095,15 +1092,15 @@ seq 1 :
   seq 15 : (O_SMDTOpenPRE_Default_early_fail.r /\ 
      (!(size O_SMDTOpenPRE_Default.ts < min (size tws_init) t /\
         size O_SMDTOpenPRE_Default.ts < O_SMDTOpenPRE_Default_early_fail._j))
-      /\ O_SMDTOpenPRE_Default.pp = pp
-      /\ tws_init = tws
+      /\ O_SMDTOpenPRE_Default.pp = OPREg.pp
+      /\ tws_init = OPREg.tws
       /\ O_SMDTOpenPRE_Default_early_fail._j = _jj 
       /\ O_SMDTOpenPRE_Default_early_fail._i = _ii 
       /\ size O_SMDTOpenPRE_Default.ts = min _jj (min (size tws_init) t)
       /\ _j{hr} = _jj).
   + while (O_SMDTOpenPRE_Default_early_fail.r
-      /\ O_SMDTOpenPRE_Default.pp = pp
-      /\ tws_init = tws
+      /\ O_SMDTOpenPRE_Default.pp = OPREg.pp
+      /\ tws_init = OPREg.tws
       /\ O_SMDTOpenPRE_Default_early_fail._i = _ii 
       /\ O_SMDTOpenPRE_Default_early_fail._j = _jj 
       /\ O_SMDTOpenPRE_Default_early_fail._i = _ii 
@@ -1120,16 +1117,16 @@ by auto => />;smt(nth_rcons size_rcons).
       res.`3 = _jj /\ O_SMDTOpenPRE_Default_early_fail.r 
    /\ (0 <= res.`3 && res.`3 < res.`4) 
    /\ (0 <= res.`4 && res.`4 <= t) /\ !res.`5 /\ res.`6 
-   /\ f res.`1 res.`7 Si_inverse_sample_alt.x' = res.`8) => //.
+   /\ f res.`1 res.`7 OPREg.x' = res.`8) => //.
   rewrite /prsi; bypr => //= &m' [eqglob [-> ->]].
   by rewrite eq_sym; apply (PrSiis_Siisa_sub _ii _jj).
 
-+ rnd (fun x => x <>  Si_inverse_sample_alt.x').
++ rnd (fun x => x <>  OPREg.x').
   auto  => /> &hr *; rewrite ifF 1:/# prratE /= /i1di;congr;last by smt(). 
-   have : Si_inverse_sample_alt.x'{hr} \in 
+   have : OPREg.x'{hr} \in 
     pre_f_l _pp{hr} (nth witness O_SMDTOpenPRE_Default.ts{hr} _jj).`1 
        O_SMDTOpenPRE_Default_inverse_sample_alt.yj{hr} by smt(mem_to_seq is_finite_ispref).
-    by have := count_predC (fun (x : in_t) => x <> Si_inverse_sample_alt.x'{hr}) 
+    by have := count_predC (fun (x : in_t) => x <> OPREg.x'{hr}) 
         (pre_f_l _pp{hr} (nth witness O_SMDTOpenPRE_Default.ts{hr} _jj).`1 
           O_SMDTOpenPRE_Default_inverse_sample_alt.yj{hr});
            rewrite /predC /= count_uniq_mem; smt(uniq_to_seq).

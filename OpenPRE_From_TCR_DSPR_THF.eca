@@ -1220,14 +1220,11 @@ apply eq_big_int => jj jjr /=.
 rewrite (: Pr[Si.main(1,jj) @ &m : res] = (fun (ii : int) => Pr[Si.main(ii,jj) @ &m : res]) 1) //.
 rewrite -big_consT -range_ltn; 1: smt(card_gt0).
 rewrite Pr[mu_split (1 <= size (pre_f_l OPREg.pp OPREg.tw OPREg.y) <= card)] -(addr0 (big _ _ _)).
-congr; last first.  admit. 
-(* 
-+ byphoare opreg0 => //. smt().
-  hoare.
-  proc.
-  call (: true).
-  wp; rnd; rnd; skip => /> k kin x xin x'.
-  by rewrite rngprefl_image. *)
+congr;last first.
++ byphoare => //;hoare.
+  proc;inline *; wp => /=.
+  conseq (: _ ==> true); 1: by smt(ltcard_szprefl rngprefl_image).
+  by trivial.
 suff:
   forall (_i : int),
     0 <= _i => 

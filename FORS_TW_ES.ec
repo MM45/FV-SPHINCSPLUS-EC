@@ -4,7 +4,6 @@ require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrd
 (*---*) import BS2Int BitChunking Bigint BIA.
 (*---*) import IntOrder RealOrder.
 
-
 (* -- Local -- *)
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
@@ -841,6 +840,36 @@ clone import Subtype as FHA with
   
 type fadrs = FHA.sT.
 *)
+lemma vkpidx_setkpttype (i j t : int) (ad : adrs) :
+     valid_fadrs ad
+  => valid_tidx i
+  => t = trhtype \/ t = trcotype
+  => valid_kpidx j
+  => valid_kpidx (get_kpidx (set_kpidx (set_tidx (set_typeidx ad t) i) j)).
+proof.
+move=> vad vi vt vj.
+have gtif_szad : forall i, i < 5 => i < if 5 < size (val ad) then 5 else size (val ad) by smt(Adrs.valP ge5_adrslen).
+rewrite /get_kpidx /set_typeidx /set_tidx /set_idx insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 4?drop_put_out 1..4:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39://
+          1..20:gtif_szad 1..40:// /= ?nth_take 1..2:// /=; smt(ge1_a ge1_k ge1_l nth_take IntOrder.expr_gt0).
+rewrite /set_kpidx /set_idx insubdK.
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite /get_idx insubdK.
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= vi vj /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+by rewrite /valid_kpidx ?nth_put ?size_put 7:// /#.
+qed.
 
 lemma gettype_setthtbkptypetrh (i j u v : int) (ad : adrs) :
      valid_fidxvalsgp (drop 5 (val ad))
@@ -930,18 +959,45 @@ rewrite /get_idx insubdK.
 by rewrite ?nth_put ?size_put 12:// /#.  
 qed.
 
-(*
-  nth witness
-  (val
-     (set_thtbidx
-        (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (u %/ (l * k * t)))
-           (u %% (l * k * t) %/ (k * t))) 0 (u %% (k * t) %/ t * t + u %% t))) 4 <>
-nth witness
-  (val
-     (set_thtbidx
-        (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (v %/ (l * k * t)))
-           (v %% (l * k * t) %/ (k * t))) 0 (v %% (k * t) %/ t * t + v %% t))) 4
-*)
+
+lemma getth_setthtbkpttype (i j u v: int) (ad : adrs) :
+     valid_fadrs ad
+  => valid_tidx i
+  => valid_kpidx j
+  => valid_thidx u
+  => valid_tbidx u v
+  => get_thidx (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j) u v) = u.
+proof.
+have gtif_szad : forall i, i < 5 => i < if 5 < size (val ad) then 5 else size (val ad) by smt(Adrs.valP ge5_adrslen).
+move=> vad vi vj vu vv @/set_typeidx @/set_tidx @/set_idx.
+rewrite (insubdK (put _ _ trhtype)). 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 4?drop_put_out 1..4:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39://
+          1..20:gtif_szad 1..40:// /= ?nth_take 1..2:// /=; smt(ge1_a ge1_k ge1_l nth_take IntOrder.expr_gt0).
+rewrite /set_kpidx /set_idx (insubdK (put _ 4 i)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0). 
+rewrite /set_thtbidx /set_idx insubdK.
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= vi vj /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite /get_thidx /get_idx insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..8:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81:// 1..40:gtif_szad 1..80:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+by rewrite ?nth_put ?size_put 9:// /#.  
+qed.
 
 lemma neqtidx_setthtbkpt (i i' j j' u u' v v' : int) (ad : adrs)  :
      valid_fadrs ad
@@ -1304,6 +1360,27 @@ rewrite 2!neq_ltz => -[ltxp_x | ltx_xp]; [left | right].
 by rewrite -?addrA -?mulrA ltlltr 1..4:/#.
 qed.
 
+lemma ltnn1_bignna (v w : int) :
+     0 <= v < a
+  => 0 <= w < nr_nodes (v + 1)
+  => bigi predT nr_nodes 1 (v + 1) + w < 2 ^ a - 1.
+proof.
+move=> [ge0_v lthp_v] [ge0_w @/nr_nodes ltnnu1_w].
+rewrite (: 2 ^ a - 1 = bigi predT nr_nodes 1 (a + 1)).
++ rewrite eq_sym /nr_nodes; have ge0_a: 0 <= a by smt(ge1_a).
+  rewrite (big_reindex _ _ (fun i => a - i) (fun i => a - i)).
+  + by move=> i /mem_range rng_i /= /#.
+  rewrite /(\o) /predT /= -/predT (eq_bigr _ _ (fun i => 2 ^ i)) => [i _ /= /# |].
+  rewrite (eq_big_perm _ _ _ (range 0 a)).
+  - rewrite uniq_perm_eq_size 2:range_uniq 2:size_map 2:?size_range 2://.
+    * by rewrite map_inj_in_uniq 2:range_uniq => i j rng_i rng_j /= /#.
+    by move=> i /mapP [j] [/mem_range rng_j /= ->]; rewrite mem_range; smt(ge1_a).
+  elim: a ge0_a=> [| i ge0_i ih]; 1: by rewrite expr0 big_geq.  
+  by rewrite big_int_recr 1:// exprD_nneg 1,2:// /= ih expr1 /#.
+rewrite (big_cat_int (v + 1) _ (a + 1)) 1,2:/# ltr_add2l.
+rewrite big_ltn 1:/#; suff /# : 0 <= bigi predT nr_nodes (v + 2) (a + 1).
+by rewrite sumr_ge0 => ? _; rewrite expr_ge0.
+qed.
 
 
 (* - Specifications - *)
@@ -5158,7 +5235,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
               /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
               /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
               /\ all (fun (ad : adrs) => get_typeidx ad = trcotype \/ get_thidx ad = 0) (TRHC.O_THFC_Default.tws{2})
-              /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= d * k * (t - 1)).
+              /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} = d * k * (t - 1)).
   - swap{2} 4 -3.
     seq 2 2 : (   ={glob A}
                /\ ps{1} = pp{2}
@@ -5170,6 +5247,8 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
     while (   ps{1} = pp{2}
            /\ ps{1} = TRHC.O_THFC_Default.pp{2}
            /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+           /\ ad{1} = adz
+           /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
            /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
            /\ pkFORSs{1} = R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
            /\ leavess{1} = R_TRHSMDTTCRC_EUFCMA.leavess{2}
@@ -5203,7 +5282,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
            /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
            /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
            /\ all (fun (ad : adrs) => get_typeidx ad = trcotype \/ get_thidx ad = 0) (TRHC.O_THFC_Default.tws{2})
-           /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1)
+           /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} = size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1)
            /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
            /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.leavess{2}
            /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.nodess{2}
@@ -5214,8 +5293,11 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
              /\ ps{1} = pp{2}
              /\ ps{1} = TRHC.O_THFC_Default.pp{2}
              /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+             /\ ad{1} = adz
+             /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
              /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
              /\ pkFORSs{1} = R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+             /\ nodess{1} = R_TRHSMDTTCRC_EUFCMA.nodess{2}
              /\ (forall (adx : adrs * dgst),
                    adx \in TRHC_TCR.O_SMDTTCR_Default.ts{2}
                    <=>
@@ -5269,7 +5351,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
              /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
              /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
              /\ all (fun (ad : adrs) => get_typeidx ad = trcotype \/ get_thidx ad = 0) (TRHC.O_THFC_Default.tws{2})
-             /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + size skFORSl{2} * k * (t - 1)
+             /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} = size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + size skFORSl{2} * k * (t - 1)
              /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
              /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.leavess{2}
              /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.nodess{2}
@@ -5286,8 +5368,11 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                /\ ps{1} = pp{2}
                /\ ps{1} = TRHC.O_THFC_Default.pp{2}
                /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+               /\ ad{1} = adz
+               /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
                /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
                /\ pkFORSs{1} = R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+               /\ nodess{1} = R_TRHSMDTTCRC_EUFCMA.nodess{2}
                /\ skFORS{1} = skFORS0{2}
                /\ leavesk{1} = leavesk0{2}
                /\ (forall (adx : adrs * dgst),
@@ -5369,36 +5454,522 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
                /\ all (fun (ad : adrs) => get_typeidx ad = trcotype \/ get_thidx ad = 0) (TRHC.O_THFC_Default.tws{2})
                /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} 
-                  <= 
+                  = 
                   size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + 
                   size skFORSl{2} * k * (t - 1) + 
                   size leavesk0{2} * (t - 1)
                /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+               /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.nodess{2}
                /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} < s
                /\ size skFORSl{2} = size pkFORSl{2}
+               /\ size skFORSl{2} = size nodesl{2}
                /\ size skFORSl{2} < l
                /\ size leavesk0{2} = size nodesk{2}
                /\ size leavesk0{2} = size rootsk{2}
                /\ size leavesk0{2} <= k).
-        - admit.
+        - wp => /=.
+          while (   ={skFORSl, pkFORSl, leavesl, nodesl, rootsl, nodesk, rootsk, leavest, nodest}
+                 /\ ps{1} = pp{2}
+                 /\ ps{1} = TRHC.O_THFC_Default.pp{2}
+                 /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+                 /\ ad{1} = adz
+                 /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
+                 /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
+                 /\ pkFORSs{1} = R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+                 /\ nodess{1} = R_TRHSMDTTCRC_EUFCMA.nodess{2}
+                 /\ skFORS{1} = skFORS0{2}
+                 /\ leavesk{1} = leavesk0{2}
+                 /\ (forall (adx : adrs * dgst),
+                       adx \in TRHC_TCR.O_SMDTTCR_Default.ts{2}
+                       <=>
+                       (exists (i j u v w : int), 0 <= i < size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} /\ 0 <= j < Top.l /\ 0 <= u < k /\ 
+                                                  0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                         adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                   (i * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                    bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                       \/
+                       (exists (j u v w : int), 0 <= j < size skFORSl{2} /\ 0 <= u < k /\ 
+                                                0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                         adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                   (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                    bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                       \/
+                       (exists (u v w : int), 0 <= u < size leavesk0{2} /\ 
+                                              0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                         adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                   (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                    bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                       \/ 
+                       (exists (v w : int), 0 <= v < size nodest{2} /\ 0 <= w < nr_nodes (v + 1) /\
+                         adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                   (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                                    bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)))
+                 /\ (forall (i j u v w : int), 0 <= i < size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 0 <= u < k => 
+                                               0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                       nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                           (i * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                            bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j) (v + 1) (u * nr_nodes (v + 1) + w),
+                        let leavesl 
+                            = 
+                            mkseq (fun (m : int) => 
+                                      f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + m)) 
+                                        (val (nth witness (nth witness (val (nth witness (nth witness R_TRHSMDTTCRC_EUFCMA.skFORSs{2} i) j)) u) m))) t in
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j)
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                          ++
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j)
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                 /\ (forall (j u v w : int), 0 <= j < size skFORSl{2} => 0 <= u < k => 
+                                             0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                       nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                           (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                            bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j) 
+                                    (v + 1) (u * nr_nodes (v + 1) + w),
+                        let leavesl 
+                            = 
+                            mkseq (fun (m : int) => 
+                                      f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j) 
+                                              0 (u * t + m)) 
+                                        (val (nth witness (nth witness (val (nth witness skFORSl{2} j)) u) m))) t in
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j)
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                          ++
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j)
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                 /\ (forall (u v w : int), 0 <= u < size leavesk0{2} => 
+                                           0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                       nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                           (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                            bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                    (v + 1) (u * nr_nodes (v + 1) + w),
+                        let leavesl 
+                            = 
+                            mkseq (fun (m : int) => 
+                                      f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                              0 (u * t + m)) 
+                                        (val (nth witness (nth witness (val skFORS0{2}) u) m))) t in
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                          ++
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                              (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                 /\ (forall (v w : int), 0 <= v < size nodest{2} => 0 <= w < nr_nodes (v + 1) =>
+                       nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                           (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                            bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                       =
+                       (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                    (v + 1) (size leavesk0{2} * nr_nodes (v + 1) + w),
+                        (*
+                        let leavesl 
+                            = 
+                            mkseq (fun (m : int) => 
+                                      f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                              0 (u * t + m)) 
+                                        (val (nth witness (nth witness (val skFORS0{2}) u) m))) t in
+                        *)
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                              (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - v) (2 * w))))) v (size leavesk0{2} * nr_nodes v + 2 * w))
+                          ++
+                          val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                              (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - v) (2 * w + 1))))) v (size leavesk0{2} * nr_nodes v + 2 * w + 1))))
+                 /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
+                 /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
+                 /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                    = 
+                    size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + 
+                    size skFORSl{2} * k * (t - 1) + 
+                    size leavesk0{2} * (t - 1) +
+                    bigi predT (fun (m : int) => nr_nodes m) 1 (size nodest{2} + 1)
+                 /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+                 /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.nodess{2}
+                 /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} < s
+                 /\ size skFORSl{2} = size pkFORSl{2}
+                 /\ size skFORSl{2} = size nodesl{2}
+                 /\ size skFORSl{2} < l
+                 /\ size leavesk0{2} = size nodesk{2}
+                 /\ size leavesk0{2} = size rootsk{2}
+                 /\ size leavesk0{2} < k
+                 /\ size nodest{2} <= a).
+          * wp => /=.
+            while (   ={skFORSl, pkFORSl, leavesl, nodesl, nodesk, leavest, nodest, nodescl, nodespl}
+                   /\ ps{1} = pp{2}
+                   /\ ps{1} = TRHC.O_THFC_Default.pp{2}
+                   /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+                   /\ ad{1} = adz
+                   /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
+                   /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
+                   /\ pkFORSs{1} = R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+                   /\ nodess{1} = R_TRHSMDTTCRC_EUFCMA.nodess{2}
+                   /\ skFORS{1} = skFORS0{2}
+                   /\ leavesk{1} = leavesk0{2}
+                   /\ (forall (adx : adrs * dgst),
+                        adx \in TRHC_TCR.O_SMDTTCR_Default.ts{2}
+                        <=>
+                        (exists (i j u v w : int), 0 <= i < size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} /\ 0 <= j < Top.l /\ 0 <= u < k /\ 
+                                                   0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                          adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                    (i * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                     bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                        \/
+                        (exists (j u v w : int), 0 <= j < size skFORSl{2} /\ 0 <= u < k /\ 
+                                                 0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                          adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                    (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                     bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                        \/
+                        (exists (u v w : int), 0 <= u < size leavesk0{2} /\ 
+                                               0 <= v < a /\ 0 <= w < nr_nodes (v + 1) /\
+                          adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                    (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                                     bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                        \/ 
+                        (exists (v w : int), 0 <= v < size nodest{2} /\ 0 <= w < nr_nodes (v + 1) /\
+                          adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                    (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                                     bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w))
+                        \/ 
+                        (exists (w : int), 0 <= w < size nodescl{2} /\
+                          adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                                    (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                                     bigi predT (fun (m : int) => nr_nodes m) 1 (size nodest{2} + 1) + w)))
+                   /\ (forall (i j u v w : int), 0 <= i < size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 0 <= u < k => 
+                                                 0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                         nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                             (i * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                              bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                         =
+                         (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j) (v + 1) (u * nr_nodes (v + 1) + w),
+                          let leavesl 
+                              = 
+                              mkseq (fun (m : int) => 
+                                        f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j) 0 (u * t + m)) 
+                                          (val (nth witness (nth witness (val (nth witness (nth witness R_TRHSMDTTCRC_EUFCMA.skFORSs{2} i) j)) u) m))) t in
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j)
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                            ++
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) i) j)
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                   /\ (forall (j u v w : int), 0 <= j < size skFORSl{2} => 0 <= u < k => 
+                                               0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                         nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                             (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + j * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                              bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                         =
+                         (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j) 
+                                      (v + 1) (u * nr_nodes (v + 1) + w),
+                          let leavesl 
+                              = 
+                              mkseq (fun (m : int) => 
+                                        f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j) 
+                                                0 (u * t + m)) 
+                                          (val (nth witness (nth witness (val (nth witness skFORSl{2} j)) u) m))) t in
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j)
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                            ++
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) j)
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                   /\ (forall (u v w : int), 0 <= u < size leavesk0{2} => 
+                                             0 <= v < a => 0 <= w < nr_nodes (v + 1) =>
+                         nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                             (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + u * (2 ^ a - 1) + 
+                              bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                         =
+                         (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                      (v + 1) (u * nr_nodes (v + 1) + w),
+                          let leavesl 
+                              = 
+                              mkseq (fun (m : int) => 
+                                        f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                                0 (u * t + m)) 
+                                          (val (nth witness (nth witness (val skFORS0{2}) u) m))) t in
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w))))) v (u * nr_nodes v + 2 * w))
+                            ++
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavesl) (rev (int2bs (a - v) (2 * w + 1))))) v (u * nr_nodes v + 2 * w + 1))))
+                   /\ (forall (v w : int), 0 <= v < size nodest{2} => 0 <= w < nr_nodes (v + 1) =>
+                         nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                             (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                              bigi predT (fun (m : int) => nr_nodes m) 1 (v + 1) + w)
+                         =
+                         (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                      (v + 1) (size leavesk0{2} * nr_nodes (v + 1) + w),
+                          (*
+                          let leavesl 
+                              = 
+                              mkseq (fun (m : int) => 
+                                        f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                                0 (u * t + m)) 
+                                          (val (nth witness (nth witness (val skFORS0{2}) u) m))) t in
+                          *)
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - v) (2 * w))))) v (size leavesk0{2} * nr_nodes v + 2 * w))
+                            ++
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - v) (2 * w + 1))))) v (size leavesk0{2} * nr_nodes v + 2 * w + 1))))
+                   /\ (forall (w : int), 0 <= w < size nodescl{2} =>
+                         nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                             (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * Top.l * k * (2 ^ a - 1) + size skFORSl{2} * k * (2 ^ a - 1) + size leavesk0{2} * (2 ^ a - 1) + 
+                              bigi predT (fun (m : int) => nr_nodes m) 1 (size nodest{2} + 1) + w)
+                         =
+                         (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                      (size nodest{2} + 1) (size leavesk0{2} * nr_nodes (size nodest{2} + 1) + w),
+                          (*
+                          let leavesl 
+                              = 
+                              mkseq (fun (m : int) => 
+                                        f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                                0 (u * t + m)) 
+                                          (val (nth witness (nth witness (val skFORS0{2}) u) m))) t in
+                          *)
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - size nodest{2}) (2 * w))))) (size nodest{2}) (size leavesk0{2} * nr_nodes (size nodest{2}) + 2 * w))
+                            ++
+                            val (val_bt_trh_gen pp{2} (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2}))
+                                                (oget (sub_bt (list2tree leavest{2}) (rev (int2bs (a - size nodest{2}) (2 * w + 1))))) (size nodest{2}) (size leavesk0{2} * nr_nodes (size nodest{2}) + 2 * w + 1))))
+                   /\ uniq (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
+                   /\ all (fun (ad : adrs) => get_typeidx ad = trhtype /\ get_thidx ad <> 0) (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})
+                   /\ size TRHC_TCR.O_SMDTTCR_Default.ts{2} 
+                      = 
+                      size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + 
+                      size skFORSl{2} * k * (t - 1) + 
+                      size leavesk0{2} * (t - 1) +
+                      bigi predT (fun (m : int) => nr_nodes m) 1 (size nodest{2} + 1) +
+                      size nodescl{2}  
+                   /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.pkFORSs{2}
+                   /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRHSMDTTCRC_EUFCMA.nodess{2}
+                   /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} < s
+                   /\ size skFORSl{2} = size pkFORSl{2}
+                   /\ size skFORSl{2} = size nodesl{2}
+                   /\ size skFORSl{2} < l
+                   /\ size leavesk0{2} = size nodesk{2}
+                   /\ size leavesk0{2} = size rootsk{2}
+                   /\ size leavesk0{2} < k
+                   /\ size nodest{2} < a
+                   /\ size nodescl{2} <= nr_nodes (size nodest{2} + 1)).
+            + inline{2} 3.
+              wp; skip => /> &2 otsdef nthots nthots1 nthots2 nthots3 nthots4 uqun1ots allots szots
+                                eqszskpkfs eqszskfnds lts_szskfs eqszskpkfl eqszskfndsl ltl_szskfs
+                                eqszlfsndsk eqszlfsrsk ltk_szlfsk lta_szndst _ ltnnsz1_szndscl.
+              rewrite ?size_rcons !andbA -andbA; split => [| /#].
+              rewrite all_map -?cats1 all_cat /= -all_map allots /= /preim /=.
+              rewrite map_cat /= cat_uniq uqun1ots /=.
+              split; last first.
+              - rewrite gettype_setthtbkptypetrh 6:/=; 1..5: smt(valf_adz nth_take size_ge0).
+                * split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                rewrite getth_setthtbkpttype 1:valf_adz; 1..3,5:smt(size_ge0).
+                split => [| _]; 1: smt(size_ge0).
+                by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+              
+              split; last first. 
+              - have vtbnad : valid_tbidx (size nodest{2} + 1) (size nodesk{2} * nr_nodes (size nodest{2} + 1) + size nodescl{2}).
+                * split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                have vthnad : valid_thidx (size nodest{2} + 1) by smt(size_ge0).
+                have vkpnad : valid_kpidx (size nodesl{2}) by smt(size_ge0).
+                have vtnad : valid_tidx (size R_TRHSMDTTCRC_EUFCMA.nodess{2}) by smt(size_ge0).
+                rewrite mapP negb_exists => adx /=.
+                rewrite negb_and -implybE => /otsdef.
+                case; 2: case; 3: case; 4: case.
+                * elim => i j u v w [rng_i [rng_j [rng_u [rng_v [rng_w]]]]].
+                  rewrite nthots 1..5:// => -> /=.
+                  rewrite -eq_adrs_idxs &(neq_from_nth witness _ _ 4).
+                  rewrite neqtidx_setthtbkpt 1:valf_adz 1,3,4,5,7,10:// 1,2,4:/#.
+                  split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                * elim => j u v w [rng_j [rng_u [rng_v [rng_q]]]].
+                  rewrite nthots1 1..4:// => -> /=.
+                  rewrite -eq_adrs_idxs &(neq_from_nth witness _ _ 2).
+                  rewrite neqkpidx_setthtbkpt 1:valf_adz 1,2,3,5,7,10:// 1,2,4:/#.
+                  split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                * elim => u v w [rng_u [rng_v [rng_w]]].
+                  rewrite nthots2 1..3:// => -> /=.
+                  rewrite -eq_adrs_idxs; case (v = size nodest{2}) => [eqsz_v | neqsz_v].
+                  + rewrite eqsz_v &(neq_from_nth witness _ _ 0).
+                    rewrite neqtbidx_setthtbkpt 1:valf_adz 1..5,7,10:// 1:/#.
+                    - split => [| _]; 1: smt(size_ge0).
+                      by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                    rewrite (: size nodesk{2} = size nodesk{2} - u + u) 1:/# mulrDl.
+                    rewrite neq_ltz; right; suff /#: 0 <= size nodescl{2}.
+                    by rewrite size_ge0.
+                  rewrite &(neq_from_nth witness _ _ 1).
+                  rewrite neqthidx_setthtbkpt 1:valf_adz 1..5,7,10:// 1,3:/#.
+                  split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                * elim => v w [rng_v [rng_w]].
+                  rewrite nthots3 1..2:// => -> /=.
+                  rewrite -eq_adrs_idxs &(neq_from_nth witness _ _ 1).
+                  rewrite neqthidx_setthtbkpt 1:valf_adz 1..5,7,10:// 1,3:/#.
+                  split => [| _]; 1: smt(size_ge0).
+                  by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+                elim => w [rng_w].
+                rewrite nthots4 1:// => -> /=.
+                rewrite -eq_adrs_idxs &(neq_from_nth witness _ _ 0).
+                rewrite neqtbidx_setthtbkpt 1:valf_adz 1..5,7,10:// 1,3:/#.
+                split => [| _]; 1: smt(size_ge0).
+                by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+              rewrite -!andbA; split => [adx |].
+              - rewrite mem_cat /=; split; last first.
+                * rewrite otsdef; case; 2: case; 3: case; 4: case.
+                  + elim => i j u v w [rng_i [rng_j [rng_u [rng_v [rng_w]]]]].
+                    rewrite nth_cat szots -/t.
+                    suff /#:
+                      i * l * k * (t - 1) + j * k * (t - 1) + u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
+                      < 
+                      size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} * l * k * (t - 1) + size skFORSl{2} * k * (t - 1) + size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
+                    rewrite -?mulrA /t -?addrA ltlltr 3:/#.
+                    - by rewrite ?mulr_ge0; 1..3: smt(Top.ge1_l ge1_k ge2_t).
+                    - rewrite ?addr_ge0 ?mulr_ge0 1,4,7://; 1..3: smt(Top.ge1_l ge1_k size_ge0 ge2_t).
+                      by rewrite sumr_ge0 => ? _; rewrite expr_ge0.
+                    rewrite -(addr0 (l * _)) ltlltr 1:mulr_ge0 3://; 1..3: smt(ge1_k ge2_t).
+                    rewrite -(addr0 (k * _)) ltlltr 2:// 2:/#; 1: smt(ge2_t).
+                    by rewrite ltnn1_bignna.
+                  + elim => j u v w [rng_j [rng_u [rng_v [rng_w]]]].
+                    rewrite nth_cat szots -/t.
+                    suff /#:
+                      j * k * (t - 1) + u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
+                      < 
+                      size skFORSl{2} * k * (t - 1) + size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
+                    rewrite -?mulrA -?addrA ltlltr 3:/#; 1: smt(ge1_k ge2_t). 
+                    - rewrite ?addr_ge0 2:sumr_ge0 1:mulr_ge0 4:// => [| | a _]; 1,2: smt(size_ge0 ge2_t).
+                      by rewrite expr_ge0.
+                    rewrite -(addr0 (k * _)) ltlltr 2:// 2:/#; 1: smt(IntOrder.expr_gt0).
+                    by rewrite ltnn1_bignna.
+                  + elim => u v w [rng_u [rng_v [rng_w]]].
+                    rewrite nth_cat szots -/t.
+                    suff /#:
+                      u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
+                      < 
+                      size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
+                    rewrite -?addrA ltlltr 3:/#; 1: smt(ge2_t). 
+                    - by rewrite addr_ge0 2:size_ge0 sumr_ge0 => a _; rewrite expr_ge0.
+                    by rewrite ltnn1_bignna.
+                  + elim => v w [rng_v [rng_w]].
+                    rewrite nth_cat szots -/t.
+                    suff /#:
+                      bigi predT nr_nodes 1 (v + 1) + w 
+                      < 
+                      bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
+                    print big_cat_int.
+                    rewrite (big_cat_int (v + 1) _ (size nodest{2} + 1)) 1,2:/#.
+                    rewrite -addrA ler_lt_add 1:// (big_cat_int (v + 2)) 1,2:/# big_int1.
+                    by rewrite -(addr0 w) -addrA ltr_le_add 1:/# addr_ge0 2:size_ge0 1:sumr_ge0 => a _; rewrite expr_ge0.
+                  elim => w [rng_w].
+                  rewrite nth_cat szots -/t; case (w < size nodescl{2}) => [/# | ?].
+                  by rewrite (: w = size nodescl{2}) 1:/# /= => ->.
+                admit.
+              admit.
+            wp; skip => /> &2 otsdef nthots nthots1 nthots2 nthots3 uqun1ots allots szots
+                              eqszskpkfs eqszskfnds lts_szskfs eqszskpkfl eqszskfndsl ltl_szskfs
+                              eqszlfsndsk eqszlfsrsk ltk_szlfsk _ lta_szndst.
+            rewrite expr_ge0 1:// /=.
+            split => [| ts ndscl /lezNgt gennsz1_szndscl _ tsdef nthts nthts1 nthts2 nthts3 nthts4 uqunz1ts allts szts lennsz1_szndscl].            
+            + split => [adx | /#]. 
+              by rewrite ?otsdef /#.
+            rewrite ?size_rcons !andbA; split => [| /#].
+            split; last first.
+            + rewrite (lez_trans _ _ _ szts) -addrA ler_add 1://.
+              by rewrite (big_int_recr (size nodest{2} + 1)) 2:ler_add; 1: smt(size_ge0).
+            split => [adx | v w ge0_v ltsz1_v ge0_w ltnnv1_w].
+            - split => [/tsdef | ].
+              * do 3! (case => [-> // |]).
+                case => [/# | [w] [rng_w ->]]; do ? right. 
+                by exists (size nodest{2}) w; smt(size_ge0).
+              rewrite tsdef; do 3! (case => [-> // |]).
+              move => -[v w] [rng_v] [rng_w] -> /=.
+              case (v < size nodest{2}) => ?.
+              * by do 3! right; left; exists v w => /#.
+              by do 4! right; exists w => /#.
+            case (v < size nodest{2}) => ?; 1: by rewrite nthts3.
+            by rewrite (: v = size nodest{2}) 1:/# /= nthts4 1:/#.
+          wp => /=.
+          while (   ={leavest, skFORSl}
+                 /\ ps{1} = pp{2}
+                 /\ ps{1} = TRHC.O_THFC_Default.pp{2}
+                 /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
+                 /\ ad{1} = adz
+                 /\ ad{1} = R_TRHSMDTTCRC_EUFCMA.ad{2}
+                 /\ skFORSs{1} = R_TRHSMDTTCRC_EUFCMA.skFORSs{2}
+                 /\ skFORS{1} = skFORS0{2}
+                 /\ leavesk{1} = leavesk0{2}
+                 /\ leavest{2}
+                    =
+                    mkseq (fun (m : int) => 
+                            f pp{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx R_TRHSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRHSMDTTCRC_EUFCMA.skFORSs{2})) (size skFORSl{2})) 
+                                    0 (size leavesk0{2} * t + m)) 
+                              (val (nth witness (nth witness (val skFORS0{2}) (size leavesk0{2})) m))) (size leavest{2})
+                 /\ all (fun (ad : adrs) => get_typeidx ad = trcotype \/ get_thidx ad = 0) (TRHC.O_THFC_Default.tws{2})
+                 /\ size R_TRHSMDTTCRC_EUFCMA.skFORSs{2} < s
+                 /\ size skFORSl{2} < l
+                 /\ size leavesk0{2} < k
+                 /\ size leavest{2} <= t).
+          * inline{2} 1.
+            wp; skip => /> &2 lfstdef allotws lts_szskfs ltl_szskfs ltk_szlfsk _ ltt_szlfst.
+            rewrite ?size_rcons -?cats1 all_cat allotws /=.
+            rewrite mkseqS 1:size_ge0 ?cats1 /= {8}lfstdef /f valP /= /=.
+            split => [| /#]; 1: right.
+            rewrite getth_setthtbkpttype 1:valf_adz 5://; 1..3: smt(ge1_a size_ge0). 
+            split => [| _]; 1: smt(size_ge0).
+            by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
+          wp; skip => /> &2 otsdef nthots nthots1 nthots2 uqun1ots allots allotws szots
+                            eqszskpkfs lts_szskfs eqszskpkfl ltl_szskfs
+                            eqszlfsndsk eqszlfsrsk _ ltk_szlfsk.
+          split => [| tws lfst /lezNgt get_szlfst _ lfstdef alltws let_szlfst]; 1: by rewrite mkseq0; smt(ge2_t).
+          split => [| ts ndst /lezNgt gea_szndst _ tsdef nthts nthts1 nthts2 nthts3 uqunz1ts allts szts lea_szndst]. 
+          - rewrite big_geq 1://= szots.
+            split => [adx |]; 2: smt(ge1_a).
+            by rewrite ?otsdef /#.
+          rewrite ?size_rcons !andbA -2!andbA; split => [| /#].
+          split; last first.
+          - rewrite mulrDl /= addrA (lez_trans _ _ _ szts).
+            rewrite ler_add 1:// (: size ndst = a) 1:/#.
+            rewrite lez_eqVlt; left.
+            rewrite /t eq_sym /nr_nodes; have ge0_a: 0 <= a by smt(ge1_a).
+            rewrite (big_reindex _ _ (fun i => a - i) (fun i => a - i)).
+            + by move=> i /mem_range rng_i /= /#.
+            rewrite /(\o) /predT /= -/predT (eq_bigr _ _ (fun i => 2 ^ i)) => [i _ /= /# |].
+            rewrite (eq_big_perm _ _ _ (range 0 a)).
+            - rewrite uniq_perm_eq_size 2:range_uniq 2:size_map 2:?size_range 2://.
+              * by rewrite map_inj_in_uniq 2:range_uniq => i j rng_i rng_j /= /#.
+              by move=> i /mapP [j] [/mem_range rng_j /= ->]; rewrite mem_range; smt(ge1_a).
+            elim: a ge0_a=> [| i ge0_i ih]; 1: by rewrite expr0 big_geq.  
+            by rewrite big_int_recr 1:// exprD_nneg 1,2:// /= expr1 -ih /#.
+          split => [adx | u v w ge0_u ltsz1_u ge0_v lta_v ge0_w ltnnv1_w].
+          + split => [/tsdef | ]; 1: smt(size_ge0).
+            by rewrite tsdef; smt(size_ge0).
+          case (u < size leavesk0{2}) => ?; 1: by rewrite nthts2.
+          rewrite (: u = size leavesk0{2}) 1:/# /= nthts3 1:/# 1://.
+          by rewrite lfstdef (: size lfst = t) 1:/#.
         wp => /=.
         call (: true); 1: by sim.
-        skip => /> &1 &2 otsdef otsnth otsnth1 uqun1ots allots allotws szots
-                         eqszskpkfs eqszskflfss eqszskfndss eqszskfrss lts_szskfs
-                         eqszskpkfl eqszskflfsl eqszskfndsl eqszskfrsl _ ltl_szskfs skf.
+        skip => /> &2 otsdef nthots nthots1 uqun1ots allots allotws szots
+                      eqszskpkfs eqszskflfss eqszskfndss eqszskfrss lts_szskfs
+                      eqszskpkfl eqszskflfsl eqszskfndsl eqszskfrsl _ ltl_szskfs skf.
         split => [|  tws ts lfsk ndsk rsk /lezNgt gek_szlfs _ tsdef nthts nthts1 nthts2 uqun1ts allts alltws szts]. 
         - split => [adx |]; 2: smt(ge1_k).
           by rewrite ?otsdef /#.
         move=> eqszndslfsk eqszrslfsk lek_szlfsk; rewrite ?size_rcons.
         rewrite !andbA -5!andbA; split => [| /#].
-        rewrite -?cats1 all_cat alltws /=.
-         
-        by split => [/otsdef /#|]; rewrite otsdef /#. nth
-          
-           [do 2! right => /# | ]. right. => /#. 
-          smt().
-        progress.
-      wp; skip => /> &2 otsdef otsnth uqun1ots allots allotws szots eqszskpkfs _ lts_skfs.
+        rewrite -?cats1 all_cat alltws /= gettype_setkp2type2trhtrco 6:/=; 1..4: smt(valf_adz nth_take size_ge0).
+        - by rewrite vkpidx_setkpttype 1:valf_adz; smt(size_ge0).
+        rewrite /trco size_flatten sumzE 2!big_map /(\o) /predT /= -/predT.
+        rewrite (eq_bigr _ _ (fun _ => 8 * n)) => [x _ /= |]; 1: by rewrite valP. 
+        rewrite big_constz count_predT (: size rsk = k) 1:/# /=.
+        split => [adx | j u v w ge0_j ltsz1_j ge0_u ltk_u ge0_v lta_v ge0_w ltnnv1_w].
+        - split => [/tsdef | ] @/predT; 1: smt(size_ge0).
+          by rewrite tsdef /predT; smt(size_ge0).
+        rewrite ?nth_cat; case (j < size skFORSl{2}) => ?; 1: by rewrite nthts1.
+        by rewrite (: j = size skFORSl{2}) 1:/# /= nthts2 1:/#.
+      wp; skip => /> &2 otsdef nthots uqun1ots allots allotws szots eqszskpkfs _ lts_skfs.
       split => [| tws ts pkfl skfl /lezNgt gel_szskfl _ tsdef nthts nthts1 uqun1ts allts alltws szts eqszskpkfl lel_szskfl]; 1: smt(Top.ge1_l).
       rewrite ?size_rcons !andbA -2!andbA; split => [| /#].
       split => [adx | i j u v w ge0_i ltsz1_i ge0_j ltl_j ge0_u ltk_u ge0_v lta_v ge0_w ltnnv1_w].

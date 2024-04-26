@@ -1310,18 +1310,171 @@ rewrite ?nth_put ?size_put 17:// /#.
 qed.
 
 
-(*
-  nth witness
-  (val
-     (set_thtbidx
-        (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (u %/ (l * k * t)))
-           (u %% (l * k * t) %/ (k * t))) 0 (u %% (k * t) %/ t * t + u %% t))) 4 <>
-nth witness
-  (val
-     (set_thtbidx
-        (set_kpidx (set_tidx (set_typeidx R_FSMDTOpenPRE_EUFCMA.ad{2} trhtype) (v %/ (l * k * t)))
-           (v %% (l * k * t) %/ (k * t))) 0 (v %% (k * t) %/ t * t + v %% t))) 4
-*)
+lemma neqtidx_setkp2type2trhtrco (i i' j j' : int) (ad : adrs) :
+     valid_fadrs ad
+  => valid_tidx i
+  => valid_tidx i'
+  => valid_kpidx j
+  => valid_kpidx j'
+  => i <> i'
+  => nth witness (val (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j) trcotype) 
+                                 (get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j)))) 4
+     <>  
+     nth witness (val (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i') j') trcotype) 
+                                 (get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i') j')))) 4.     
+proof.
+have gtif_szad : forall i, i < 5 => i < if 5 < size (val ad) then 5 else size (val ad) by smt(Adrs.valP ge5_adrslen).
+move=> vad vi vip vj vjp neqi_ip @/get_typeidx @/set_typeidx @/set_tidx @/set_idx.
+rewrite (insubdK (put _ _ trhtype)). 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 4?drop_put_out 1..4:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39://
+          1..20:gtif_szad 1..40:// /= ?nth_take 1..2:// /=; smt(ge1_a ge1_k ge1_l nth_take IntOrder.expr_gt0).
+rewrite /set_kpidx /set_idx (insubdK (put _ 4 i)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0). 
+rewrite /set_kpidx /set_idx (insubdK (put _ 4 i')).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0). 
+rewrite /get_kpidx /get_idx (insubdK (put _ 2 j)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= vi vj /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ 2 j')).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ _ trcotype)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..10:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99:// 
+             1..50:gtif_szad 1..100:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ _ trcotype)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..10:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99:// 
+             1..50:gtif_szad 1..100:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..11:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115:// 2..7:/#
+             1..55:gtif_szad 1..110:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..11:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115:// 2..7:/#
+             1..55:gtif_szad 1..110:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).             
+by rewrite ?nth_put ?size_put 35:// /#.  
+qed.
+
+
+lemma neqkpidx_setkp2type2trhtrco (i i' j j' : int) (ad : adrs) :
+     valid_fadrs ad
+  => valid_tidx i
+  => valid_tidx i'
+  => valid_kpidx j
+  => valid_kpidx j'
+  => j <> j'
+  => nth witness (val (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j) trcotype) 
+                                 (get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i) j)))) 2
+     <>  
+     nth witness (val (set_kpidx (set_typeidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i') j') trcotype) 
+                                 (get_kpidx (set_kpidx (set_tidx (set_typeidx ad trhtype) i') j')))) 2.     
+proof.
+have gtif_szad : forall i, i < 5 => i < if 5 < size (val ad) then 5 else size (val ad) by smt(Adrs.valP ge5_adrslen).
+move=> vad vi vip vj vjp neqj_jp @/get_typeidx @/set_typeidx @/set_tidx @/set_idx.
+rewrite (insubdK (put _ _ trhtype)). 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 4?drop_put_out 1..4:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39://
+          1..20:gtif_szad 1..40:// /= ?nth_take 1..2:// /=; smt(ge1_a ge1_k ge1_l nth_take IntOrder.expr_gt0).
+rewrite /set_kpidx /set_idx (insubdK (put _ 4 i)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0). 
+rewrite /set_kpidx /set_idx (insubdK (put _ 4 i')).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp 5?drop_put_out 1..5:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,
+             37,39,41,43,45,47,49:// 1..25:gtif_szad 1..50:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0). 
+rewrite /get_kpidx /get_idx (insubdK (put _ 2 j)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= vi vj /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ 2 j')).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..6:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59:// 1..30:gtif_szad 1..60:// /= /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ _ trcotype)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..10:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99:// 
+             1..50:gtif_szad 1..100:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite (insubdK (put _ _ trcotype)).
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..10:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  by rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99:// 
+             1..50:gtif_szad 1..100:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..11:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115:// 2..7:/#
+             1..55:gtif_szad 1..110:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).
+rewrite insubdK. 
++ rewrite /valid_adrsidxs valid_fidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
+  rewrite /valid_fidxvals /valid_fidxvalslp ?drop_put_out 1..11:// ?take_put /=.
+  rewrite /valid_fidxvalslptrco /valid_fidxvalslptrh.
+  rewrite ?nth_put ?size_put ?size_take
+             1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
+             57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111,113,115:// 2..7:/#
+             1..55:gtif_szad 1..110:// /=; smt(ge1_a ge1_k nth_take IntOrder.expr_gt0).             
+by rewrite ?nth_put ?size_put 35:// /#.  
+qed.
+
 
 lemma ltlltr (x x' y y' c : int) :
      0 <= c
@@ -6370,7 +6523,183 @@ seq 9 12 : (   ={glob A, glob O_CMA_MFORSTWESNPRF_AV, ps}
             /\ all (fun (ad : adrs) => get_typeidx ad = trcotype) (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
             /\ all (fun (ad : adrs) => get_typeidx ad <> trcotype) (TRCOC.O_THFC_Default.tws{2})
             /\ size TRCOC_TCR.O_SMDTTCR_Default.ts{2} = d).
-+ admit.
++ swap{2} 4 -3.
+  seq 2 2: (   ={glob A}
+            /\ ad{1} = adz
+            /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+            /\ ps{1} = pp{2}); 1: by rnd; wp; skip.
+  inline{1} 7; inline{1} 8.
+  inline{2} 10; inline{2} 11.
+  wp => /=.
+  while (   ps{1} = pp{2}
+         /\ ps{1} = TRCOC_TCR.O_SMDTTCR_Default.pp{2}
+         /\ ps{1} = TRCOC.O_THFC_Default.pp{2}
+         /\ ad{1} = adz
+         /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+         /\ skFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}
+         /\ pkFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+         /\ (forall (adx : adrs * dgst),
+               adx \in TRCOC_TCR.O_SMDTTCR_Default.ts{2}
+               <=>
+               (exists (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} /\ 0 <= j < Top.l /\
+                 adx = nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j)))
+         /\ (forall (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 
+              nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j)
+              =
+              let adt = set_kpidx (set_tidx (set_typeidx R_TRCOSMDTTCRC_EUFCMA.ad{2} trhtype) i) j in
+                (set_kpidx (set_typeidx adt trcotype) (get_kpidx adt),
+                 let rsk
+                     = 
+                     mkseq (fun (u : int) => 
+                             let lfst
+                                 = 
+                                 mkseq (fun (v : int) => 
+                                           f pp{2} (set_thtbidx adt 0 (u * t + v)) 
+                                             (val (nth witness (nth witness (val (nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} i) j)) u) v))) t
+                             in
+                               val_bt_trh pp{2} adt (list2tree lfst) u) k
+                 in
+                 flatten (map DigestBlock.val rsk)))
+         /\ (forall (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 
+              nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2} i) j
+              =
+              let nijts = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j) in
+                trco pp{2} nijts.`1 nijts.`2)
+         /\ uniq (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+         /\ all (fun (ad : adrs) => get_typeidx ad = trcotype) (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+         /\ all (fun (ad : adrs) => get_typeidx ad <> trcotype) (TRCOC.O_THFC_Default.tws{2})
+         /\ size TRCOC_TCR.O_SMDTTCR_Default.ts{2} = size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} * Top.l
+         /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+         /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} <= s).
+  - wp => /=.
+    while (   ={skFORSl, pkFORSl}
+           /\ ps{1} = pp{2}
+           /\ ps{1} = TRCOC_TCR.O_SMDTTCR_Default.pp{2}
+           /\ ps{1} = TRCOC.O_THFC_Default.pp{2}
+           /\ ad{1} = adz
+           /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+           /\ skFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}
+           /\ pkFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+           /\ (forall (adx : adrs * dgst),
+                 adx \in TRCOC_TCR.O_SMDTTCR_Default.ts{2}
+                 <=>
+                 (exists (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} /\ 0 <= j < Top.l /\
+                   adx = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j))
+                 \/
+                 (exists (j: int), 0 <= j < size skFORSl{2} /\
+                   adx = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} * Top.l + j)))
+           /\ (forall (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 
+                nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j)
+                =
+                let adt = set_kpidx (set_tidx (set_typeidx R_TRCOSMDTTCRC_EUFCMA.ad{2} trhtype) i) j in
+                  (set_kpidx (set_typeidx adt trcotype) (get_kpidx adt),
+                   let rsk
+                       = 
+                       mkseq (fun (u : int) => 
+                               let lfst
+                                   = 
+                                   mkseq (fun (v : int) => 
+                                             f pp{2} (set_thtbidx adt 0 (u * t + v)) 
+                                               (val (nth witness (nth witness (val (nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} i) j)) u) v))) t
+                               in
+                                 val_bt_trh pp{2} adt (list2tree lfst) u) k
+                   in
+                   flatten (map DigestBlock.val rsk)))
+           /\ (forall (j : int), 0 <= j < size skFORSl{2} => 
+                nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} * Top.l + j)
+                =
+                let adt = set_kpidx (set_tidx (set_typeidx R_TRCOSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2})) j in
+                  (set_kpidx (set_typeidx adt trcotype) (get_kpidx adt),
+                   let rsk
+                       = 
+                       mkseq (fun (u : int) => 
+                               let lfst
+                                   = 
+                                   mkseq (fun (v : int) => 
+                                             f pp{2} (set_thtbidx adt 0 (u * t + v)) 
+                                               (val (nth witness (nth witness (val (nth witness skFORSl{2} j)) u) v))) t
+                               in
+                                 val_bt_trh pp{2} adt (list2tree lfst) u) k
+                   in
+                   flatten (map DigestBlock.val rsk)))
+           /\ (forall (i j : int), 0 <= i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} => 0 <= j < Top.l => 
+                nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2} i) j
+                =
+                let nijts = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j) in
+                  trco pp{2} nijts.`1 nijts.`2)
+           /\ (forall (j : int), 0 <= j < size skFORSl{2} => 
+                nth witness pkFORSl{2} j
+                =
+                let nijts = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} * Top.l + j) in
+                  trco pp{2} nijts.`1 nijts.`2)
+           /\ uniq (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+           /\ all (fun (ad : adrs) => get_typeidx ad = trcotype) (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+           /\ all (fun (ad : adrs) => get_typeidx ad <> trcotype) (TRCOC.O_THFC_Default.tws{2})
+           /\ size TRCOC_TCR.O_SMDTTCR_Default.ts{2} 
+              = 
+              size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} * Top.l +
+              size skFORSl{2}
+           /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+           /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} < s
+           /\ size skFORSl{2} = size pkFORSl{2} 
+           /\ size skFORSl{2} <= l).
+    * inline{2} 6.
+      wp => /=.
+      while (   ={skFORS, leavesk, rootsk, skFORSl, pkFORSl}
+             /\ ps{1} = TRCOC.O_THFC_Default.pp{2}
+             /\ ad{1} = adz
+             /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+             /\ skFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}
+             /\ pkFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+             /\ rootsk{2}
+                = 
+                (let adt = set_kpidx (set_tidx (set_typeidx R_TRCOSMDTTCRC_EUFCMA.ad{2} trhtype) (size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2})) 
+                                    (size skFORSl{2}) in
+                   mkseq (fun (u : int) => val_bt_trh pp{2} adt (list2tree (nth witness leavesk{2} u)) u) (size rootsk{2}))
+             /\ all (fun (ad : adrs) => get_typeidx ad <> trcotype) (TRCOC.O_THFC_Default.tws{2})
+             /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} = size R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+             /\ size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} < s
+             /\ size skFORSl{2} = size pkFORSl{2} 
+             /\ size skFORSl{2} < l
+             /\ size rootsk{2} = size leavesk{2}
+             /\ size rootsk{2} <= k).
+      + admit.
+      wp => /=.
+      call (: true); 1: by sim.
+      skip => /> &2 otsdef nthots nthots1 nthopkfs nthopkfl uqunz1ots allots allotws szots eqszskpkfs ts_szskfs eqszskpkfl _ ltl_szskfl skf.
+      split => [| tws lfsk rsk /lezNgt gek_szlfs _ rskdef alltws eqszlfsrsk lek_szrsk]; 1: by rewrite mkseq0; smt(ge1_k).
+      rewrite ?size_rcons !andbA -2!andbA; split => [| /#].
+      rewrite map_rcons rcons_uniq /= -?cats1 all_cat /= uqunz1ots allots /=.
+      rewrite gettype_setkp2type2trhtrco /=; 1..4: smt(valf_adz nth_take size_ge0).
+      + by rewrite vkpidx_setkpttype 1:valf_adz; 1..3: smt(size_ge0).
+      split; last first.
+      + rewrite mapP negb_exists /= => adx; rewrite negb_and -implybE.
+        move/otsdef => -[[i j] [rng_i [rng_j ->]] | [j] [rng_j ->]].
+        - rewrite (nthots _ _ rng_i rng_j) /=.
+          rewrite -eq_adrs_idxs (neq_from_nth witness _ _ 4) 2://.
+          by rewrite neqtidx_setkp2type2trhtrco 1:valf_adz 4,6://; smt(size_ge0).
+        rewrite (nthots1 _ rng_j) /=.
+        rewrite -eq_adrs_idxs (neq_from_nth witness _ _ 2) 2://.
+        by rewrite neqkpidx_setkp2type2trhtrco 1:valf_adz 2,6://; smt(size_ge0).
+      rewrite -!andbA; split => [adx |].
+      + rewrite mem_cat /=.
+        admit.
+      admit.
+    wp; skip => /> &2 otsdef nthots nthopkfs uqun1ots allots allotws szots eqszskpkfs _ lts_szskfs.
+    split => [| tws ts pkfl skfl /lezNgt gel_szskfl _ tsdef nthts nthts1 nthpkfs nthpkfl uqunz1ts allts alltws szts eqszskpkfl lel_szskfl]; 1: smt(Top.ge1_l).
+    rewrite ?size_rcons mulrDl !andbA -2!andbA; split => [| /#].
+    rewrite -!andbA; split => [adx |]; 1: smt(size_ge0).
+    split=> i j ge0_i ltsz1i_ ge0_j ltl_j; rewrite ?nth_rcons.
+    + case (i < size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}) => ?; 1: by rewrite nthts.
+      by rewrite (: i = size R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}) 1:/# /= nthts1 2:// /#.
+    case (i < size R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}) => ?; 1: by rewrite nthpkfs 2:// /#.
+    by rewrite (: i = size R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}) 1:/# /= nthpkfl 2:// /#.
+  inline{2} 2; inline{2} 1.
+  wp; skip => /> &2.
+  split => [| pkfs skfs tws ts /lezNgt ges_szskfs _ tsdef nthts nthpkfs uqunz1ts allts alltws szts eqszskpkfs les_szskfs]; 1: smt(ge1_s).
+  split => [i j * |]; 1: by rewrite nthts /#.
+  split => [i j * |]; 1: by rewrite nthpkfs /#.
+  by rewrite dval /#.
 inline{2} 15; inline{2} 14; inline{2} 13; inline{2} 12.
 wp 25 11 => /=.
 conseq (: _   

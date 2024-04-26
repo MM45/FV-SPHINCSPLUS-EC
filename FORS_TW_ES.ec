@@ -715,10 +715,10 @@ clone import TRCO.Collection as TRCOC with
   realize in_collection by exists (8 * n * k).
 
 clone import TRCOC.SMDTTCRC as TRCOC_TCR with
-  op t_smdttcr <- d * k
+  op t_smdttcr <- d
   
   proof *.
-  realize ge0_tsmdttcr by smt(ge1_d ge1_k).
+  realize ge0_tsmdttcr by smt(ge1_d).
 
 
 (* -- Merkle trees -- *)
@@ -2878,9 +2878,7 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
     (* 
       Find the (instance index, inner tree index, leaf index) tuple computed from
       the forgery message that did not yet occur in the tuples computed from 
-      the messages in the oracle queries. From this tuple, extract the inner tree
-      index (which is also the index of the element in the forged signature
-      that we want to extract)
+      the messages in the oracle queries.
     *)
     (dfidx, dftidx, dflfidx) <- nth witness lidxs' (find (fun i => ! i \in O_CMA_MFORSTWESNPRF_AV.lidxs) lidxs');
     
@@ -3137,19 +3135,18 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
   }
   *)
   proc find(ps : pseed) : int * dgst = {
-    var skFORS : skFORS;
-    var leaves, sleaves, sleaves' : dgstblock list;
-    var root : dgstblock;
-    var roots : dgstblock list;
+    var root', leaf' : dgstblock;
+    var roots' : dgstblock list;
     var m' : msg;
     var mk' : mkey;
     var sigFORSTW' : sigFORSTW;
     var mksigFORSTW' : mkey * sigFORSTW;
-    var tidx, kpidx, cidx : int;
+    var tidx, kpidx, lfidx, cidx : int;
+    var lidxs' : (int * int * int) list;
     var cm' : msgFORSTW;
     var idx' : index;
-    var skFORSels : dgstblock list;
-    var roots' : dgstblock list;
+    var skFORS_ele' : dgstblock;
+    var ap' : apFORSTW;
     var c : dgst;
     
     (* Initialize CMA oracle *)
@@ -3161,13 +3158,18 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
     (* Compress message and extract instance index *)
     (mk', sigFORSTW') <- mksigFORSTW';
     (cm', idx') <- mco mk' m';
-    
-    (* Compute (outer) tree and keypair index from instance index *)
     (tidx, kpidx) <- edivz (val idx') l;
+    lidxs' <- g (cm', idx');
     
-    (* Get (list of) roots of instance pointed to by kpidx in set pointed to by tidx *)
-    roots' <- nth witness (nth witness rootss tidx) kpidx;
-    
+    roots' <- [];
+    while (size roots' < k){
+      lfidx <- (nth witness lidxs' (size roots')).`3;
+      (skFORS_ele', ap') <- nth witness (val sigFORSTW') (size roots');
+      leaf' <- f ps (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) 0 (size roots' * t + lfidx)) (val skFORS_ele');
+      root' <- val_ap_trh ps (set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx) ap' lfidx leaf' (size roots');
+      roots' <- rcons roots' root';
+    }    
+
     (* Compute the collision as the concatenation of the roots *)
     c <- flatten (map DigestBlock.val roots');
     
@@ -4207,6 +4209,20 @@ rewrite rev_cons foldl_rcons ih /updhbidx bs2int_cons /=.
 by rewrite exprD_nneg 1,2:// expr1 /#.
 qed.
 
+local lemma eq_from_flatten_nth (s s' : 'a list list):
+     size s = size s'
+  => (forall (i : int), 0 <= i < size s =>
+        size (nth witness s i) = size (nth witness s' i))
+  => flatten s = flatten s'
+  => s = s'.
+proof.
+elim: s s' => [ | x s ih]; first by smt(size_eq0).
+case => [| x' s' /= eqszs1_szsp1 eqsznth]; first by smt(size_eq0).
+rewrite 2!flatten_cons eqseq_cat 1:(eqsznth 0 _) //; first by smt(size_ge0).
+move=> [-> eqfls_flsp]; rewrite (ih s') 1:/# // => i rng_i.
+by move: (eqsznth (i + 1) _) => /#.
+qed.
+ 
 
 local lemma EUFCMA_MFORSTWESNPRF_OPRE &m:
   Pr[EUF_CMA_MFORSTWESNPRF(A, O_CMA_MFORSTWESNPRF).main() @ &m : res] 
@@ -6319,7 +6335,119 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
     by rewrite {2}(: a - size bs - 1 = size (int2bs (a - size bs - 1) (bs2int rtd %/ 2 ^ (size bs + 1)))) 1:size_int2bs 1:/# bs2intK.
   rewrite dvdzE (mulrC 2) modzMDl /= int2bs0s /= expr1 divzMDl //= -rev_cons.
   by rewrite {2}(: a - size bs - 1 = size (int2bs (a - size bs - 1) (bs2int rtd %/ 2 ^ (size bs + 1)))) 1:size_int2bs 1:/# bs2intK.
-admit.
+byequiv => //.
+proc.
+inline{2} 5; inline{2} 4.
+seq 9 12 : (   ={glob A, glob O_CMA_MFORSTWESNPRF_AV, ps}
+            /\ ps{1} = pp{2}
+            /\ ad{1} = adz
+            /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+            /\ skFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.skFORSs{2}
+            /\ pkFORSs{1} = R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2}
+            /\ (forall (i j : int), 0 <= i < s => 0 <= j < Top.l => 
+                 nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j)
+                 =
+                 let adt = set_kpidx (set_tidx (set_typeidx R_TRCOSMDTTCRC_EUFCMA.ad{2} trhtype) i) j in
+                   (set_kpidx (set_typeidx adt trcotype) (get_kpidx adt),
+                    let rsk
+                        = 
+                        mkseq (fun (u : int) => 
+                                let lfst
+                                    = 
+                                    mkseq (fun (v : int) => 
+                                              f pp{2} (set_thtbidx adt 0 (u * t + v)) 
+                                                (val (nth witness (nth witness (val (nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.skFORSs{2} i) j)) u) v))) t
+                                in
+                                  val_bt_trh pp{2} adt (list2tree lfst) u) k
+                    in
+                    flatten (map DigestBlock.val rsk)))
+            /\ (forall (i j : int), 0 <= i < s => 0 <= j < Top.l => 
+                 nth witness (nth witness R_TRCOSMDTTCRC_EUFCMA.pkFORSs{2} i) j
+                 =
+                 let nijts = nth witness TRCOC_TCR.O_SMDTTCR_Default.ts{2} (i * Top.l + j) in
+                   trco pp{2} nijts.`1 nijts.`2)
+            /\ uniq (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+            /\ all (fun (ad : adrs) => get_typeidx ad = trcotype) (unzip1 TRCOC_TCR.O_SMDTTCR_Default.ts{2})
+            /\ all (fun (ad : adrs) => get_typeidx ad <> trcotype) (TRCOC.O_THFC_Default.tws{2})
+            /\ size TRCOC_TCR.O_SMDTTCR_Default.ts{2} = d).
++ admit.
+inline{2} 15; inline{2} 14; inline{2} 13; inline{2} 12.
+wp 25 11 => /=.
+conseq (: _   
+          ==>
+             is_valid{1}
+          /\ is_fresh{1} 
+          /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR{1}
+          /\ !EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR{1}
+          =>
+             x{2} <> x'{2}
+          /\ trco pp{2} tw{2} x{2} = trco pp{2} tw{2} x'{2}) => //.
+- move=> /> &2 nthts nthpkfs uqunz1ts allts alltws szts vITSR vOPRE vTCR isf isv tw x x' + isfT isvT vITSRF vOPREF vTCRF.
+  rewrite isfT isvT vITSRF vTCRF /= size_ge0 szts => -[-> ->] /=.
+  rewrite hasPn => ad adints; rewrite -negP => adintws.
+  move/allP: allts => /(_ ad adints) /=.
+  by move/allP: alltws => /(_ ad adintws).
+inline{2} 11.
+wp => /=.
+while (   ={ps, roots', lidxs', sigFORSTW', tidx, kpidx}
+       /\ ad{1} = R_TRCOSMDTTCRC_EUFCMA.ad{2}
+       /\ roots'{1}
+          =
+          mkseq (fun (i : int) => 
+                     val_ap_trh ps{1} (set_kpidx (set_tidx (set_typeidx ad{1} trhtype) tidx{1}) kpidx{1})
+                                (nth witness (val sigFORSTW'{1}) i).`2 (nth witness lidxs'{1} i).`3 
+                                (nth witness leaves'{1} i) i) (size roots'{1}) 
+        /\ leaves'{1} 
+           =
+           mkseq (fun (i : int) => 
+                     f ps{1} (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{1} trhtype) tidx{1}) kpidx{1}) 
+                                          0 (i * t + (nth witness lidxs'{1} i).`3)) 
+                       (val (nth witness (val sigFORSTW'{1}) i).`1)) (size roots'{1})
+        /\ size roots'{1} = size skFORS_eles'{1}
+        /\ size roots'{1} = size leaves'{1}
+        /\ size roots'{1} <= k).
+- wp; skip => /> &1 &2 rsdef eqszrsskfelesp _ _ ltk_szrs.
+  rewrite ?size_rcons ?mkseqS 1,2:size_ge0 /= ?size_mkseq lez_maxr 1:size_ge0 /=.
+  split => [| /#].
+  congr; 2: by rewrite nth_rcons size_mkseq lez_maxr 1:size_ge0.
+  rewrite {1}rsdef &(eq_in_mkseq) => i [ge0_k ltszrs_i] /=. 
+  by rewrite nth_rcons size_mkseq lez_maxr 1:size_ge0 ltszrs_i.
+wp => /=.
+call (: ={glob O_CMA_MFORSTWESNPRF_AV}); 1: by sim.
+skip => /> &2 nthts nthpkfs uqunz1ts allts alltws szts sig qs lidxs mks.
+split=> [| skfeles rs /lezNgt gek_szrs _].
++ by rewrite 2!mkseq0 /=; smt(ge1_k).
+pose cmidx := mco _ _; pose fit := List.find _ _.
+move=> rsdef eqszskfelesrs _ lek_szrs.
+rewrite negb_and negb_forall /= => eq_out ninqs_sig1.
+move=> -[ | /mem_zip_snd]; 2: by rewrite ninqs_sig1.
+move=> -[idxs]; rewrite negb_imply => -[idxsing idxsninlidxs].
+have hasnin : has (fun (idxs : int * int * int) => ! (idxs \in lidxs)) (g (cmidx.`1, cmidx.`2)).
++ by rewrite hasP; exists idxs.
+have rng_fit : 0 <= fit < k.
++ by rewrite find_ge0 /= (: k = size (g (cmidx.`1, cmidx.`2))) 1:/g 1:/= 1:size_mkseq 2:-has_find 2:hasnin; smt(ge1_k).
+have eqfit_gcm2 : 
+  (nth witness (g (cmidx.`1, cmidx.`2)) fit).`2 = fit.
++ rewrite /g /chunk /= nth_mkseq 1://; smt(ge1_a).  
+move/nth_find: (hasnin) => /= /(_ witness) /= nthgnin.
+rewrite eqfit_gcm2 => neqin.
+have rngcmdl : 0 <= val cmidx.`2 %/ Top.l && val cmidx.`2 %/ Top.l < s.
++ by rewrite divz_ge0 2:ltz_divLR; smt(Top.ge1_l dval Index.valP).
+have rngcmml : 0 <= val cmidx.`2 %% Top.l && val cmidx.`2 %% Top.l < Top.l.
++ by rewrite modz_ge0 2:ltz_pmod; 1,2: smt(Top.ge1_l).
+move: (nthts (val cmidx.`2 %/ l) (val cmidx.`2 %% l) rngcmdl rngcmml).
+rewrite -divz_eq => ^ + -> /=. 
+rewrite eq_out (nthpkfs _ _ rngcmdl rngcmml) -divz_eq => -> /=.
+pose rs' := mkseq _ _.
+move: (eq_from_flatten_nth (map DigestBlock.val rs') (map DigestBlock.val rs) _ _).
++ by rewrite ?size_map size_iota /#.
++ move=> i; rewrite size_map => rng_i.
+  rewrite ?(nth_map witness) 1:// 1:size_iota; 1,2: smt(size_mkseq).
+  by rewrite 2!valP.
+move/contra => /(_ _) //.
+rewrite (neq_from_nth witness _ _ fit) 2:// ?(nth_map witness) 1:size_mkseq 2:size_iota 1..3:/# /=.
+rewrite nth_iota 1:// /= eq_sym; move: neqin. 
+by rewrite &(contra) &(DigestBlock.val_inj).
 qed.
 
 local lemma EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE &m :

@@ -983,7 +983,7 @@ wp;while(
   /\ (jj < min (size tws_init) t => jj < size O_SMDTOpenPRE_Default.ts => 
          !O_SMDTOpenPRE_Default_early_fail.r)); last 
   by wp;call(:true);auto => />;smt(ge0_t size_ge0).
-sp;if;2: by auto => />;smt(size_rcons size_ge0 rngprefl_image). search pre_f_l .
+sp;if;2: by auto => />;smt(size_rcons size_ge0 rngprefl_image).
 by rcondf 5; auto => />;smt(size_rcons size_ge0 rngprefl_image supp_dmap).
 qed.
 
@@ -1738,7 +1738,6 @@ apply (ler_trans
          +
          3%r * Pr[SM_DT_TCR(R_TCR_OpenPRE(A), O_SMDTTCR_Default).main() @ &m : res])); last first.
 + by apply ler_add; 1: rewrite maxrr.
-print pr_TCR_bigSi.
 have : 
 Pr[SM_DT_OpenPRE(A, O_SMDTOpenPRE_Default).main() @ &m : res] <=
 Pr[SM_DT_DSPR(R_DSPR_OpenPRE(A), O_SMDTDSPR_Default).main() @ &m : res] -

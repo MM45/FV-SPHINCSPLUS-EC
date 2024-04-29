@@ -3317,7 +3317,14 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 
 section Proof_EUFCMA_M_FORS_TW_ES.
 
-declare module A <: Adv_EUFCMA_MFORSTWESNPRF {-O_CMA_MFORSTWESNPRF, -O_CMA_MFORSTWESNPRF_AV, -O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FP_OpenPRE.O_SMDTOpenPRE_Default, -FP_DSPR.O_SMDTDSPR_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -O_THFC_Default, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA}.
+declare module A <: Adv_EUFCMA_MFORSTWESNPRF {
+(* FP_OPRETCRDSPR *)
+-FP_OPRETCRDSPR.FP_OpenPRE.O_SMDTOpenPRE_Default, -FP_OPRETCRDSPR.FP_DSPR.O_SMDTDSPR_Default, -FP_OPRETCRDSPR.R_DSPR_OpenPRE, -FP_OPRETCRDSPR.R_TCR_OpenPRE, -FP_OPRETCRDSPR.FP_TCR.O_SMDTTCR_Default,
+(* MCO/F/TRH/TRCO *)
+-MCO_ITSR.O_ITSR_Default, -F_OpenPRE.O_SMDTOpenPRE_Default, -FC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRCOC.O_THFC_Default,
+(* Local *)
+-O_CMA_MFORSTWESNPRF, -O_CMA_MFORSTWESNPRF_AV, -R_ITSR_EUFCMA, -R_FSMDTOpenPRE_EUFCMA, -R_TRHSMDTTCRC_EUFCMA, -R_TRCOSMDTTCRC_EUFCMA
+}.
 
 declare axiom A_forge_ll (O <: SOracle_CMA_MFORSTWESNPRF{-A}) :
   islossless O.sign => islossless A(O).forge.
@@ -4989,11 +4996,12 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
             /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR{1} 
             /\ EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE{1} 
             =>
-               ! (i{2} \in O_SMDTOpenPRE_Default.os{2})
+               0 <= i{2} && i{2} < d * k * t
+            /\ ! (i{2} \in O_SMDTOpenPRE_Default.os{2})
             /\ f pp{2} tw{2} x{2} = y{2}).
   - move=> &1 &2 [#] eqgl adval eqrad eqad eqpspp eqps0 eqppo eqppr osval lidxsval mmapval equnz2ts_lfs eqpkfs nthxs nthts szts eqszxsts valitsr valop isf isv os i tw x y + [#] isvT isfT valistrF valopT.
-    rewrite isfT valistrF valopT /= => -[nini eqy_fx].
-    rewrite nini eqy_fx szts /=; split; 1: smt(dval ge1_s Top.ge1_l ge1_k ge2_t).
+    rewrite isfT valistrF valopT /= => -[ge0_i [ltdkt_i [nini eqy_fx]]].
+    rewrite ge0_i szts ltdkt_i nini eqy_fx /=; split; 1: smt(dval ge1_s Top.ge1_l ge1_k ge2_t).
     rewrite nth_uniq => u v; rewrite size_map => rng_u rng_v nequ_v.
     rewrite 2?(nth_map witness) 1:rng_u 1:rng_v /=; move: (nequ_v).
     rewrite (divz_eq u (l * k * t)) (divz_eq v (l * k * t)).
@@ -5336,7 +5344,16 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
     rewrite valP; suff: a <= k * a - a * fit by smt().
     rewrite IntOrder.ler_subr_addr (: a + a * fit = (fit + 1) * a) 1:/#.
     by rewrite IntOrder.ler_pmul 1:/# 2://; smt(ge1_a). 
-  move=> eqlf; split.
+  move=> eqlf; split => [| _]; 2: split.
+  - rewrite ?addr_ge0 ?mulr_ge0 1:divz_ge0 6:modz_ge0; 1,3..8,10: smt(Top.ge1_l ge1_k ge2_t). 
+    * rewrite /g /chunk /= nth_mkseq 1:// /=; smt(Index.valP).
+    * rewrite /g /chunk /= nth_mkseq 1:// /=; smt(Index.valP).
+    * by rewrite /g /chunk /= nth_mkseq 1:// /= bs2int_ge0.
+  - rewrite -(addr0 (d * k * t)) dval -?mulrA -?addrA ltlltr 2:// 2:ltz_divLR; 1,2: smt(Top.ge1_l ge1_k ge2_t).
+    * by rewrite /g /chunk /= nth_mkseq 1:// /= -dval; smt(Index.valP).
+    rewrite -(addr0 (l * (k * t))) ltlltr 2:// 2:ltz_pmod; 1,2: smt(Top.ge1_l ge1_k ge2_t).
+    by rewrite -(addr0 (k * t)) ltlltr 2:// /g /chunk /= ?nth_mkseq 2,4,5:// /=; smt(ge2_t).
+  split.
   - move/iffRL /contra: (lidxsdef (nth witness (g (cmidx.`1, cmidx.`2)) fit)).
     rewrite /g /= nth_mkseq 1:// /= rng_fit bs2int_ge0 /= bsltt.
     move: (Index.valP cmidx.`2) => -> /=; apply.
@@ -6324,10 +6341,11 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
             /\ !EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE{1}
             /\ EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR{1}
             =>
-               x{2} <> x'{2}
+               0 <= i{2} && i{2} < d * k * (t - 1)
+            /\ x{2} <> x'{2}
             /\ trh pp{2} tw{2} x{2} = trh pp{2} tw{2} x'{2}) => //.
-  - move=> /> &2 uqunz1ts nthts allts alltws szts vITSR vOPRE vTCR isf tw x x' + isfT vITSRF vOPREF vTCRT.
-    rewrite isfT vITSRF vOPREF vTCRT size_ge0 szts => -[-> ->] /=.
+  - move=> /> &2 uqunz1ts nthts allts alltws szts vITSR vOPRE vTCR isf i tw x x' + isfT vITSRF vOPREF vTCRT.
+    rewrite isfT vITSRF vOPREF vTCRT size_ge0 szts  /= => -[-> [-> [-> ->]]] /=.
     rewrite hasPn => ad adints; rewrite -negP => adintws.
     move/allP: allts => /(_ ad adints) /=; rewrite negb_and /=.
     by move/allP: alltws => /(_ ad adintws) /= [-> | -> //]; rewrite eq_sym dist_adrstypes.
@@ -6437,6 +6455,15 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
   rewrite revK /=; move=> [#] x1val x1pval x2val x2pval.
   rewrite foldlupdhbidx size_int2bs lez_maxr 1:/# (: a - (a - size bs - 1) =  size bs + 1) 1:/# /=. 
   move=> hbidxval lval rval bsval [#] neqin eqout; pose nthtsc := nth _ _ (_ + _ + _ + _)%Int.
+  split => [| _]; 2: split.
+  - rewrite ?addr_ge0 ?mulr_ge0 1:divz_ge0 6:modz_ge0; 1..10: smt(Top.ge1_l ge1_k ge2_t Index.valP).
+    * by rewrite sumr_ge0 => a _; rewrite expr_ge0.
+    by rewrite modz_ge0 neq_ltz expr_gt0.
+  - rewrite -(addr0 (d * k * (t - 1))) dval -?mulrA -?addrA ltlltr 2:// 2:ltz_divLR 3:-dval; 1..3: smt(Top.ge1_l ge1_k ge2_t Index.valP).
+    rewrite -/t -(addr0 (Top.l * (k * (t - 1)))) ltlltr 2:// 2:ltz_pmod; 1,2: smt(Top.ge1_l ge1_k ge2_t).
+    rewrite -(addr0 (k * (t - 1))) ltlltr 2://; 1,2: smt(ge2_t).
+    rewrite hbidxval /= /t ltnn1_bignna 1:size_ge0 1://.
+    by rewrite modz_ge0 2:ltz_pmod 3:// 1:neq_ltz expr_gt0.
   move: (nthts (val cmidx.`2 %/ Top.l) (val cmidx.`2 %% Top.l) fit (hbidx.`1 - 1) 
                (hbidx.`2 %% nr_nodes hbidx.`1) _ _ _ _ _); 3,4: by rewrite //; smt(size_ge0 ge1_a).
   - by rewrite divz_ge0 2:ltz_divLR; smt(Top.ge1_l dval Index.valP).
@@ -6874,10 +6901,11 @@ conseq (: _
           /\ !EUF_CMA_MFORSTWESNPRF_V.valid_ITSR{1}
           /\ !EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR{1}
           =>
-             x{2} <> x'{2}
+             0 <= i{2} < d
+          /\ x{2} <> x'{2}
           /\ trco pp{2} tw{2} x{2} = trco pp{2} tw{2} x'{2}) => //.
-- move=> /> &2 nthts nthpkfs uqunz1ts allts alltws szts vITSR vOPRE vTCR isf isv tw x x' + isfT isvT vITSRF vOPREF vTCRF.
-  rewrite isfT isvT vITSRF vTCRF /= size_ge0 szts => -[-> ->] /=.
+- move=> /> &2 nthts nthpkfs uqunz1ts allts alltws szts vITSR vOPRE vTCR isf isv i tw x x' + isfT isvT vITSRF vOPREF vTCRF.
+  rewrite isfT isvT vITSRF vTCRF size_ge0 szts /= => -[[-> -> [-> ->]]] /=.
   rewrite hasPn => ad adints; rewrite -negP => adintws.
   move/allP: allts => /(_ ad adints) /=.
   by move/allP: alltws => /(_ ad adintws).
@@ -6929,6 +6957,7 @@ have rngcmdl : 0 <= val cmidx.`2 %/ Top.l && val cmidx.`2 %/ Top.l < s.
 + by rewrite divz_ge0 2:ltz_divLR; smt(Top.ge1_l dval Index.valP).
 have rngcmml : 0 <= val cmidx.`2 %% Top.l && val cmidx.`2 %% Top.l < Top.l.
 + by rewrite modz_ge0 2:ltz_pmod; 1,2: smt(Top.ge1_l).
+split; 1: smt(Index.valP).
 move: (nthts (val cmidx.`2 %/ l) (val cmidx.`2 %% l) rngcmdl rngcmml).
 rewrite -divz_eq => ^ + -> /=. 
 rewrite eq_out (nthpkfs _ _ rngcmdl rngcmml) -divz_eq => -> /=.
@@ -6951,7 +6980,7 @@ local lemma EqPr_SMDTOpenPRE_FOpenPRE_FPOpenPRE &m :
 proof.
 byequiv => //.
 proc.
-conseq (: ={glob A} ==> ={nrts, opened, dist, pp, tw, y} /\ x{1} = val x{2}); 1,2: smt().
+conseq (: ={glob A} ==> ={i, nrts, opened, dist, pp, tw, y} /\ x{1} = val x{2}); 1,2: smt().
 seq 4 4 : (   ={pp, i} 
            /\ ={os, ts}(F_OpenPRE.O_SMDTOpenPRE_Default, FP_OpenPRE.O_SMDTOpenPRE_Default)
            /\ x{1} = val x{2}).
@@ -7055,10 +7084,6 @@ lemma EUFCMA_MFORSTWESNPRF &m :
         Pr[FP_DSPR.SM_DT_SPprob(R_DSPR_OpenPRE(R_FPOpenPRE_FOpenPRE(A)), FP_DSPR.O_SMDTDSPR_Default).main() @ &m : res])
   +
   3%r * Pr[FP_TCR.SM_DT_TCR(R_TCR_OpenPRE(R_FPOpenPRE_FOpenPRE(A)), FP_TCR.O_SMDTTCR_Default).main() @ &m : res]
-(*  
-  +
-  Pr[FC_TCR.SM_DT_TCR_C(R_FSMDTTCRC_EUFCMA(A), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res]
-*)
   + 
   Pr[TRHC_TCR.SM_DT_TCR_C(R_TRHSMDTTCRC_EUFCMA(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
   +

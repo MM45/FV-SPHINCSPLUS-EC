@@ -3128,8 +3128,10 @@ local module type Adv_DistRCH(O : Oracle_DistRCH, OC : Oracle_THFC) = {
 (* - Module declarations - *)
 (* Adversary against M-EUF-GCMA of WOTW-TW (in an encompassing structure) *)
 declare module A <: Adv_MEUFGCMA_WOTSTWESNPRF {
-  -O_MEUFGCMA_WOTSTWESNPRF, -O_SMDTUD_Default, -O_SMDTTCR_Default, -O_SMDTPRE_Default, -O_THFC_Default,
-  -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES
+(* F *)
+-FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -FC.O_THFC_Default,
+(* Local *)
+-O_MEUFGCMA_WOTSTWESNPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES
 }.
 
 (* 
@@ -6179,10 +6181,6 @@ split => [| pk].
   move/(all_nthP _ _ witness): qsch => /(_ i0{1} _); first by rewrite size_map. 
   by rewrite (nth_map witness) //= => adch; rewrite insubdK.
 split => [/#| /lezNgt gelen_szqs3 adch pkpval lelen_szqs3 ge0_szqs led_szqs eqins_pk neqmp_qs2 uniq_qs disj_qs hchwcoll].
-split.
-+ by rewrite -(size_map (fun (p : adrs * dgst) => p.`1)) rcqsad; smt(relcqsadtcr_rng val_w ge2_len).
-split; first by smt(uniq_relcqsadtcr allP all_map).
-rewrite andbA; split; last by rewrite rcqsad &(disj_relcqsadtcr).
 pose i := find_chwcollidx _ _ _ _ _ _.
 pose j := find_collidx_l _ _ _ _ _ _.
 pose k := find_collidx_r ps{1} (set_chidx (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{1} i0{1}).`1 i)
@@ -6211,6 +6209,15 @@ move/hchwcoll_hcoll /(_ _ _): (eq_cf) => // hcoll.
 move/hchwcoll_findlcollrng /(_ _ _): (eq_cf) => //; rewrite -/j -/i => rng_j.
 move/(nth_find witness): (hchwcoll); rewrite nth_range //= -/i; elim => ltem_emp neq_nthsig.
 have neq0_em: BaseW.val (encode_msgWOTS (nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{1} i0{1}).`2).[i] <> 0 by smt(BaseW.valP).
+split.
++ move: (qsdgtcridx_rng O_MEUFGCMA_WOTSTWESNPRF.qs{1} 
+                        R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} 
+                        ps{1} i0{1} i (j + 1)) => /= /(_ eq_sz _ rng_i _) //; 1: smt(find_ge0).
+  by rewrite -rcqsdg size_map.
+split.
++ by rewrite -(size_map (fun (p : adrs * dgst) => p.`1)) rcqsad; smt(relcqsadtcr_rng val_w ge2_len).
+split; first by smt(uniq_relcqsadtcr allP all_map).
+rewrite andbA; split; last by rewrite rcqsad &(disj_relcqsadtcr).
 have ->:
   (nth witness O_SMDTTCR_Default.ts{1} (qsdgtcr_idx O_MEUFGCMA_WOTSTWESNPRF.qs{1} R_SMDTTCRC_Game34WOTSTWES.O_R_SMDTTCRC_Game34WOTSTWES.xll{1} ps{1} i0{1} i (j + 1))).`2
   =
@@ -6460,12 +6467,18 @@ while{1} (true) (len - size pkWOTS0{1}).
   by wp; skip; smt(size_rcons).
 wp; skip => |> &1 &2 qsch rcqsad rcqsdg uqpfdjpf_impl_djl pk'.  
 split => [/# | /lezNgt gelen_szq3 ge1_szqs led_szqs ge0_i0 ltszqs_i0 eqins_pkp neqq2_mp uqpf djpf nhchwcoll].
-split; first by smt(size_map relcqsadpre_rng ge2_len). 
-split; first by rewrite rcqsad uniq_relcqsadpre 1:all_map.
-split => [| /#].
 pose q := nth witness O_MEUFGCMA_WOTSTWESNPRF.qs{2} i0{2}; rewrite eq_sym in neqq2_mp.
 move/(nhchwcoll_hchwpre ps{2} q.`1 _ _ q.`4 sig'{2}) /(_ _): (neqq2_mp) => //.
 move=> hchwpre; rewrite eq_sym; pose qsdgidx := qsdgpre_idx _ _ _.
+split.
++ rewrite -(size_map (fun (adx : _ * _) => adx.`2)  O_SMDTPRE_Default.ts{2}) rcqsdg.
+  move: (qsdgpreidx_rng O_MEUFGCMA_WOTSTWESNPRF.qs{2} i0{2} (find_chwpreidx ps{2} q.`1 (encode_msgWOTS q.`2) (encode_msgWOTS m'{2}) q.`4 sig'{2})) => /=.
+  rewrite ge0_i0 ltszqs_i0 /= => /(_ _ _) //.
+  - by move/hchwpre_neq0_findchwpre: hchwpre.
+  by move/hchwpre_findprerng: hchwpre.
+split; first by smt(size_map relcqsadpre_rng ge2_len). 
+split; first by rewrite rcqsad uniq_relcqsadpre 1:all_map.
+split => [| /#].
 rewrite -(nth_map witness witness snd qsdgidx O_SMDTPRE_Default.ts{2}).
 + rewrite -(size_map (fun (p : _ * _) => p.`2)) rcqsdg qsdgpreidx_rng 2:/#.
   - by apply hchwpre_neq0_findchwpre.

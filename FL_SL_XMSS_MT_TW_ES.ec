@@ -2777,15 +2777,15 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
 
 section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.
 
-declare module A <: Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF {-O_MEUFGCMA_WOTSTWESNPRF, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -FC_TCR.O_SMDTTCR_Default, -FC_PRE.O_SMDTPRE_Default, -PKCOC.O_THFC_Default, -FC.O_THFC_Default, -TRHC.O_THFC_Default, -R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES}.
+declare module A <: Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF {
+(* WOTS-TW *)
+-WTWES.O_MEUFGCMA_WOTSTWESNPRF, -WTWES.FC_UD.O_SMDTUD_Default, -WTWES.FC_TCR.O_SMDTTCR_Default, -WTWES.FC_PRE.O_SMDTPRE_Default, -FC.O_THFC_Default, -WTWES.R_SMDTUDC_Game23WOTSTWES, -WTWES.R_SMDTTCRC_Game34WOTSTWES, -WTWES.R_SMDTPREC_Game4WOTSTWES,
+(* PKCO/TRH *)
+-PKCOC_TCR.O_SMDTTCR_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC_TCR.O_SMDTTCR_Default,  -PKCOC.O_THFC_Default, -TRHC.O_THFC_Default,  
+(* Local *)
+-R_MEUFGCMAWOTSTWESNPRF_EUFNAGCMA, -R_SMDTTCRCPKCO_EUFNAGCMA, -R_SMDTTCRCTRH_EUFNAGCMA
+}.
 
-(*
-Adversary assumptions:
-size ml = l /\ 
-all (fun (ad : adrs) =>   get_typeidx ad <> chtype 
-                      /\ get_typeidx ad <> pkcotype
-                      /\ get_typeidx ad <> trhtype) adsOC
-*)
 declare axiom A_choose_ll (OC <: Oracle_THFC{-A}) : 
   islossless OC.query => islossless A(OC).choose.
 
@@ -5449,12 +5449,18 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
   inline{2} 20; inline{2} 19; inline{2} 18; inline{2} 17; inline{2} 16.
   swap{1} 15 1.
   wp 15 17 => /=.
-  conseq (: is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO{1} => 
-              x'{2} <> x{2} /\ pkco pp{2} tw{2} x{2} = pkco pp{2} tw{2} x'{2} /\ 0 <= size PKCOC_TCR.O_SMDTTCR_Default.ts{2} <= bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d).
+  conseq (:   is_fresh{1} 
+           /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO{1} 
+           => 
+              0 <= i{2} < bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d
+           /\ 0 <= size PKCOC_TCR.O_SMDTTCR_Default.ts{2} <= bigi predT (fun (d' : int) => nr_nodes_ht d' 0) 0 d 
+           /\ x'{2} <> x{2} 
+           /\ pkco pp{2} tw{2} x{2} = pkco pp{2} tw{2} x'{2}).
   - move=> /> &2; rewrite (: d <> 0) 2:/=; 1: smt(ge1_d). 
-    move=> allnpkcotws lfsnth tsdef tsnth allpkcots *.
-    rewrite !andbA; split => [/# |]. 
-    rewrite hasPn => ad /mapP [adx /= [+ ->]]. 
+    move=> allnpkcotws lfsnth tsdef tsnth allpkcots uqunz1ts szts 
+           vTCR idx isf m pkw pkw' rs rs' i tw x x' + eqnthrs isfT neqnthpkws vTCRT.
+    rewrite isfT vTCRT szts /= => -[[-> ->] [[-> ->] /= [neqxxp ->]]] /=.
+    rewrite eq_sym neqxxp /= hasPn => ad /mapP [adx /= [+ ->]]. 
     rewrite implybE -negb_and -negP => -[adin adxin].
     by move: allnpkcotws => /allP /(_ adx.`1 adxin) /=; smt(allP).
   wp => /=.
@@ -5546,17 +5552,24 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
   rewrite /zs ?nth_zip_cond ?size_zip ?lez_minl 1..7:/#.
   rewrite (: cidx < size lfs') 1:/# /= => -[eqlfs neqpk].
   rewrite tsnth 1:// 1,2:tkpirng 1,2:/# /=.
-  split; 1: rewrite -pkwrel 1:/# -negP. 
-  * pose ml := List.map _ _; pose ml' := List.map _ _; move => eqfl.  
+  split; 1: split => [| _]. 
+  - rewrite ?addr_ge0 ?mulr_ge0 1:sumr_ge0; 2..5: smt(ge2_lp).
+    by move=> ? ?; rewrite expr_ge0.
+  - rewrite /nr_nodes_ht /nr_nodes /= -/l' -mulr_suml.
+    rewrite -(addr0 (bigi predT nr_trees 0 d * l')) {3}(: 0 = 0 * l' + 0) 1:// addrA.
+    by rewrite ltbignrt_i 2,4:/#.
+  split; 1: by rewrite szts sumr_ge0 => [? _ /= | //]; rewrite mulr_ge0 expr_ge0.
+  rewrite -pkwrel 1:/#; split; 1: rewrite -negP.
+  - pose ml := List.map _ _; pose ml' := List.map _ _; move => eqfl.  
     move: (eq_from_flatten_nth ml ml' _ _ eqfl); 1: by rewrite ?size_map ?valP.
-    + move=> j; rewrite size_map valP => rng_j.
+    * move=> j; rewrite size_map valP => rng_j.
       by rewrite ?(nth_map witness) 1,2:valP 1,2:// ?valP.
     rewrite /ml /ml' => eqmap. 
     have: injective (map DigestBlock.val) by rewrite inj_map val_inj.
     rewrite /injective => /(_ (val (nth witness pkws' cidx)) (val (nth witness pkws cidx)) eqmap) eqv.
     by move: (DBLL.val_inj (nth witness pkws' cidx) (nth witness pkws cidx) eqv).
   move: eqlfs; rewrite lfsrel 1:/# lfsdef 1:// 1,2:/# lfspdef 1:/# => -> /=.
-  by rewrite szts sumr_ge0 => [? _ /= | //]; rewrite mulr_ge0 expr_ge0.
+  by rewrite pkwrel 1:/#.
 rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH] RealOrder.ler_naddr.
 + rewrite RealOrder.ler_eqVlt; left.
   byphoare => //.
@@ -6431,12 +6444,16 @@ seq 2 2 : (#pre /\ ={sigl}); 1: by conseq />; sim.
 inline{2} 25; inline{2} 24; inline{2} 23; inline{2} 22; inline{2} 21.
 swap{1} [15..16] 1.
 wp 15 22 => /=.
-conseq (: is_fresh{1} /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH{1} => 
-            x'{2} <> x{2} /\ trh pp{2} tw{2} x{2} = trh pp{2} tw{2} x'{2} /\ 0 <= size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= bigi predT nr_trees 0 d * (2 ^ h' - 1)).
+conseq (:   is_fresh{1} 
+         /\ EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRTRH{1} 
+         => 
+            0 <= i{2} < bigi predT nr_trees 0 d * (2 ^ h' - 1)
+         /\ 0 <= size TRHC_TCR.O_SMDTTCR_Default.ts{2} <= bigi predT nr_trees 0 d * (2 ^ h' - 1)
+         /\ x'{2} <> x{2} /\ trh pp{2} tw{2} x{2} = trh pp{2} tw{2} x'{2}).
 + move=> /> &2; rewrite (: d <> 0) 2:/=; 1: smt(ge1_d). 
-  move=> allntrhtws rsnth tsdef tsnth alltrhts *.
-  rewrite !andbA; split => [/# |]. 
-  rewrite hasPn => ad /mapP [adx /= [+ ->]]. 
+  move=> allntrhtws lfsnth rsnth tsdef tsnth alltrhts uqunz1ts szts vTCR idx isf lfs lfs' m pkw pkw' rs rs' i tw x x' + eqnthrs isfT ? ? vTCRT.
+  rewrite isfT vTCRT szts /= => -[[-> ->] [-> [neqxxp ->]]].
+  rewrite eq_sym neqxxp /= hasPn => ad /mapP [adx /= [+ ->]]. 
   rewrite implybE -negb_and -negP => -[adin adxin].
   by move: allntrhtws => /allP /(_ adx.`1 adxin) /=; smt(allP).
 wp => /=.
@@ -6571,6 +6588,16 @@ rewrite (: h' - (h' - size bs - 1) =  size bs + 1) 1:/# /=.
 move=> hbidxval lval rval bsval.
 move => [#] neqin eqout.
 rewrite size_ge0 szts /=.
+split; 1: rewrite hbidxval /=; 1: split => [| _].
++ rewrite ?addr_ge0 ?mulr_ge0 1,5:sumr_ge0 3,4:/# 4:bs2int_ge0 => [* | | *]; 1,3: by rewrite expr_ge0.
+  by rewrite ler_subr_addr; smt(IntOrder.expr_gt0).
+search big.
++ rewrite -(addr0 (bigi predT nr_trees 0 d * _)).
+  rewrite {3}(: 0 = 0 * (2 ^ h - 1) + bigi predT nr_nodes 1 (0 + 1) + 0) 1:big_geq 1,2://. 
+  rewrite ?addrA (ltbignn_i _ _ _ 0) 1,3,4,5,7:// 1:/#.
+  rewrite bs2int_ge0 /=; pose i2bs := int2bs _ _.
+  rewrite (: nr_nodes (size bs + 1) = 2 ^ (size i2bs)) 2:bs2int_le2Xs.
+  by rewrite /nr_nodes /i2bs size_int2bs /#.
 pose nthtsc := nth _ _ (_ + _ + _ + _)%Int.
 move: (tsnth cidx (nth witness tkpi cidx).`1 (hbidx.`1 - 1) hbidx.`2 _ _ _ _); 1..3: smt(size_ge0).
 + rewrite hbidxval /= bs2int_ge0 /nr_nodes /=; pose i2bs := int2bs _ _.

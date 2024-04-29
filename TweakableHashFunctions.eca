@@ -131,7 +131,7 @@ abstract theory SMDTPRE.
       nrts <@ O.nr_targets();
       dist <@ O.dist_tweaks();
 
-      return 0 <= nrts <= t_smdtpre /\ dist /\ f pp tw x = y;  
+      return 0 <= i < nrts /\ 0 <= nrts <= t_smdtpre /\ dist /\ f pp tw x = y;  
     }
   }.
 end SMDTPRE.
@@ -643,7 +643,7 @@ abstract theory Collection.
         twsO <@ O.get_tweaks();
         twsOC <@ OC.get_tweaks();
 
-        return 0 <= nrts <= t_smdtpre /\ dist /\ f pp tw x = y /\ disj_lists twsO twsOC;  
+        return 0 <= i < nrts /\ 0 <= nrts <= t_smdtpre /\ dist /\ f pp tw x = y /\ disj_lists twsO twsOC;  
       }
     }.
   end SMDTPREC.
@@ -695,7 +695,7 @@ abstract theory Collection.
         twsO <@ O.get_tweaks();
         twsOC <@ OC.get_tweaks();
 
-        return 0 <= nrts <= t_smdtopenpre /\ !opened /\ dist /\ f pp tw x = y /\ disj_lists twsO twsOC;  
+        return 0 <= i < nrts /\ 0 <= nrts <= t_smdtopenpre /\ !opened /\ dist /\ f pp tw x = y /\ disj_lists twsO twsOC;  
       }
     }.
   end SMDTOpenPREC.
@@ -742,7 +742,7 @@ abstract theory Collection.
         twsO <@ O.get_tweaks();
         twsOC <@ OC.get_tweaks();
 
-        return 0 <= nrts <= t_smdttcr /\ dist /\ x <> x' /\ f pp tw x = f pp tw x' /\ disj_lists twsO twsOC;  
+        return 0 <= i < nrts /\ 0 <= nrts <= t_smdttcr /\ dist /\ x <> x' /\ f pp tw x = f pp tw x' /\ disj_lists twsO twsOC;  
       }
     }.
   end SMDTTCRC.
@@ -790,7 +790,7 @@ abstract theory Collection.
         twsO <@ O.get_tweaks();
         twsOC <@ OC.get_tweaks();
 
-        return 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x /\ disj_lists twsO twsOC;
+        return 0 <= i < nrts /\ 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x /\ disj_lists twsO twsOC;
       }
     }.
 
@@ -822,7 +822,7 @@ abstract theory Collection.
         twsO <@ O.get_tweaks();
         twsOC <@ OC.get_tweaks();
 
-        return 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x = b /\ disj_lists twsO twsOC;
+        return 0 <= i < nrts /\ 0 <= nrts <= t_smdtdspr /\ dist /\ spexists f pp tw x = b /\ disj_lists twsO twsOC;
       }
     }.
   end SMDTDSPRC.
@@ -848,7 +848,6 @@ abstract theory Collection.
         var pp : pp_t;
         var tw : tw_t;
         var x : in_t;
-        var i : int;
         var b' : bool;
         var nrts : int;
         var dist : bool;

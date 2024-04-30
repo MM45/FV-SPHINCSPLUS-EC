@@ -964,12 +964,15 @@ module SPHINCS_PLUS_TW : Scheme = {
     var pk : pkSPHINCSPLUSTW;
     var sk : skSPHINCSPLUSTW;
     
+    (* Initialize address *)  
     ad <- adz;
     
+    (* Initialize message seed (for message key generation), secret seed, and public seed *)
     ms <$ dmseed;
     ss <$ dsseed;
-    
     ps <$ dpseed;
+    
+    (* Compute root of hypertree *)
     root <@ FL_SL_XMSS_MT_TW_ES.gen_root(ss, ps, ad);
     
     pk <- (root, ps);
@@ -991,19 +994,26 @@ module SPHINCS_PLUS_TW : Scheme = {
     var pkFORS : pkFORS;
     var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
     var sig : sigSPHINCSPLUSTW;
-        
+    
+    (* Extract message seed, secret seed, and public seed from secret key *)
     (ms, ss, ps) <- sk;
     
+    (* Initialize address *)
     ad <- adz;
     
+    (* Sign the message with multi-instance FORS-TW (M-FORS-TW-ES) *)
     (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, ad), m);
     
+    (* Compress message and compute instance index *)
     (cm, idx) <- mco mk m;
     
+    (* Compute tree index and keypair index from instance index  *)
     (tidx, kpidx) <- edivz (val idx) l';
     
+    (* Compute FORS-TW public key from secret/public seed and tree/keypair index address *)
     pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
+    (* Sign the FORS-TW public key with hypertree (FL-SL-XMSS-MT-TW-ES) *)
     sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
     
     return (mk, sigFORSTW, sigFLSLXMSSMTTW);
@@ -1021,19 +1031,26 @@ module SPHINCS_PLUS_TW : Scheme = {
     var tidx, kpidx : int;
     var pkFORS : pkFORS;
     
+    (* Extract values from public key and signature  *)
     (root, ps) <- pk;
     (mk, sigFORSTW, sigFLSLXMSSMTTW) <- sig;
     
+    (* Initialize address *)
     ad <- adz;
     
+    (* Compress message and compute instance index *)
     (cm, idx) <- mco mk m;
     
+    (* Compute tree index and keypair index from instance index  *)
     (tidx, kpidx) <- edivz (val idx) l';
     
+    (* Compute FORS-TW public key from FORS-TW signature, compressed message, public seed, and tree/keypair index address *)
     pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
+    (* Compute root from FORS-TW public key, hypertree signature, instance index, public seed, and address *)
     root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS, sigFLSLXMSSMTTW, idx, ps, ad);
     
+    (* Compare computed root with root in public key *)
     return root' = root;
   }
 }.
@@ -1117,7 +1134,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
     
     ad <- adz;
     
-    (* Sample and store FORS-TW secret keys  *)
+    (* Sample and store FORS-TW secret keys *)
     skFORSnt <- [];
     (* For each (inner) tree in the bottom layer... *)
     while (size skFORSnt < nr_trees 0) {
@@ -1814,8 +1831,6 @@ local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
     
     ad <- adz;
     
-    (* rm <$ drm;
-       mk <- mkg ms (rm, m); *)
     mk <- mkg ms m;
          
     (cm, idx) <- mco mk m;
@@ -4074,7 +4089,7 @@ qed.
 
 (* 
   High-level security theorem
-  Success probability (of given adversary) EUF-CMA of SPHINCS+-TW 
+  Success probability (of given adversary) against EUF-CMA of SPHINCS+-TW 
   bounded by advantages/success probabilities (of reduction adversaries)
   against the PRF properties of skg and mkg, the EUF-CMA property of M-FORS-TW-ES-NPRF, 
   and the EUF-NAGCMA OF FL-SL-XMSS-MT-TW-ES-NPRF  
@@ -4126,9 +4141,9 @@ qed.
 
 (* 
   Low-level security theorem
-  Success probability (of given adversary) EUF-CMA of SPHINCS+-TW 
+  Success probability (of given adversary) against EUF-CMA of SPHINCS+-TW 
   bounded by advantages/success probabilities (of reduction adversaries)
-  against propeties of employed KHFs/THFs.  
+  against properties of employed KHFs/THFs.  
 *)
 lemma EUFCMA_SPHINCS_PLUS_TW &m :
   Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]

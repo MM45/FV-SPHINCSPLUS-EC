@@ -2152,7 +2152,7 @@ proc.
 seq 3 3 : (   ={pk}
            /\ m{1} = m'{2}
            /\ sig{1} = sig'{2}
-           /\ ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)); 2: by sim.
+           /\ ={qs}(O_CMA_Default, O_CMA_SPHINCSPLUSTWFS_PRF)); 2: by sim.
 inline{1} 1; inline{2} 1.
 inline{1} 5.
 seq 4 8 : (   ={glob A, ad, ms, ss, ps}
@@ -2279,7 +2279,7 @@ seq 4 8 : (   ={glob A, ad, ms, ss, ps}
   wp; do 3! rnd.
   wp; skip => /> ms msin ss ssin ps psin.
   by do 5! (split => [/# | *]) => /#.
-call (:   ={qs}(O_Base_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
+call (:   ={qs}(O_CMA_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
        /\ O_CMA_Default.sk{1}.`1 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`1
        /\ O_CMA_Default.sk{1}.`3 = O_CMA_SPHINCSPLUSTWFS_PRF.sk{2}.`4 
        /\ (forall (i j u v : int),
@@ -3650,7 +3650,7 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodes{2}) - 2 * size nodescl{2} - 1.
             + rewrite 2!IntOrder.ler_subr_addr /=.
               rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodesf (size nodes{2} + 1) - 1))) 1:/#.
-              by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodesf mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
             rewrite -nth_last (list2treeS (size nodes{2})) 1:size_ge0.
             + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
               rewrite eqt_szlfs /t (: 2 ^ a = 2 ^ (a - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
@@ -3681,16 +3681,16 @@ seq 8 14 : (   ={glob A, skWOTStd, ad0, ps0}
             + split => [| _ @/nr_nodesf]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodesf (size nodes{2}))) /nr_nodesf //.
               rewrite (: 2 ^ (a - size nodes{2}) = 2 * 2 ^ (a - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.
             + split => [| _ @/nr_nodesf]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodesf (size nodes{2}))) /nr_nodesf //.
               rewrite (: 2 ^ (a - size nodes{2}) = 2 * 2 ^ (a - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.  
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.  
             rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; do 3! congr; 1,3: smt().
             + congr; rewrite mulzDr; congr; rewrite eq_sym {1}(mulrC (size skFORS{2})) -mulzA.
-              by rewrite /nr_nodesf -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodesf -{1}(expr1 2) -exprD_nneg // /#.
             congr; rewrite mulzDr eq_sym -addzA; congr; rewrite {1}(mulrC (size skFORS{2})) -mulzA.
-            by rewrite /nr_nodesf -{1}expr1 -exprD_nneg // /#.
+            by rewrite /nr_nodesf -{1}(expr1 2) -exprD_nneg // /#.
           wp; skip => /> &2 nthnds eqt_szlfs _ eqszpksknt eqszpksklp lta_sznds.
           split => [/# | ndscl].
           split => [/# | /lezNgt gent1_szndscl nthndscl].
@@ -4336,7 +4336,7 @@ have ->:
   =
   Pr[EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main() @ &m : res].
 + by byequiv Eqv_EUF_CMA_SPHINCSPLUSTW_Orig_FSPRFPRF.
-rewrite -(RealOrder.ger0_norm) 1:Pr[mu_ge0] // -RField.addr0.
+rewrite -RField.addr0 -(RealOrder.ger0_norm) 1:/= 1:Pr[mu_ge0] //.
 rewrite -(RField.subrr Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF.main() @ &m : res]).
 rewrite RField.addrCA RField.addrC.
 apply (RealOrder.ler_trans (`|Pr[EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main() @ &m : res] -
@@ -4344,7 +4344,8 @@ apply (RealOrder.ler_trans (`|Pr[EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main() @ &m : re
                             `|Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF.main() @ &m : res]|)).
 + by apply RealOrder.ler_norm_add.
 rewrite EqAdv_EUF_CMA_SPHINCSPLUSTWFS_PRFPRF_NPRFPRF_SKGPRF -!RField.addrA RealOrder.ler_add //.
-rewrite -RField.addr0 -(RField.subrr Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main() @ &m : res]).
+rewrite -(RField.addr0 Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF.main() @ &m : res]).
+rewrite -(RField.subrr Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main() @ &m : res]).
 rewrite RField.addrCA RField.addrC.
 apply (RealOrder.ler_trans (`|Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF.main() @ &m : res] -
                               Pr[EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF.main() @ &m : res]| +

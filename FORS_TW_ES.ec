@@ -3898,7 +3898,7 @@ seq 3 8 : (   ={glob A, ps, ad}
             rewrite subbt_list2tree_takedrop 4:oget_some; 1..3: smt(ge1_a size_ge0).
             have ltnn_2szndscl1 : 2 * size nodescl{2} + 1 < nr_nodes (size nodest{2}).
             - rewrite &(IntOrder.ltr_le_trans (2 + 2 * (nr_nodes (size nodest{2} + 1) - 1))) 1:/#.
-              by rewrite /nr_nodes mulzDr /= -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodes mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
             have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1 by smt().
             rewrite (last_nth witness); case (size nodest{2} = 0) => [szn0 | nszn0].
             - rewrite szn0 /= expr1 {3}(: 2 = 1 + 1) 1:// (take_nth witness) 1:size_drop 2:/=; 1,2: smt(size_ge0). 
@@ -3932,9 +3932,9 @@ seq 3 8 : (   ={glob A, ps, ad}
             rewrite 2?subbt_list2tree_takedrop 3,6://; 1..4: smt(size_ge0).
             rewrite oget_some /val_bt_trh_gen /trhi /updhbidx /=; do 4! congr => [/# | /= | /# | /=].
             + rewrite /nr_nodes mulrDr mulrA; congr.
-              by rewrite eq_sym mulrAC -{1}expr1 -exprD_nneg 1:// /#.
+              by rewrite eq_sym mulrAC -{1}(expr1 2) -exprD_nneg 1:// /#.
             rewrite /nr_nodes mulrDr -addrA; congr.
-            by rewrite eq_sym mulrCA; congr; rewrite -{1}expr1 -exprD_nneg 1:// /#.
+            by rewrite eq_sym mulrCA; congr; rewrite -{1}(expr1 2) -exprD_nneg 1:// /#.
           wp; skip => /> &2 nthndst eqt_szlfs lts_szndss ltl_szndsl ltk_szndsk _ lta_szndst.
           split => [| ndscl] ; 1: by rewrite expr_ge0 /#.
           split => [/# | /lezNgt genn1_szndscl nthndscl lenn1_szndscl].
@@ -6173,7 +6173,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
               have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1.
               - rewrite 2!IntOrder.ler_subr_addr /=.
                 rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodes (size nodest{2} + 1) - 1))) 1:/#.
-                by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+                by rewrite /nr_nodesf mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
               rewrite (list2treeS (size nodest{2})) 1://.
               - rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
                 rewrite eqt_szlfst /t (: 2 ^ a = 2 ^ (a - size nodest{2}) * 2 ^ (size nodest{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
@@ -6744,7 +6744,7 @@ seq 9 12 : (   ={glob A, glob O_CMA_MFORSTWESNPRF_AV, ps}
             rewrite subbt_list2tree_takedrop 4:oget_some; 1..3: smt(ge1_a size_ge0).
             have ltnn_2szndscl1 : 2 * size nodescl{2} + 1 < nr_nodes (size nodest{2}).
             - rewrite &(IntOrder.ltr_le_trans (2 + 2 * (nr_nodes (size nodest{2} + 1) - 1))) 1:/#.
-              by rewrite /nr_nodes mulzDr /= -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodes mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
             have ge1_2aszn2szncl : 1 <= 2 ^ (a - size nodest{2}) - 2 * size nodescl{2} - 1 by smt().
             rewrite (last_nth witness); case (size nodest{2} = 0) => [szn0 | nszn0].
             - rewrite szn0 /= expr1 {3}(: 2 = 1 + 1) 1:// (take_nth witness) 1:size_drop 2:/=; 1,2: smt(size_ge0). 
@@ -6752,7 +6752,7 @@ seq 9 12 : (   ={glob A, glob O_CMA_MFORSTWESNPRF_AV, ps}
               rewrite -cats1 (list2treeS 0) ?expr0 1..3:// /trhi /=. 
               by rewrite ?list2tree1 /= -nth0_head nth_drop 2://; smt(size_ge0).
             rewrite nszn0 /= (: 2 ^ (size nodest{2} + 1) = 2 ^ (size nodest{2}) + 2 ^ (size nodest{2})).
-            + by rewrite exprD_nneg 1:size_ge0 //= expr1 /#.
+            + by rewrite exprD_nneg 1:size_ge0 //= (expr1 2) /#.
             rewrite take_take_drop_cat 1,2:expr_ge0 1,2://.
             rewrite drop_drop 1:expr_ge0 1://; 1: smt(IntOrder.expr_ge0).
             rewrite (list2treeS (size nodest{2})) 1:size_ge0 1,2:size_take 1,3:expr_ge0 1,3:// 1,2:size_drop; 1,3: smt(size_ge0 IntOrder.expr_ge0).
@@ -6780,9 +6780,9 @@ seq 9 12 : (   ={glob A, glob O_CMA_MFORSTWESNPRF_AV, ps}
             congr => [/# |].
             rewrite mulrDr; do 4! congr => [/# | | /# |].
             + rewrite /nr_nodes mulrDr mulrA; congr.
-              by rewrite eq_sym mulrAC -{1}expr1 -exprD_nneg 1:// /#.
+              by rewrite eq_sym mulrAC -{1}(expr1 2) -exprD_nneg 1:// /#.
             rewrite /nr_nodes mulrDr -addrA; congr.
-            by rewrite eq_sym mulrCA; congr; rewrite -{1}expr1 -exprD_nneg 1:// /#.
+            by rewrite eq_sym mulrCA; congr; rewrite -{1}(expr1 2) -exprD_nneg 1:// /#.
           wp; skip => /> &2 nthndst allotws eqt_szlfst lts_szndss ltl_szndsl ltk_szndsk _ lta_szndst.
           split => [| tws ndscl /lezNgt genn1_szndscl _ nthndscl alltws lenn1_szndscl]; 1: by rewrite expr_ge0 /#.
           split => [v w ge0_v |]; 2: by rewrite size_rcons /#.

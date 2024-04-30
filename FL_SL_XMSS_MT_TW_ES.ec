@@ -4548,7 +4548,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
             have ge1_2aszn2szncl : 1 <= 2 ^ (h' - size nodes{2}) - 2 * size nodescl{2} - 1.
             + rewrite 2!IntOrder.ler_subr_addr /=.
               rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodes (size nodes{2} + 1) - 1))) 1:/#.
-              by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodesf mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
             rewrite -nth_last (list2treeS (size nodes{2})) 1:size_ge0.
             + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
               rewrite eqt_szlfslp /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
@@ -4579,11 +4579,11 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
             + split => [| _ @/nr_nodes]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodes (size nodes{2}))) /nr_nodes //.
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.
             + split => [| _ @/nr_nodes]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodes (size nodes{2}))) /nr_nodes //.
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.  
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.  
             rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; do 3! congr; 1: smt().
             by do 3! congr; ring.
           by wp; skip => /> &2; smt(expr_ge0 nth_rcons size_rcons).
@@ -5149,7 +5149,7 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
             have ge1_2aszn2szncl : 1 <= 2 ^ (h' - size nodes{2}) - 2 * size nodescl{2} - 1.
             + rewrite 2!IntOrder.ler_subr_addr /=.
               rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodes (size nodes{2} + 1) - 1))) 1:/#.
-              by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+              by rewrite /nr_nodesf mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
             rewrite -nth_last (list2treeS (size nodes{2})) 1:size_ge0.
             + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
               rewrite eqlp_szlfslp /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.
@@ -5180,11 +5180,11 @@ rewrite Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_TCRPKCO] RealOrder.ler
             + split => [| _ @/nr_nodes]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodes (size nodes{2}))) /nr_nodes //.
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.
             + split => [| _ @/nr_nodes]; 1: smt(size_ge0).
               rewrite &(IntOrder.ltr_le_trans (nr_nodes (size nodes{2}))) /nr_nodes //.
               rewrite (: 2 ^ (h' - size nodes{2}) = 2 * 2 ^ (h' - (size nodes{2} + 1))) 2:/#.
-              by rewrite -{2}expr1 -exprD_nneg // /#.  
+              by rewrite -{2}(expr1 2) -exprD_nneg // /#.  
             rewrite /= /val_bt_trh_gen /trhi /trh /updhbidx /=; do 3! congr; 1: smt().
             by do 3! congr; ring.
           by wp; skip => /> &2; smt(expr_ge0 nth_rcons size_rcons).
@@ -6162,7 +6162,7 @@ seq 7 8 : (   #pre
           have ge1_2aszn2szncl : 1 <= 2 ^ (h' - size nodes{2}) - 2 * size nodescl{2} - 1.
           + rewrite 2!IntOrder.ler_subr_addr /=.
             rewrite &(IntOrder.ler_trans (2 + 2 * (nr_nodes (size nodes{2} + 1) - 1))) 1:/#.
-            by rewrite /nr_nodesf mulzDr /= -{1}expr1 -exprD_nneg // /#.
+            by rewrite /nr_nodesf mulzDr /= -{1}(expr1 2) -exprD_nneg // /#.
           rewrite (list2treeS (size nodes{2})) 1://.
           + rewrite size_take 1:expr_ge0 1:// size_drop 1:mulr_ge0 1:size_ge0 1:addr_ge0 1,2:expr_ge0 //.
             rewrite eqlp_szlfslp /l' (: 2 ^ h' = 2 ^ (h' - size nodes{2}) * 2 ^ (size nodes{2})) 1:-exprD_nneg 2:size_ge0 1,2:/#.

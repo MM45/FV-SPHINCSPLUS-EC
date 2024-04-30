@@ -981,7 +981,6 @@ rewrite -(addr0 v) addrA -(addrA _ _ v') -(addrA _ (j' * (2 ^ h' - 1))) ltr_le_a
 + rewrite addr_ge0 1:mulr_ge0 1:// 1:subr_ge0; 1: smt(expr_gt0).
   by rewrite addr_ge0 2:// sumr_ge0 => ? _; rewrite expr_ge0.
 rewrite (big_cat_int i _ i') 1:// 1:/# mulrDl -2!addrA ltr_add2l addrA.
-print big_ltn.
 rewrite (big_ltn i) 1:// /= mulrDl (: nr_trees i = nr_trees i - 1 + 1) 1:// mulrDl /=.
 rewrite -(addr0 v) addrA ltr_le_add; last first.
 + by rewrite mulr_ge0 2:subr_ge0 1:sumr_ge0 => [? _ |]; smt(expr_gt0).
@@ -6591,7 +6590,6 @@ rewrite size_ge0 szts /=.
 split; 1: rewrite hbidxval /=; 1: split => [| _].
 + rewrite ?addr_ge0 ?mulr_ge0 1,5:sumr_ge0 3,4:/# 4:bs2int_ge0 => [* | | *]; 1,3: by rewrite expr_ge0.
   by rewrite ler_subr_addr; smt(IntOrder.expr_gt0).
-search big.
 + rewrite -(addr0 (bigi predT nr_trees 0 d * _)).
   rewrite {3}(: 0 = 0 * (2 ^ h - 1) + bigi predT nr_nodes 1 (0 + 1) + 0) 1:big_geq 1,2://. 
   rewrite ?addrA (ltbignn_i _ _ _ 0) 1,3,4,5,7:// 1:/#.

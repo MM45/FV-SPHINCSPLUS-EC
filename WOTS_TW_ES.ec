@@ -2,269 +2,25 @@
 (* -- Built-In (Standard Library) -- *)
 require import AllCore List Distr DList DInterval IntDiv RealExp StdOrder SmtMap StdBigop BitEncoding FinType.
 require (*--*) Word Subtype.
+require (*--*) DigitalSignatures.
 (*---*) import RField IntOrder RealOrder Bigreal Bigint BIA BS2Int.
 
 
 (* -- Local -- *)
-require (*--*) HashAddresses KeyedHashFunctions TweakableHashFunctions DigitalSignatures.
+require (*--*) HashAddresses KeyedHashFunctions TweakableHashFunctions.
 
 
 
-(* - Generic auxilliary properties - *)
-lemma gt_exprsbde (x n m : int) :
-  1 < x => 0 <= n < m => x ^ n < x ^ m.
-proof.
-move=> gt1_x [ge0_n gtn_m]. 
-have ge0_m: 0 <= m by smt(). 
-elim: n ge0_n m ge0_m gtn_m => [| i ge0_i ih m ge0_m gti1_m].
-+ by elim => [/# | *]; rewrite expr0 exprn_egt1 /#.
-rewrite exprD_nneg // expr1 (: m = m - 1 + 1) // exprD_nneg 1:/# // expr1.
-by rewrite ltr_pmul2r 2:(ih (m - 1)) /#.
-qed.
-
-lemma drop_putK (s : 'a list) (i j : int) (x : 'a) :
-     j < i 
-  => drop i (put s j x) = drop i s.
-proof.
-elim: s i j => [ * | x' s ih i j gtj_i]; 1: by rewrite put_empty. 
-case (i <= 0) => [le0_i | /ltzNge gt0_i]; 1: by rewrite put_out /#.
-case (j = 0) => [-> /# | neq0_j].
-by rewrite put_consS // /= ih /#.
-qed.
-
-lemma drop_putC (s : 'a list) (i j : int) (x : 'a) :
-     0 <= i <= j 
-  => drop i (put s j x) = put (drop i s) (j - i) x.
-proof.
-elim: s i j => [ * | x' s ih i j [ge0_i gei_j] /=]; 1: smt(put_empty).
-case (i = 0) => [-> /# | neq0_i].
-by rewrite put_consS 1:/# /= (: ! i <= 0) 1:/# /= ih /#.
-qed.
-
-lemma take_putK (s : 'a list) (i j : int) (x : 'a) :
-     i <= j 
-  => take i (put s j x) = take i s.
-proof.
-elim: s i j => [ * | x' s ih i j gej_i]; 1: by rewrite put_empty. 
-case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 /#.
-by rewrite put_consS 1:/# /= nle0_i /= ih /#.
-qed.
-
-lemma take_putC (s : 'a list) (i j : int) (x : 'a) :
-     j < i
-  => take i (put s j x) = put (take i s) j x.
-proof.
-elim: s i j => [ * | x' s ih i j lti_j /=]; 1: smt(put_empty).
-case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 2:put_empty.
-case (j = 0) => [-> | neq0_j]; 1: by rewrite 2!put_cons0 /= nle0_i.
-by rewrite ?put_consS //= nle0_i /= ih /#.
-qed. 
-
-lemma take_put (s : 'a list) (i j : int) (x : 'a) :
-  take i (put s j x) = if i <= j then take i s else put (take i s) j x.
-proof. by case (i <= j) => [| /ltzNge]; [apply take_putK | apply take_putC]. qed.
-
-lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) (i : int) :
-     nth x0 s1 i <> nth x0 s2 i 
-  => s1 <> s2.
-proof. by apply contra => ->. qed.
-
-lemma nth_nmem (s : 'a list) (x : 'a) :
-     (forall (i : int), 0 <= i < size s => nth witness s i <> x)
-  => ! (x \in s).
-proof.
-elim: s => // y l ih /= nnth.
-rewrite negb_or; split.
-+ by move: (nnth 0 _) => /=; [smt(size_ge0) | rewrite eq_sym].
-apply ih => i rng_i.
-by move: (nnth (i + 1) _) => /#.
-qed.
-
-lemma nth_uniq (s : 'a list) :
-      (forall (i j : int), 0 <= i < size s => 0 <= j < size s => i <> j =>
-         nth witness s i <> nth witness s j)
-  =>  uniq s.
-proof.
-elim: s => //= x s ih neq_nth.
-split.
-+ apply nth_nmem => i rng_i.
-  by move: (neq_nth (i + 1) 0 _ _ _); smt(size_ge0).
-apply ih => i j rng_i rng_j neqj_i.
-by move: (neq_nth (i + 1) (j + 1) _ _ _) => /#.
-qed.
-
-lemma size_nth_uniq (s : 'a list list) :
-      (forall (i j : int), 0 <= i < size s => 0 <= j < size s => i <> j =>
-         size (nth witness s i) <> size (nth witness s j))
-  =>  uniq s.
-proof. by smt(nth_uniq). qed.
-
-lemma map_size_ge0 (s : 'a list list) :
-  all ((<=) 0) (map size s).
-proof. by rewrite allP => i /mapP; smt(size_ge0). qed.
-
-lemma sumz_ge0 (sz : int list) :
-  all ((<=) 0) sz => 0 <= sumz sz.
-proof.
-elim: sz => //= x s ih [ge0_x ge0_s] @/sumz /= @-/(sumz s).
-by rewrite addr_ge0 2:ih.
-qed.
-
-lemma flatten_rcons (s : 'a list list) (x : 'a list)  :
-  flatten (rcons s x) = flatten s ++ x.
-proof. by rewrite -cats1 flatten_cat flatten_seq1. qed.
-
-lemma uniq_mapP (f : 'a -> 'b) (s : 'a list) (x x' : 'a) :
-  x \in s => x' \in s => x <> x' => uniq (map f s) => f x <> f x'.
-proof. by elim: s => //; smt(map_f). qed.
-
-lemma uniq_flatten (s : 'a list list) :
-     all uniq s 
-  => (forall x y, x \in s => y \in s => has (mem x) y => x = y) 
-  => uniq s 
-  => uniq (flatten s).
-proof.
-elim: s => /= [| x s ih [uqx uqins] hasn [ninsx uqs]].
-+ by rewrite flatten_nil.
-rewrite flatten_cons cat_uniq uqx /= ih //= 1:/#.
-apply: hasPn => a /flattenP [x'] [xpin ainp]; apply: negP => ain. 
-have ->> //: x = x'; apply: hasn => //; first by rewrite xpin.
-by rewrite hasP; exists a.
-qed.
-
-lemma uniq_flatten_map_in (f : 'a -> 'b list) (s : 'a list) :
-     all uniq (map f s) 
-  => (forall x y, x \in s => y \in s => has (mem (f x)) (f y) => x = y) 
-  => uniq s 
-  => uniq (flatten (map f s)).
-proof.
-elim: s => /= [|x s ih [uqf uqins] inj_f [ninsx uqs]].
-+ by rewrite flatten_nil.
-rewrite flatten_cons cat_uniq uqf ih //= 1:/#.
-apply: negP => /List.hasP [a] [/flatten_mapP] [b] [sb] fba fxa.
-have ->> //: x = b; apply/inj_f=> //; first by rewrite sb.
-by rewrite hasP; exists a.
-qed.
-
-lemma map_flatten_map (f : 'a -> 'b) (s : 'a list list) :
-  map f (flatten s) = flatten (map (map f) s).
-proof.
-elim: s => // x s ih.
-by rewrite flatten_cons /= flatten_cons map_cat ih.
-qed.
-
-lemma uniq_flatten_map_in_rev (f : 'a -> 'b) (s : 'a list list) :
-     all (uniq \o (map f)) s
-  => (forall x y, x \in s => y \in s => has (mem (map f x)) (map f y) => x = y)
-  => uniq s
-  => uniq (map f (flatten s)).
-proof.
-move => alluqmfs inj_mf uqs. 
-by rewrite map_flatten_map uniq_flatten_map_in 1:all_map. 
-qed.
-
-lemma nth_flatten (s : 'a list list) (i j : int) :
-     0 <= i < size s 
-  => 0 <= j < size (nth witness s i) 
-  => nth witness (flatten s) (sumz (map size (take i s)) + j) 
-     = 
-     nth witness (nth witness s i) j.
-proof.
-elim: s i j => [| x s ih] i j /=.
-+ by rewrite flatten_nil /#.
-rewrite flatten_cons => rng_i.
-case (i = 0) => [eq0_i | neq0_i].
-+ by rewrite eq0_i /sumz /= nth_cat => rng_j /#.
-have -> /=: ! (i <= 0) by smt().
-rewrite /sumz /= nth_cat -/(sumz (map size (take (i - 1) s))) /= => rng_j.
-have ge0_sumz : 0 <= sumz (map size (take (i - 1) s)) by apply /sumz_ge0 /map_size_ge0. 
-rewrite (: ! (size x + sumz (map size (take (i - 1) s)) + j < size x)) 1:/# /=.
-have ->: size x + sumz (map size (take (i - 1) s)) + j - size x = sumz (map size (take (i - 1) s)) + j by smt(). 
-by apply (ih (i - 1)) => // /#.
-qed.
-
-lemma nth_flatten_flatten (s : 'a list list list) (i j k : int) :
-     0 <= i < size s
-  => 0 <= j < size (nth witness s i)
-  => 0 <= k < size (nth witness (nth witness s i) j)
-  => nth witness (flatten (map flatten s))
-                 (sumz (map (fun x => sumz (map size x)) (take i s)) 
-                  + sumz (map size (take j (nth witness s i))) 
-                  + k) 
-     =
-     nth witness (nth witness (nth witness s i) j) k.
-proof.
-elim: s i j k => [/# | x s ih i j k /=].
-case (i = 0) => [eq0_i | neq0_i rng_i rng_j rng_k].
-+ rewrite eq0_i /sumz /= -/(sumz (map size (take j x))) => _ rng_j rng_k.
-  rewrite -nth_flatten // flatten_cons nth_cat.
-  rewrite (: sumz (map size (take j x)) + k < size (flatten x)) //.
-  rewrite size_flatten ?sumzE ?big_mapT /(\o).
-  rewrite -{2}(cat_take_drop j x) big_cat ler_lt_add //. 
-  rewrite (drop_nth witness) // big_consT /= ltr_paddr 2:/#.
-  by rewrite sumr_ge0 => ? _; apply size_ge0.
-rewrite (: ! i <= 0) 1:/#  -ih 1:/# //= flatten_cons nth_cat.
-pose susu := sumz (sumz _ :: _) + _ + _; rewrite (: ! susu < size (flatten x)) /= /susu.
-+ rewrite -lezNgt size_flatten (sumzE (sumz _ :: _)) big_cons /predT /= -/predT.
-  rewrite -2!addrA ler_addl -sumzE addrA addr_ge0 2:/# addr_ge0 sumz_ge0 2:map_size_ge0.
-  by rewrite allP => l /mapP -[x' [xpin /= ->]]; rewrite sumz_ge0 map_size_ge0. 
-by congr; rewrite sumzE big_cons /predT /= -/predT size_flatten -sumzE /#. 
-qed.
-
-lemma nth_flatten_map_flatten (s : 'a list) (f : 'a -> 'b list list) (i j k : int) :
-     0 <= i < size s
-  => 0 <= j < size (nth witness (map f s) i)
-  => 0 <= k < size (nth witness (nth witness (map f s) i) j)
-  => nth witness (flatten (map (fun x => flatten (f x)) s)) 
-                 (sumz (map (fun x => sumz (map size x)) (take i (map f s))) 
-                  + sumz (map size (take j (nth witness (map f s) i))) 
-                  + k) 
-     =
-     nth witness (nth witness (nth witness (map f s) i) j) k.
-proof. 
-move=> rng_i rng_j rng_k; move: (nth_flatten_flatten (map f s) i j k _ rng_j rng_k).
-+ by rewrite size_map rng_i.
-by move=> <-; congr; rewrite map_comp.
-qed.
-
-lemma eq_from_flatten_nth (s s' : 'a list list):
-     size s = size s'
-  => (forall (i : int), 0 <= i < size s =>
-        size (nth witness s i) = size (nth witness s' i))
-  => flatten s = flatten s'
-  => s = s'.
-proof.
-elim: s s' => [ | x s ih]; first by smt(size_eq0).
-case => [| x' s' /= eqszs1_szsp1 eqsznth]; first by smt(size_eq0).
-rewrite 2!flatten_cons eqseq_cat 1:(eqsznth 0 _) //; first by smt(size_ge0).
-move=> [-> eqfls_flsp]; rewrite (ih s') 1:/# // => i rng_i.
-by move: (eqsznth (i + 1) _) => /#.
-qed.
-
-lemma djl_parts (l s sp1 sp2 : 'a list) :
-     all (fun (x : 'a) => x \in sp1 \/ x \in sp2) s
-  => ! has (mem sp1) l
-  => ! has (mem sp2) l
-  => ! has (mem s) l.
-proof.
-move=> /allP xmem /hasPn djlsp1 /hasPn djlsp2.
-rewrite hasPn => x xinl.
-rewrite -negP => xins. 
-move: (xmem x xins) => /=.
-rewrite negb_or; split.
-+ by move: (djlsp1 x xinl).
-by move: (djlsp2 x xinl).  
-qed.
 
 
 
 (* - Parameters - *)
-(* -- Overall -- *)
+(* -- General -- *)
 (* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
 const adrs_len : { int | 2 <= adrs_len} as ge2_adrslen.
 
 
-(* -- WOTS-TW specific -- *)
+(* -- WOTS/WOTS-TW -- *)
 (* 
   Length (in bytes) of messages as well as the length of elements of 
   private keys, public keys, and signatures
@@ -452,12 +208,11 @@ clone import Subtype as DBLL with
 type dgstblocklenlist = DBLL.sT.
 
 
-(* -- WOTS/WOTS-TW specific -- *)
-(* - Regular (i.e., WOTS without tweaks and without secret key generation) - *)
-(* Public keys *)
+(* -- WOTS/WOTS-TW -- *)
+(* Public keys (WOTS) *)
 type pkWOTS = dgstblocklenlist.
 
-(* Secret keys *)
+(* Secret keys (WOTS) *)
 type skWOTS = dgstblocklenlist.
 
 (* Messages *)
@@ -492,11 +247,6 @@ clone import Word as EmsgWOTS with
 
 
 (* - Distributions - *)
-(* Only used in PRF step
-(* Proper distribution over secret seeds *)
-op [lossless] dsseed : sseed distr.
-*)
-
 (* Proper distribution over public seeds *)
 op [lossless] dpseed : pseed distr.
 
@@ -616,7 +366,7 @@ type adrs = HA.adrs.
 
 
 (* - Operators (2/2) - *)
-(* -- Setters and getters -- *)  
+(* -- Setters -- *)  
 (* 
   Sets chain index in (WOTS-TW) address
   Assumes that the given address is a valid WOTS-TW address 
@@ -631,6 +381,7 @@ op set_chidx (ad : adrs) (i : int) : adrs =
 op set_hidx (ad : adrs) (i : int) : adrs =
   set_idx ad 0 i.
 
+(* -- Getters -- *)
 (* 
   Gets (indices corresponding to) the global part of a WOTS-TW address
   Assumes that the given address is a valid WOTS-TW address
@@ -663,186 +414,14 @@ op uniq_wgpidxs (adl : adrs list) : bool =
 op disj_wgpidxs (adl adl' : adrs list) : bool =
   ! has (mem (map get_wgpidxs adl')) (map get_wgpidxs adl).
 
-(* 
-  Checks whether an address is a WOTS-TW addresses
-*)  
+(* Checks whether an address is a WOTS-TW addresses *)  
 op valid_wadrs (ad : adrs) : bool =
   valid_wadrsidxs (val ad).
-
-lemma validwadrsidxs_puthidx (adidxs : int list) (i : int) :
-     valid_wadrsidxs adidxs
-  => valid_hidx i
-  => valid_wadrsidxs (put adidxs 0 i).
-proof.
-rewrite /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
-rewrite size_put eqszadl /= drop_putK // valgp /=  take_put /=.
-move: vallp => @/valid_widxvalslp.
-by rewrite ?nth_put ?nth_take // ?size_take //; smt(ge2_adrslen).
-qed.
-
-lemma validwadrsidxs_putchidx (adidxs : int list) (i : int) :
-     valid_wadrsidxs adidxs
-  => valid_chidx i
-  => valid_wadrsidxs (put adidxs 1 i).
-proof.
-rewrite /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
-rewrite size_put eqszadl /= drop_putK // valgp /=  take_put /=.
-move: vallp => @/valid_widxvalslp.
-by rewrite ?nth_put ?nth_take // ?size_take //; smt(ge2_adrslen).
-qed.
-
-lemma validwadrsidxs_putchhidx (adidxs : int list) (i j : int) :
-     valid_wadrsidxs adidxs
-  => valid_chidx i
-  => valid_hidx j
-  => valid_wadrsidxs (put (put adidxs 1 i) 0 j).
-proof. smt(validwadrsidxs_puthidx validwadrsidxs_putchidx). qed.
-
-lemma validwadrs_sethidx (ad : adrs) (i : int) :
-     valid_wadrs ad
-  => valid_hidx i
-  => valid_wadrs (set_hidx ad i).
-proof. 
-rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
-rewrite /set_chidx /set_idx ?insubdK 1:&(valid_wadrsidxs_adrsidxs) 1:validwadrsidxs_puthidx //.
-rewrite size_put take_put drop_putK //=; split; 1: smt(valP).
-move: vallp => @/valid_widxvalslp. 
-by rewrite ?nth_put ?nth_take // ?size_take; smt(valP ge2_adrslen).
-qed. 
-
-lemma validwadrs_setchidx (ad : adrs) (i : int) :
-     valid_wadrs ad
-  => valid_chidx i
-  => valid_wadrs (set_chidx ad i).
-proof. 
-rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
-rewrite /set_chidx /set_idx insubdK 1:&(valid_wadrsidxs_adrsidxs) 1:validwadrsidxs_putchidx //.
-rewrite size_put take_put drop_putK //=; split; 1: smt(valP).
-move: vallp => @/valid_widxvalslp. 
-by rewrite ?nth_put ?nth_take // ?size_take; smt(valP ge2_adrslen).
-qed.
-  
-lemma validwadrs_setchhidx (ad : adrs) (i j : int) :
-     valid_wadrs ad
-  => valid_chidx i
-  => valid_hidx j
-  => valid_wadrs (set_hidx (set_chidx ad i) j).
-proof. smt(validwadrs_setchidx validwadrs_sethidx). qed.
-
-
-lemma neq_after_setchidx (ad ad' : adrs) (i i' : int) :
-     valid_wadrs ad
-  => valid_wadrs ad'
-  => valid_chidx i
-  => valid_chidx i'
-  => i <> i'
-  => set_chidx ad i <> set_chidx ad' i'.
-proof.
-move=> valad valadp vali valip neqip_i.
-rewrite /set_chidx neq_after_setidx_sidv //; 1: smt(ge2_adrslen). 
-+ by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx 1:/#.
-by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx 1:/#.
-qed.
-
-lemma neq_after_sethidx (ad ad' : adrs) (i i' : int) :
-     valid_wadrs ad
-  => valid_wadrs ad'
-  => valid_hidx i
-  => valid_hidx i'
-  => i <> i'
-  => set_hidx ad i <> set_hidx ad' i'.
-proof.
-move=> valad valadp vali valip neqip_i.
-rewrite /set_chidx neq_after_setidx_sidv //; 1: smt(ge2_adrslen). 
-+ by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx 1:/#.
-by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx 1:/#.
-qed.
-
-lemma neq_after_setchhidx (ad ad' : adrs) (i i' j j' : int) :
-     valid_wadrs ad
-  => valid_wadrs ad'
-  => valid_chidx i
-  => valid_chidx i'
-  => valid_hidx j
-  => valid_hidx j'
-  => i <> i' \/ j <> j'
-  => set_hidx (set_chidx ad i) j <> set_hidx (set_chidx ad' i') j'.
-proof. 
-move=> valdad valadp vali valip valj valjp -[neqip_i | neqjp_j].
-+ rewrite /set_hidx &(neq_after_setidx_sida _ _ _ 1) //=; 1: smt(ge2_adrslen).
-  - rewrite /eq_idx ?valin_getidx_setidx //; 1,3: smt(ge2_adrslen). 
-    * by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-    by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-  - rewrite /valid_setidx valid_wadrsidxs_adrsidxs /set_chidx /set_idx insubdK.
-    * by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-    by rewrite validwadrsidxs_putchhidx.
-  rewrite /valid_setidx valid_wadrsidxs_adrsidxs /set_chidx /set_idx insubdK.
-  * by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-  by rewrite validwadrsidxs_putchhidx.
-rewrite neq_after_sethidx // /valid_wadrs /set_chidx /set_idx insubdK. 
-+ by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-+ by rewrite validwadrsidxs_putchidx.
-+ by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
-by rewrite validwadrsidxs_putchidx.  
-qed.
-
-lemma neq_gp (ad ad' : adrs) :
-  get_wgpidxs ad <> get_wgpidxs ad' => ad <> ad'.
-proof. smt(). qed.
-
-lemma eq_gp_sethidx (ad : adrs) (i : int) :
-     valid_wadrs ad
-  => valid_hidx i
-  => get_wgpidxs (set_hidx ad i) = get_wgpidxs ad.
-proof. 
-move=> valad vali; rewrite /get_wgpidxs /set_hidx /set_idx insubdK 2:drop_putK //.
-by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx.
-qed.
-
-lemma eq_gp_setchidx (ad : adrs) (i : int) :
-     valid_wadrs ad
-  => valid_chidx i
-  => get_wgpidxs (set_chidx ad i) = get_wgpidxs ad.
-proof. 
-move=> valad vali; rewrite /get_wgpidxs /set_hidx /set_idx insubdK 2:drop_putK //.
-by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx.
-qed.
-
-lemma eq_gp_setchhidx (ad : adrs) (i j : int) :
-     valid_wadrs ad
-  => valid_chidx i
-  => valid_hidx j
-  => get_wgpidxs (set_hidx (set_chidx ad i) j) = get_wgpidxs ad.
-proof. 
-move=> valad vali valj @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx. 
-rewrite ?insubdK ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //.
-by rewrite ?drop_putK.
-qed.
-
 
 (* -- Keyed hash functions -- *)
 (* Keyed hash function (PRF) used to generate WOTS-TW secret keys *)
 op skg : sseed -> (pseed * adrs) -> dgstblock.
 
-(* Not needed without PRF step.
-(* Import relevant definitions/properties for keyed hash function (PRF) skg *)
-clone import KeyedHashFunctions as SKG with
-  type in_t <- (pseed * adrs),
-  type out_t <- dgstblock,
-  type key_t <- sseed,
-  
-    op f <- skg
-    
-  proof *.
-  
-clone import PRF as SKG_PRF with
-  op dkey <- dsseed,
-  op doutm <- fun x => ddgstblock
-    
-  proof *.
-  realize dkey_ll by exact: dsseed_ll.
-  realize doutm_ll by rewrite ddgstblock_ll.
-*)
     
 (* -- Tweakable hash functions -- *)
 (* 
@@ -905,7 +484,7 @@ clone import FC.SMDTPREC as FC_PRE with
   realize din_ll by exact: ddgstblocklift_ll.
   
   
-(* - (Tweakable hash) Function chains - *)
+(* -- (Tweakable hash) Function chains -- *)
 (* 
   Chain function that chains (i.e., repeatedly applies) a given tweakable hash function 
   Interpretation of arguments is, respectively, as follows:
@@ -986,7 +565,7 @@ by rewrite -chS 2:valP // /#.
 qed.
 
 
-(* - Message encoding - *)
+(* -- Message encoding -- *)
 op encode_msgWOTS : msgWOTS -> emsgWOTS.
 
 (* For any two different messages, the encodings differ in at least one digit *)
@@ -1011,8 +590,7 @@ by exists i; smt(BaseW.valP).
 qed.
      
 
-(* -- Proof-specific -- *)
-(* - (Chain) Collisions - *)
+(* -- (Chain) Collisions -- *)
 (* Checks whether the i-th pair of chains contain a collision *)
 op is_chwcoll (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) =
   fun (i : int) =>   
@@ -1056,6 +634,531 @@ op extr_coll_r (ps : pseed) (ad : adrs) (em_ele em_ele' : int) (sig_ele sig_ele'
   let i = find_collidx_r ps ad em_ele em_ele' sig_ele sig_ele' in 
     cf ps ad em_ele' i sig_ele'.
 
+
+(* - (Chain) Preimages - *)
+(* Checks whether there is a preimage in the i-th chain *)
+op is_chwpre (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) =
+  fun (i : int),   
+     BaseW.val em'.[i] < BaseW.val em.[i]
+  /\ cf ps (set_chidx ad i) (BaseW.val em'.[i]) (BaseW.val em.[i] - BaseW.val em'.[i]) (val (nth witness (val sig') i))
+     = 
+     nth witness (val sig) i.  
+
+(* Checks whether there is a chain that contains a preimage *)   
+op has_chwpre (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) =
+  has (is_chwpre ps ad em em' sig sig') (range 0 len).
+
+(* Finds the index of first chain that contains a preimage *)
+op find_chwpreidx (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) : int = 
+  find (is_chwpre ps ad em em' sig sig') (range 0 len).
+
+(* Extracts a preimage from the i-th chain *)
+op extr_pre (ps : pseed) (ad : adrs) (em_ele em_ele' : int) (sig_ele' : dgst) : dgstblock =
+  cf ps ad em_ele' (em_ele - em_ele' - 1) sig_ele'. 
+
+
+(* -- Miscellaneous -- *)
+(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-UD hybrid reduction *)
+op relcqsad_udi (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : int) : adrs list =
+  flatten (map (
+            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+              flatten (mkseq (fun (i : int) => 
+                                if j < BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1
+                                then [set_hidx (set_chidx admpksig.`1 i) j]
+                                else []) len)) qs).
+
+(* Intermediate relation (while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-UD hybrid reduction *)
+op relcqsad_udi_outer (ad : adrs) (m : msgWOTS) (j l : int) : adrs list =
+  flatten (mkseq (fun (i : int) => 
+                    if j < BaseW.val (encode_msgWOTS m).[i] - 1
+                    then [set_hidx (set_chidx ad i) j]
+                    else []) l).
+
+
+(* Overall (partial) relation between addresses in signing oracle and family oracle queries in SM-DT-UD hybrid reduction *)
+op reltqsad_udi (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : int) : adrs list =
+  flatten (map (
+            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+              flatten (mkseq (fun (i : int) =>
+                               let em_ele = BaseW.val (encode_msgWOTS admpksig.`2).[i] in
+                                if j < em_ele - 1
+                                then mkseq (fun (k : int) =>
+                                      set_hidx (set_chidx admpksig.`1 i) (j + 1 + k)) (w - 2 - j)
+                                else if em_ele <> 0
+                                     then mkseq (fun (k : int) =>
+                                            set_hidx (set_chidx admpksig.`1 i) (em_ele - 1 + k)) (w - em_ele)
+                                     else mkseq (fun (k : int) =>
+                                            set_hidx (set_chidx admpksig.`1 i) (em_ele + k)) (w - 1 - em_ele)) len)) qs).
+
+
+(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
+op relcqsad_tcr (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
+  flatten (map (
+            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+              flatten (mkseq (fun (i : int) =>
+                               if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                               then mkseq 
+                                    (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1 + j))
+                                    (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
+                               else mkseq 
+                                    (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j)) 
+                                    (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) qs).
+
+(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
+op relcqsad_tcr_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
+  flatten (mkseq (fun (i : int) =>
+                    if BaseW.val (encode_msgWOTS m).[i] <> 0
+                    then mkseq 
+                        (fun (j : int) => set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1 + j))
+                        (w - (BaseW.val (encode_msgWOTS m).[i]))
+                    else mkseq 
+                        (fun (j : int) => set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] + j)) 
+                        (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
+
+(* Intermediate relation (inner while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
+op relcqsad_tcr_inner (ad : adrs) (em_ele : int) (k : int) : adrs list =
+  if em_ele <> 0
+  then mkseq 
+      (fun (j : int) => set_hidx ad (em_ele - 1 + j)) (k + 1)
+  else mkseq 
+      (fun (j : int) => set_hidx ad (em_ele + j)) k.
+
+(* Overall relation between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
+op relcqsdg_tcr (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) (ps : pseed)  : dgst list =
+  flatten (map (fun (admpksigxl : (adrs * msgWOTS * pkWOTS * sigWOTS) * dgstblock list) =>
+                  let (admpksig, xl) = (admpksigxl.`1, admpksigxl.`2) in
+                    flatten (mkseq (fun (i : int) =>
+                                    if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                                    then mkseq
+                                         (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1) j (val (nth witness xl i))))
+                                         (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
+                                    else mkseq 
+                                         (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i]) j (val (nth witness (val admpksig.`4) i))))
+                                         (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) (zip qs xll)).
+
+(* Intermediate relation (outer while-loop) between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
+op relcqsdg_tcr_outer (ps : pseed) (ad : adrs) (m : msgWOTS) (sig : sigWOTS) (xl : dgstblock list) (l : int) : dgst list =
+  flatten (mkseq (fun (i : int) =>
+                  if BaseW.val (encode_msgWOTS m).[i] <> 0
+                  then mkseq
+                       (fun (j : int) => val (cf ps (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1) j (val (nth witness xl i))))
+                       (w - (BaseW.val (encode_msgWOTS m).[i]))
+                  else mkseq 
+                       (fun (j : int) => val (cf ps (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i]) j (val (nth witness (val sig) i))))
+                       (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
+
+(* Intermediate relation (inner while-loop) between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
+op relcqsdg_tcr_inner (ps : pseed) (ad : adrs) (em_ele : int) (sig_ele : dgstblock) (x : dgstblock) (k : int) : dgst list =
+  if em_ele <> 0
+  then mkseq
+       (fun (j : int) => val (cf ps ad (em_ele - 1) j (val x))) (k + 1)
+  else mkseq 
+       (fun (j : int) => val (cf ps ad em_ele j (val sig_ele))) k.
+
+(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
+op relcqsad_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
+  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+                 flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                                                  then [set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1)]
+                                                  else []) len)) qs).
+                                                  
+(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
+op relcqsad_pre_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
+  flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS m).[i] <> 0
+                                   then [set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1)]
+                                   else []) l).
+                                 
+(* Overall relation between digests in signing oracle and challenge oracle queries in SM-DT-PRE reduction *)
+op relcqsdg_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : dgstblock list =
+  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+                 flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                                                  then [nth witness (val admpksig.`4) i]
+                                                  else []) len)) qs).
+                                                 
+(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
+op relcqsdg_pre_outer (m : msgWOTS) (sig : dgstblock list) (l : int) : dgstblock list =
+  flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS m).[i] <> 0
+                                   then [nth witness sig i]
+                                   else []) l).
+
+(* Overall relation between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
+op reltqsad_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
+  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+                 flatten (mkseq (fun (i : int) => 
+                            mkseq (fun (j : int) =>
+                              set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j))
+                                (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) qs).
+                                
+(* Intermediate relation (outer while-loop) between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
+op reltqsad_pre_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
+  flatten (mkseq (fun (i : int) => 
+            mkseq (fun (j : int) =>
+              set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] + j))
+                (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
+
+(* Intermediate relation (inner while-loop) between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
+op reltqsad_pre_inner (ad : adrs) (em_ele : int) (k : int) : adrs list =
+  mkseq (fun (j : int) => set_hidx ad (em_ele + j)) k.
+
+(* Computes index in query list of tweakable hash function oracles corresponding to extracted collision/preimage *)
+op qs_idx (f : 'a -> 'b list list) (s : 'a list) (i j k : int) : int =
+  sumz (map (fun x => sumz (map size x)) (take i (map f s))) + sumz (map size (take j (nth witness (map f s) i))) + k.
+
+(* Computes index of address in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted collision *)
+op qsadtcr_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j k : int) : int =
+  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+            (mkseq (fun (i : int) =>
+                    if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                    then mkseq 
+                         (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1 + j))
+                         (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
+                    else mkseq 
+                         (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j))  
+                         (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) in
+    qs_idx f qs i j k.
+
+(* Computes index of digest in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted collision *)
+op qsdgtcr_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) (ps : pseed) (i j k : int) : int =
+  let f = (fun (admpksigxl : (adrs * msgWOTS * pkWOTS * sigWOTS) * dgstblock list) =>
+                  let (admpksig, xl) = (admpksigxl.`1, admpksigxl.`2) in
+                    (mkseq (fun (i : int) =>
+                            if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                            then mkseq
+                                 (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1) j (val (nth witness xl i))))
+                                 (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
+                            else mkseq 
+                                 (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i]) j (val (nth witness (val admpksig.`4) i))))
+                                 (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) in
+    qs_idx f (zip qs xll) i j k.
+
+(* Computes index of address in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted preimage *)
+op qsadpre_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j : int) : int =
+  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+             (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                                      then [set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1)]
+                                      else []) len)) in
+    qs_idx f qs i j 0.
+
+(* Computes index of digest in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted preimage *)
+op qsdgpre_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j : int) : int =
+  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
+             (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
+                                      then [nth witness (val admpksig.`4) i]
+                                      else []) len)) in
+    qs_idx f qs i j 0.
+
+
+
+(* - Types (3/3) -- *)
+(* -- General -- *)
+(*
+  WOTS-TW addresses
+  Introduced only for the purpose of the proof; specifically, to ensure that 
+  the adversary provides us valid WOTS-TW addresses in the security notion. 
+  Essentially, this excludes the "irrelevant"
+  adversaries that provide invalid addresses from the considered class of
+  adversaries. Equivalently, we could extend the behavioral check on the adversary
+  at the end of the game (i.e., only let the adversary succeed if the
+  provided addresses are valid WOTS-TW addresses). Furthermore, this approach
+  would also be equivalent to having no subtype or extended behavioral check
+  but instead have the considered scheme/oracle do input sanitization (i.e., have the scheme
+  check whether the provided addresses are valid WOTS-TW addresses).   
+*)
+clone import Subtype as WAddress with
+  type T <- adrs,
+    op P <- valid_wadrs.
+    
+type wadrs = WAddress.sT.
+
+
+(* -- WOTS/WOTS-TW specific -- *)
+(* - WOTS-TW in encompassing structure with tweaks/addresses and with secret key generation - *)
+(* Public keys *)
+type pkWOTSTW = pkWOTS * pseed * adrs.
+
+(* Secret keys *)
+type skWOTSTW = sseed * pseed * adrs.
+
+
+
+(* - Auxiliary properties - *)
+(* -- Generic -- *)
+lemma gt_exprsbde (x n m : int) :
+  1 < x => 0 <= n < m => x ^ n < x ^ m.
+proof.
+move=> gt1_x [ge0_n gtn_m]. 
+have ge0_m: 0 <= m by smt(). 
+elim: n ge0_n m ge0_m gtn_m => [| i ge0_i ih m ge0_m gti1_m].
++ by elim => [/# | *]; rewrite expr0 exprn_egt1 /#.
+rewrite exprD_nneg // expr1 (: m = m - 1 + 1) // exprD_nneg 1:/# // expr1.
+by rewrite ltr_pmul2r 2:(ih (m - 1)) /#.
+qed.
+
+lemma size_nth_uniq (s : 'a list list) :
+      (forall (i j : int), 0 <= i < size s => 0 <= j < size s => i <> j =>
+         size (nth witness s i) <> size (nth witness s j))
+  => uniq s.
+proof. by smt(nth_uniq). qed.
+
+lemma map_size_ge0 (s : 'a list list) :
+  all ((<=) 0) (map size s).
+proof. by rewrite allP => i /mapP; smt(size_ge0). qed.
+
+lemma uniq_mapP (f : 'a -> 'b) (s : 'a list) (x x' : 'a) :
+  x \in s => x' \in s => x <> x' => uniq (map f s) => f x <> f x'.
+proof. by elim: s => //; smt(map_f). qed.
+
+lemma uniq_flatten_map_in (f : 'a -> 'b list) (s : 'a list) :
+     all uniq (map f s) 
+  => (forall x y, x \in s => y \in s => has (mem (f x)) (f y) => x = y) 
+  => uniq s 
+  => uniq (flatten (map f s)).
+proof.
+elim: s => /= [|x s ih [uqf uqins] inj_f [ninsx uqs]].
++ by rewrite flatten_nil.
+rewrite flatten_cons cat_uniq uqf ih //= 1:/#.
+apply: negP => /List.hasP [a] [/flatten_mapP] [b] [sb] fba fxa.
+have ->> //: x = b; apply/inj_f=> //; first by rewrite sb.
+by rewrite hasP; exists a.
+qed.
+
+lemma uniq_flatten_map_in_rev (f : 'a -> 'b) (s : 'a list list) :
+     all (uniq \o (map f)) s
+  => (forall x y, x \in s => y \in s => has (mem (map f x)) (map f y) => x = y)
+  => uniq s
+  => uniq (map f (flatten s)).
+proof.
+move => alluqmfs inj_mf uqs. 
+by rewrite map_flatten uniq_flatten_map_in 1:all_map. 
+qed.
+
+lemma nth_flatten_flatten (s : 'a list list list) (i j k : int) :
+     0 <= i < size s
+  => 0 <= j < size (nth witness s i)
+  => 0 <= k < size (nth witness (nth witness s i) j)
+  => nth witness (flatten (map flatten s))
+                 (sumz (map (fun x => sumz (map size x)) (take i s)) 
+                  + sumz (map size (take j (nth witness s i))) 
+                  + k) 
+     =
+     nth witness (nth witness (nth witness s i) j) k.
+proof.
+elim: s i j k => [/# | x s ih i j k /=].
+case (i = 0) => [eq0_i | neq0_i rng_i rng_j rng_k].
++ rewrite eq0_i /sumz /= -/(sumz (map size (take j x))) => _ rng_j rng_k.
+  rewrite -nth_flatten // flatten_cons nth_cat.
+  rewrite (: sumz (map size (take j x)) + k < size (flatten x)) //.
+  rewrite size_flatten ?sumzE ?big_mapT /(\o).
+  rewrite -{2}(cat_take_drop j x) big_cat ler_lt_add //. 
+  rewrite (drop_nth witness) // big_consT /= ltr_paddr 2:/#.
+  by rewrite sumr_ge0 => ? _; apply size_ge0.
+rewrite (: ! i <= 0) 1:/#  -ih 1:/# //= flatten_cons nth_cat.
+pose susu := sumz (sumz _ :: _) + _ + _; rewrite (: ! susu < size (flatten x)) /= /susu.
++ rewrite -lezNgt size_flatten (sumzE (sumz _ :: _)) big_cons /predT /= -/predT.
+  rewrite -2!addrA ler_addl -sumzE addrA addr_ge0 2:/# addr_ge0 sumz_ge0 2:map_size_ge0.
+  by rewrite allP => l /mapP -[x' [xpin /= ->]]; rewrite sumz_ge0 map_size_ge0. 
+by congr; rewrite sumzE big_cons /predT /= -/predT size_flatten -sumzE /#. 
+qed.
+
+lemma nth_flatten_map_flatten (s : 'a list) (f : 'a -> 'b list list) (i j k : int) :
+     0 <= i < size s
+  => 0 <= j < size (nth witness (map f s) i)
+  => 0 <= k < size (nth witness (nth witness (map f s) i) j)
+  => nth witness (flatten (map (fun x => flatten (f x)) s)) 
+                 (sumz (map (fun x => sumz (map size x)) (take i (map f s))) 
+                  + sumz (map size (take j (nth witness (map f s) i))) 
+                  + k) 
+     =
+     nth witness (nth witness (nth witness (map f s) i) j) k.
+proof. 
+move=> rng_i rng_j rng_k; move: (nth_flatten_flatten (map f s) i j k _ rng_j rng_k).
++ by rewrite size_map rng_i.
+by move=> <-; congr; rewrite map_comp.
+qed.
+
+lemma eq_from_flatten_nth (s s' : 'a list list):
+     size s = size s'
+  => (forall (i : int), 0 <= i < size s =>
+        size (nth witness s i) = size (nth witness s' i))
+  => flatten s = flatten s'
+  => s = s'.
+proof.
+elim: s s' => [ | x s ih]; first by smt(size_eq0).
+case => [| x' s' /= eqszs1_szsp1 eqsznth]; first by smt(size_eq0).
+rewrite 2!flatten_cons eqseq_cat 1:(eqsznth 0 _) //; first by smt(size_ge0).
+move=> [-> eqfls_flsp]; rewrite (ih s') 1:/# // => i rng_i.
+by move: (eqsznth (i + 1) _) => /#.
+qed.
+
+lemma djl_parts (l s sp1 sp2 : 'a list) :
+     all (fun (x : 'a) => x \in sp1 \/ x \in sp2) s
+  => ! has (mem sp1) l
+  => ! has (mem sp2) l
+  => ! has (mem s) l.
+proof.
+move=> /allP xmem /hasPn djlsp1 /hasPn djlsp2.
+rewrite hasPn => x xinl.
+rewrite -negP => xins. 
+move: (xmem x xins) => /=.
+rewrite negb_or; split.
++ by move: (djlsp1 x xinl).
+by move: (djlsp2 x xinl).  
+qed.
+
+
+(* -- Addresses -- *)
+lemma validwadrsidxs_puthidx (adidxs : int list) (i : int) :
+     valid_wadrsidxs adidxs
+  => valid_hidx i
+  => valid_wadrsidxs (put adidxs 0 i).
+proof.
+rewrite /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
+rewrite size_put eqszadl /= drop_put_out // valgp /=  take_put /=.
+move: vallp => @/valid_widxvalslp.
+by rewrite ?nth_put ?nth_take // ?size_take //; smt(ge2_adrslen).
+qed.
+
+lemma validwadrsidxs_putchidx (adidxs : int list) (i : int) :
+     valid_wadrsidxs adidxs
+  => valid_chidx i
+  => valid_wadrsidxs (put adidxs 1 i).
+proof.
+rewrite /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
+rewrite size_put eqszadl /= drop_put_out // valgp /=  take_put /=.
+move: vallp => @/valid_widxvalslp.
+by rewrite ?nth_put ?nth_take // ?size_take //; smt(ge2_adrslen).
+qed.
+
+lemma validwadrsidxs_putchhidx (adidxs : int list) (i j : int) :
+     valid_wadrsidxs adidxs
+  => valid_chidx i
+  => valid_hidx j
+  => valid_wadrsidxs (put (put adidxs 1 i) 0 j).
+proof. smt(validwadrsidxs_puthidx validwadrsidxs_putchidx). qed.
+
+lemma validwadrs_sethidx (ad : adrs) (i : int) :
+     valid_wadrs ad
+  => valid_hidx i
+  => valid_wadrs (set_hidx ad i).
+proof. 
+rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
+rewrite /set_chidx /set_idx ?insubdK 1:&(valid_wadrsidxs_adrsidxs) 1:validwadrsidxs_puthidx //.
+rewrite size_put take_put drop_put_out //=; split; 1: smt(valP).
+move: vallp => @/valid_widxvalslp. 
+by rewrite ?nth_put ?nth_take // ?size_take; smt(valP ge2_adrslen).
+qed. 
+
+lemma validwadrs_setchidx (ad : adrs) (i : int) :
+     valid_wadrs ad
+  => valid_chidx i
+  => valid_wadrs (set_chidx ad i).
+proof. 
+rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => [#] eqszadl valgp vallp vali.
+rewrite /set_chidx /set_idx insubdK 1:&(valid_wadrsidxs_adrsidxs) 1:validwadrsidxs_putchidx //.
+rewrite size_put take_put drop_put_out //=; split; 1: smt(valP).
+move: vallp => @/valid_widxvalslp. 
+by rewrite ?nth_put ?nth_take // ?size_take; smt(valP ge2_adrslen).
+qed.
+  
+lemma validwadrs_setchhidx (ad : adrs) (i j : int) :
+     valid_wadrs ad
+  => valid_chidx i
+  => valid_hidx j
+  => valid_wadrs (set_hidx (set_chidx ad i) j).
+proof. smt(validwadrs_setchidx validwadrs_sethidx). qed.
+
+
+lemma neq_after_setchidx (ad ad' : adrs) (i i' : int) :
+     valid_wadrs ad
+  => valid_wadrs ad'
+  => valid_chidx i
+  => valid_chidx i'
+  => i <> i'
+  => set_chidx ad i <> set_chidx ad' i'.
+proof.
+move=> valad valadp vali valip neqip_i.
+rewrite /set_chidx neq_after_setidx_sidv //; 1: smt(ge2_adrslen). 
++ by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx 1:/#.
+by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx 1:/#.
+qed.
+
+lemma neq_after_sethidx (ad ad' : adrs) (i i' : int) :
+     valid_wadrs ad
+  => valid_wadrs ad'
+  => valid_hidx i
+  => valid_hidx i'
+  => i <> i'
+  => set_hidx ad i <> set_hidx ad' i'.
+proof.
+move=> valad valadp vali valip neqip_i.
+rewrite /set_chidx neq_after_setidx_sidv //; 1: smt(ge2_adrslen). 
++ by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx 1:/#.
+by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx 1:/#.
+qed.
+
+lemma neq_after_setchhidx (ad ad' : adrs) (i i' j j' : int) :
+     valid_wadrs ad
+  => valid_wadrs ad'
+  => valid_chidx i
+  => valid_chidx i'
+  => valid_hidx j
+  => valid_hidx j'
+  => i <> i' \/ j <> j'
+  => set_hidx (set_chidx ad i) j <> set_hidx (set_chidx ad' i') j'.
+proof. 
+move=> valdad valadp vali valip valj valjp -[neqip_i | neqjp_j].
++ rewrite /set_hidx &(neq_after_setidx_sida _ _ _ 1) //=; 1: smt(ge2_adrslen).
+  - rewrite /eq_idx ?valin_getidx_setidx //; 1,3: smt(ge2_adrslen). 
+    * by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
+    by rewrite /valid_setidx valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
+  - rewrite /valid_setidx valid_wadrsidxs_adrsidxs /set_chidx /set_idx insubdK.
+    * by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
+    by rewrite validwadrsidxs_putchhidx.
+  rewrite /valid_setidx valid_wadrsidxs_adrsidxs /set_chidx /set_idx insubdK.
+  * by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
+  by rewrite validwadrsidxs_putchhidx.
+rewrite neq_after_sethidx // /valid_wadrs /set_chidx /set_idx insubdK. 
++ by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
++ by rewrite validwadrsidxs_putchidx.
++ by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx /#.
+by rewrite validwadrsidxs_putchidx.  
+qed.
+
+lemma neq_gp (ad ad' : adrs) :
+  get_wgpidxs ad <> get_wgpidxs ad' => ad <> ad'.
+proof. smt(). qed.
+
+lemma eq_gp_sethidx (ad : adrs) (i : int) :
+     valid_wadrs ad
+  => valid_hidx i
+  => get_wgpidxs (set_hidx ad i) = get_wgpidxs ad.
+proof. 
+move=> valad vali; rewrite /get_wgpidxs /set_hidx /set_idx insubdK 2:drop_put_out //.
+by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_puthidx.
+qed.
+
+lemma eq_gp_setchidx (ad : adrs) (i : int) :
+     valid_wadrs ad
+  => valid_chidx i
+  => get_wgpidxs (set_chidx ad i) = get_wgpidxs ad.
+proof. 
+move=> valad vali; rewrite /get_wgpidxs /set_hidx /set_idx insubdK 2:drop_put_out //.
+by rewrite valid_wadrsidxs_adrsidxs validwadrsidxs_putchidx.
+qed.
+
+lemma eq_gp_setchhidx (ad : adrs) (i j : int) :
+     valid_wadrs ad
+  => valid_chidx i
+  => valid_hidx j
+  => get_wgpidxs (set_hidx (set_chidx ad i) j) = get_wgpidxs ad.
+proof. 
+move=> valad vali valj @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx. 
+rewrite ?insubdK ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //.
+by rewrite ?drop_put_out.
+qed.
+
+
+(* -- (Chain) Collisions -- *)
 (* 
   If there is a pair of chains that contains a collision, then 
   find_chwcollidx is between 0 and len
@@ -1188,27 +1291,7 @@ by move/(nth_find witness): hcoll; rewrite nth_range 1:/# {1}/is_coll -/cf /#.
 qed.
 
 
-(* - (Chain) Preimages - *)
-(* Checks whether there is a preimage in the i-th chain *)
-op is_chwpre (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) =
-  fun (i : int),   
-     BaseW.val em'.[i] < BaseW.val em.[i]
-  /\ cf ps (set_chidx ad i) (BaseW.val em'.[i]) (BaseW.val em.[i] - BaseW.val em'.[i]) (val (nth witness (val sig') i))
-     = 
-     nth witness (val sig) i.  
-
-(* Checks whether there is a chain that contains a preimage *)   
-op has_chwpre (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) =
-  has (is_chwpre ps ad em em' sig sig') (range 0 len).
-
-(* Finds the index of first chain that contains a preimage *)
-op find_chwpreidx (ps : pseed) (ad : adrs) (em em' : emsgWOTS) (sig sig' : sigWOTS) : int = 
-  find (is_chwpre ps ad em em' sig sig') (range 0 len).
-
-(* Extracts a preimage from the i-th chain *)
-op extr_pre (ps : pseed) (ad : adrs) (em_ele em_ele' : int) (sig_ele' : dgst) : dgstblock =
-  cf ps ad em_ele' (em_ele - em_ele' - 1) sig_ele'. 
-
+(* -- (Chain) Preimages -- *)
 (* 
   If there does not exists a chain collision for two different messages of the correct length, 
   then there exists a chain preimage
@@ -1249,23 +1332,7 @@ by rewrite nth_range /= => [| [ltm _]]; [apply hchwpre_findprerng | smt(BaseW.va
 qed.
 
 
-(* - Relations between oracle queries in reductions - *)
-(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-UD hybrid reduction *)
-op relcqsad_udi (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : int) : adrs list =
-  flatten (map (
-            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-              flatten (mkseq (fun (i : int) => 
-                                if j < BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1
-                                then [set_hidx (set_chidx admpksig.`1 i) j]
-                                else []) len)) qs).
-
-(* Intermediate relation (while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-UD hybrid reduction *)
-op relcqsad_udi_outer (ad : adrs) (m : msgWOTS) (j l : int) : adrs list =
-  flatten (mkseq (fun (i : int) => 
-                    if j < BaseW.val (encode_msgWOTS m).[i] - 1
-                    then [set_hidx (set_chidx ad i) j]
-                    else []) l).
-
+(* -- Miscellaneous -- *)
 (* 
   The result of applying relcqsad_udi on a query list does not depend on the 
   public keys and signatures of the queries in the query list 
@@ -1299,7 +1366,7 @@ rewrite /relcqsad_udi size_flatten sumzE 2!big_map /(\o) /= /predT -/predT.
 split => [| _].
 + rewrite (: 0 = 0 * count predT qs) // -big_constz.
   rewrite ler_sum_seq => q qin @/predT /=.
-  by rewrite size_flatten sumz_ge0 map_size_ge0.
+  rewrite size_flatten sumz_ge0 map_size_ge0.
 rewrite -count_predT -(Ring.IntID.mul1r (count _ _)) -big_constz mulr_suml /=.
 rewrite ler_sum_seq => q @/predT /= qin.
 rewrite size_flatten sumzE 2!big_map /(\o) /= /predT -/predT. 
@@ -1309,21 +1376,6 @@ rewrite ler_sum_seq => i /mem_iota /= rng_i @/predT /=.
 by case (j < BaseW.val (encode_msgWOTS q.`2).[i] - 1).
 qed.
 
-(* Overall (partial) relation between addresses in signing oracle and family oracle queries in SM-DT-UD hybrid reduction *)
-op reltqsad_udi (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : int) : adrs list =
-  flatten (map (
-            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-              flatten (mkseq (fun (i : int) =>
-                               let em_ele = BaseW.val (encode_msgWOTS admpksig.`2).[i] in
-                                if j < em_ele - 1
-                                then mkseq (fun (k : int) =>
-                                      set_hidx (set_chidx admpksig.`1 i) (j + 1 + k)) (w - 2 - j)
-                                else if em_ele <> 0
-                                     then mkseq (fun (k : int) =>
-                                            set_hidx (set_chidx admpksig.`1 i) (em_ele - 1 + k)) (w - em_ele)
-                                     else mkseq (fun (k : int) =>
-                                            set_hidx (set_chidx admpksig.`1 i) (em_ele + k)) (w - 1 - em_ele)) len)) qs).
-
 (* 
   The result of applying reltqsad_udi on a query list does not depend on the 
   public keys and signatures of the queries in the query list 
@@ -1332,38 +1384,6 @@ lemma reltqsadudi_rcons_qs (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : 
   reltqsad_udi (rcons qs (ad, m, pk, sig)) j = reltqsad_udi (rcons qs (ad, m, pk', sig')) j.
 proof. by rewrite /reltqsad_udi; congr; rewrite 2!map_rcons. qed.
                                                    
-(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
-op relcqsad_tcr (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
-  flatten (map (
-            fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-              flatten (mkseq (fun (i : int) =>
-                               if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                               then mkseq 
-                                    (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1 + j))
-                                    (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
-                               else mkseq 
-                                    (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j)) 
-                                    (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) qs).
-
-(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
-op relcqsad_tcr_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
-  flatten (mkseq (fun (i : int) =>
-                    if BaseW.val (encode_msgWOTS m).[i] <> 0
-                    then mkseq 
-                        (fun (j : int) => set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1 + j))
-                        (w - (BaseW.val (encode_msgWOTS m).[i]))
-                    else mkseq 
-                        (fun (j : int) => set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] + j)) 
-                        (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
-
-(* Intermediate relation (inner while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-TCR reduction *)
-op relcqsad_tcr_inner (ad : adrs) (em_ele : int) (k : int) : adrs list =
-  if em_ele <> 0
-  then mkseq 
-      (fun (j : int) => set_hidx ad (em_ele - 1 + j)) (k + 1)
-  else mkseq 
-      (fun (j : int) => set_hidx ad (em_ele + j)) k.
-
 (* Interaction between relcqsad_tcr and relcqsad_tcr_outer *)
 lemma relcqsad_tcr_outer_full (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (ad : adrs) (m : msgWOTS) (pk : pkWOTS) (sig : sigWOTS) :
   relcqsad_tcr qs ++ relcqsad_tcr_outer ad m len
@@ -1413,39 +1433,7 @@ rewrite {2}(: len = size (iota_ 0 len)) 2:-count_predT; first by smt(size_iota g
 rewrite -(Ring.IntID.mul1r (count _ _)) -big_constz mulr_suml ler_sum_seq => i /mem_iota /= rng_i _.
 by case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0); smt(size_map size_iota BaseW.valP).
 qed.
-
-(* Overall relation between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
-op relcqsdg_tcr (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) (ps : pseed)  : dgst list =
-  flatten (map (fun (admpksigxl : (adrs * msgWOTS * pkWOTS * sigWOTS) * dgstblock list) =>
-                  let (admpksig, xl) = (admpksigxl.`1, admpksigxl.`2) in
-                    flatten (mkseq (fun (i : int) =>
-                                    if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                                    then mkseq
-                                         (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1) j (val (nth witness xl i))))
-                                         (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
-                                    else mkseq 
-                                         (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i]) j (val (nth witness (val admpksig.`4) i))))
-                                         (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) (zip qs xll)).
-
-(* Intermediate relation (outer while-loop) between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
-op relcqsdg_tcr_outer (ps : pseed) (ad : adrs) (m : msgWOTS) (sig : sigWOTS) (xl : dgstblock list) (l : int) : dgst list =
-  flatten (mkseq (fun (i : int) =>
-                  if BaseW.val (encode_msgWOTS m).[i] <> 0
-                  then mkseq
-                       (fun (j : int) => val (cf ps (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1) j (val (nth witness xl i))))
-                       (w - (BaseW.val (encode_msgWOTS m).[i]))
-                  else mkseq 
-                       (fun (j : int) => val (cf ps (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i]) j (val (nth witness (val sig) i))))
-                       (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
-
-(* Intermediate relation (inner while-loop) between digests in signing oracle and challenge oracle queries in SM-DT-TCR-C reduction *)
-op relcqsdg_tcr_inner (ps : pseed) (ad : adrs) (em_ele : int) (sig_ele : dgstblock) (x : dgstblock) (k : int) : dgst list =
-  if em_ele <> 0
-  then mkseq
-       (fun (j : int) => val (cf ps ad (em_ele - 1) j (val x))) (k + 1)
-  else mkseq 
-       (fun (j : int) => val (cf ps ad em_ele j (val sig_ele))) k.
-
+       
 (* Interaction between relcqsdg_tcr and relcqsdg_tcr_outer *)
 lemma relcqsdg_tcr_outer_full (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) 
                                     (ps : pseed) (ad : adrs) (m : msgWOTS) (pk : pkWOTS) (sig : sigWOTS) (xl : dgstblock list) :
@@ -1482,37 +1470,10 @@ lemma relcqsdg_tcr_inner_rcons (ps : pseed) (ad : adrs) (em_ele : int) (sig_ele 
      relcqsdg_tcr_inner ps ad em_ele sig_ele x (j + 1).
 proof. by smt(mkseqS). qed.
 
-(* Overall relation between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
-op relcqsad_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
-  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-                 flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                                                  then [set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1)]
-                                                  else []) len)) qs).
-                                                  
-(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
-op relcqsad_pre_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
-  flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS m).[i] <> 0
-                                   then [set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] - 1)]
-                                   else []) l).
-
-
 (* Interaction between relcqsad_pre and relcqsad_pre_outer *)                                   
 lemma relcqsad_pre_outer_full (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (ad : adrs) (m : msgWOTS) (pk : pkWOTS) (sig : sigWOTS) :
   relcqsad_pre qs ++ relcqsad_pre_outer ad m len = relcqsad_pre (rcons qs (ad, m, pk, sig)).
 proof. by rewrite /relcqsad_pre /relcqsad_pre_outer map_rcons /= flatten_rcons. qed.
-                                 
-(* Overall relation between digests in signing oracle and challenge oracle queries in SM-DT-PRE reduction *)
-op relcqsdg_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : dgstblock list =
-  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-                 flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                                                  then [nth witness (val admpksig.`4) i]
-                                                  else []) len)) qs).
-                                                 
-(* Intermediate relation (outer while-loop) between addresses in signing oracle and challenge oracle queries in SM-DT-PRE-C reduction *)
-op relcqsdg_pre_outer (m : msgWOTS) (sig : dgstblock list) (l : int) : dgstblock list =
-  flatten (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS m).[i] <> 0
-                                   then [nth witness sig i]
-                                   else []) l).
 
 (* Interaction between relcqsdg_pre and relcqsdg_pre_outer *) 
 lemma relcqsdg_pre_outer_full (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (ad : adrs) (m : msgWOTS) (pk : pkWOTS) (sig : sigWOTS) :
@@ -1540,25 +1501,6 @@ rewrite -count_predT -(Ring.IntID.mul1r (count _ _)) -big_constz.
 rewrite ler_sum_seq => i /mem_iota [ge0_i /= ltlen_i] @/predT /=.
 by case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0).
 qed.
-
-(* Overall relation between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
-op reltqsad_pre (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) : adrs list =
-  flatten (map (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-                 flatten (mkseq (fun (i : int) => 
-                            mkseq (fun (j : int) =>
-                              set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j))
-                                (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) qs).
-                                
-(* Intermediate relation (outer while-loop) between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
-op reltqsad_pre_outer (ad : adrs) (m : msgWOTS) (l : int) : adrs list =
-  flatten (mkseq (fun (i : int) => 
-            mkseq (fun (j : int) =>
-              set_hidx (set_chidx ad i) (BaseW.val (encode_msgWOTS m).[i] + j))
-                (w - 1 - (BaseW.val (encode_msgWOTS m).[i]))) l).
-
-(* Intermediate relation (inner while-loop) between addresses in signing oracle and family oracle queries in SM-DT-PRE reduction *)
-op reltqsad_pre_inner (ad : adrs) (em_ele : int) (k : int) : adrs list =
-  mkseq (fun (j : int) => set_hidx ad (em_ele + j)) k.
 
 (* Interaction between reltqsad_pre and reltqsad_pre_outer *)
 lemma reltqsad_pre_outer_full (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (ad : adrs) (m : msgWOTS) (pk : pkWOTS) (sig : sigWOTS) :
@@ -1589,53 +1531,6 @@ move=> ge0_j @/reltqsad_pre_inner.
 by rewrite /mkseq iota_add //= map_cat iota1 //= cats1.
 qed.
                              
-(* Computes index in query list of tweakable hash function oracles corresponding to extracted collision/preimage *)
-op qs_idx (f : 'a -> 'b list list) (s : 'a list) (i j k : int) : int =
-  sumz (map (fun x => sumz (map size x)) (take i (map f s))) + sumz (map size (take j (nth witness (map f s) i))) + k.
-
-(* Computes index of address in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted collision *)
-op qsadtcr_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j k : int) : int =
-  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-            (mkseq (fun (i : int) =>
-                    if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                    then mkseq 
-                         (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1 + j))
-                         (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
-                    else mkseq 
-                         (fun (j : int) => set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] + j))  
-                         (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) in
-    qs_idx f qs i j k.
-
-(* Computes index of digest in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted collision *)
-op qsdgtcr_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) (ps : pseed) (i j k : int) : int =
-  let f = (fun (admpksigxl : (adrs * msgWOTS * pkWOTS * sigWOTS) * dgstblock list) =>
-                  let (admpksig, xl) = (admpksigxl.`1, admpksigxl.`2) in
-                    (mkseq (fun (i : int) =>
-                            if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                            then mkseq
-                                 (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1) j (val (nth witness xl i))))
-                                 (w - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))
-                            else mkseq 
-                                 (fun (j : int) => val (cf ps (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i]) j (val (nth witness (val admpksig.`4) i))))
-                                 (w - 1 - (BaseW.val (encode_msgWOTS admpksig.`2).[i]))) len)) in
-    qs_idx f (zip qs xll) i j k.
-
-(* Computes index of address in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted preimage *)
-op qsadpre_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j : int) : int =
-  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-             (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                                      then [set_hidx (set_chidx admpksig.`1 i) (BaseW.val (encode_msgWOTS admpksig.`2).[i] - 1)]
-                                      else []) len)) in
-    qs_idx f qs i j 0.
-
-(* Computes index of digest in query list of challenge oracle in SM-DT-TCR-C reduction corresponding to extracted preimage *)
-op qsdgpre_idx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (i j : int) : int =
-  let f = (fun (admpksig : adrs * msgWOTS * pkWOTS * sigWOTS) =>
-             (mkseq (fun (i : int) => if BaseW.val (encode_msgWOTS admpksig.`2).[i] <> 0
-                                      then [nth witness (val admpksig.`4) i]
-                                      else []) len)) in
-    qs_idx f qs i j 0.
-
 (* Equality between qsadtcr_idx qs i j k and qsdgtcr_idx qs xll ps i j k *)
 lemma eq_qsadtcridx_qsdgtcridx (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (xll : dgstblock list list) (ps : pseed) (i j k : int) :
      size qs = size xll
@@ -1916,8 +1811,6 @@ rewrite /f (nth_map witness) //= (nth_map witness) //= 1:size_iota 1:/#.
 by rewrite -/q nth_iota //= neq0_em /#.
 qed.
 
-
-(* - Uniqueness and disjointness for query lists of tweakable hash function oracles  - *)
 (* Uniqueness of relcqsad_udi qs j *)
 lemma uniq_relcqsadudi (qs : (adrs * msgWOTS * pkWOTS * sigWOTS) list) (j : int) :
      valid_hidx j
@@ -1965,7 +1858,7 @@ have /#: exists q, q \in qs /\ eq_gp q.`1 ad.
 move/flatten_mapP: adin => [q] [qin /= /flatten_mapP [k [/mem_iota /= rng_k]]].
 case (j < BaseW.val (encode_msgWOTS q.`2).[k] - 1) => //= ltemk_j ->.
 exists q; split => [// | @/eq_gp @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx /=].
-rewrite ?insubdK 4:?drop_putK // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map).
+rewrite ?insubdK 4:?drop_put_out // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map).
 qed.
 
 (* Disjointness of relcqsad_udi qs j and reltqsad_udi qs j *)
@@ -2083,9 +1976,9 @@ have /#: exists q, q \in qs /\ eq_gp q.`1 ad.
 + move/flatten_mapP: adin => [q] [qin /= /flatten_mapP [i [/mem_iota /= rng_i]]].
   case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0) => valem; rewrite mapP => -[j [/mem_iota /= rng_j ->]].
   - exists q; split => [// | @/eq_gp @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx /=].  
-    by rewrite ?insubdK 4:?drop_putK // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map BaseW.valP).
+    by rewrite ?insubdK 4:?drop_put_out // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map BaseW.valP).
   exists q; split => [// | @/eq_gp @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx /=].
-  rewrite ?insubdK 4:?drop_putK // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map BaseW.valP).
+  rewrite ?insubdK 4:?drop_put_out // ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //; smt(allP all_map BaseW.valP).
 qed.
 
 (* Uniqueness of relcqsad_pre qs *)
@@ -2139,40 +2032,8 @@ qed.
 
 
 
-(* - Types (3/3) -- *)
-(* -- General -- *)
-(*
-  WOTS-TW addresses
-  Introduced only for the purpose of the proof; specifically, to ensure that 
-  the adversary provides us valid WOTS-TW addresses in the security notion. 
-  Essentially, this excludes the "irrelevant"
-  adversaries that provide invalid addresses from the considered class of
-  adversaries. Equivalently, we could extend the behavioral check on the adversary
-  at the end of the game (i.e., only let the adversary succeed if the
-  provided addresses are valid WOTS-TW addresses). Furthermore, this approach
-  would also be equivalent to having no subtype or extended behavioral check
-  but instead have the considered scheme/oracle do input sanitization (i.e., have the scheme
-  check whether the provided addresses are valid WOTS-TW addresses).   
-*)
-clone import Subtype as WAddress with
-  type T <- adrs,
-    op P <- valid_wadrs.
-    
-type wadrs = WAddress.sT.
-
-
-(* -- WOTS/WOTS-TW specific -- *)
-(* - WOTS-TW in encompassing structure with tweaks/addresses and with secret key generation - *)
-(* Public keys *)
-type pkWOTSTW = pkWOTS * pseed * adrs.
-
-(* Secret keys *)
-type skWOTSTW = sseed * pseed * adrs.
-
-
-
-(* - WOTS-TW scheme in Encompassing Structure - *)
-(* -- Specification of WOTS-TW in Encompassing Structure -- *)
+(* - Specifications - *)
+(* -- WOTS-TW  in Encompassing Structure -- *)
 module WOTS_TW_ES = {
   (* Generate secret key *)
   proc gen_skWOTS(ss : sseed, ps : pseed, ad : adrs) : skWOTS = {
@@ -2311,8 +2172,7 @@ module WOTS_TW_ES = {
 }.
 
 
-
-(* -- Specification of WOTS-TW in Encompassing Structure (No PRF) -- *)
+(* -- WOTS-TW in Encompassing Structure (No PRF) -- *)
 module WOTS_TW_ES_NPRF = {
   (* Compute public key from secret key *)  
   proc pkWOTS_from_skWOTS(skWOTS : skWOTS, ps : pseed, ad : adrs) : pkWOTS = {
@@ -2433,6 +2293,7 @@ module WOTS_TW_ES_NPRF = {
 }.
 
 
+(* - Proof - *)
 (* -- Adversary classes and oracle interfaces -- *)
 (* 
   Type of oracle given to adversaries in M-EUF-GCMA game for WOTS-TW in encompassing structure
@@ -2457,7 +2318,7 @@ module type Adv_MEUFGCMA_WOTSTWESNPRF(O : Oracle_MEUFGCMA_WOTSTWESNPRF, OC : Ora
 }.
 
 
-(* -- Notions -- *)
+(* -- Security notions -- *)
 (* M-EUF-GCMA game for WOTS-TW in encompassing structure without PRF *) 
 module M_EUF_GCMA_WOTSTWESNPRF(A : Adv_MEUFGCMA_WOTSTWESNPRF, O : Oracle_MEUFGCMA_WOTSTWESNPRF, OC : Oracle_THFC) = {
   module A = A(O, OC)
@@ -2589,102 +2450,6 @@ module O_MEUFGCMA_WOTSTWESNPRF : Oracle_MEUFGCMA_WOTSTWESNPRF = {
 
 
 (* -- Reduction Adversaries -- *)
-(*
-(* 
-  Reduction adversary that reduces from PRF for skg to distinguishing between
-  Game0_WOTSTWES and MEUFGCMA_WOTSTWES without PRF
-*)
-module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES_NPRF) : Adv_PRF) (O : Oracle_PRF) = {
-  module O_R_PRF_Game0NOPRFWOTSTWES : Oracle_MEUFGCMA_WOTSTWES_NPRF = {
-    include var O_MEUFGCMA_WOTSTWES_NPRF [-query]
-    
-    proc query(wad : wadrs, m : msgWOTS) : pkWOTS * sigWOTS = {
-      var ad : adrs;
-      var pk : dgstblock list;
-      var sk : dgstblock list;
-      var sig : dgstblock list;
-      var em : emsgWOTS;
-      var pk_ele, sk_ele, sig_ele : dgstblock;
-      var em_ele : int;
-      var pksig : pkWOTS * sigWOTS;
-      var admpksig : adrs * msgWOTS * pkWOTS * sigWOTS;
-
-      ad <- val wad;
-      
-      sk <- [];
-
-      while (size sk < len) {
-        sk_ele <@ O.query((ps, set_hidx (set_chidx ad (size sk)) 0));
-        sk <- rcons sk sk_ele;
-      }
-
-      pk <- [];
-      while (size pk < len) {
-        sk_ele <- nth witness sk (size pk);
-        pk_ele <- cf ps (set_chidx ad (size pk)) 0 (w - 1) (val sk_ele);
-        pk <- rcons pk pk_ele;
-      }
-
-      em <- encode_msgWOTS m;
-
-      sig <- [];
-      while (size sig < len) {
-        sk_ele <- nth witness sk (size sig);
-        em_ele <- BaseW.val em.[size sig];
-        sig_ele <- cf ps (set_chidx ad (size sig)) 0 em_ele (val sk_ele);
-        sig <- rcons sig sig_ele;
-      }
-
-      admpksig <- (ad, m, insubd pk, insubd sig);
-      qs <- rcons qs admpksig;
-      pksig <- (insubd pk, insubd sig);
-
-      return pksig;
-    }
-  }
-  
-  module A = A(O_R_PRF_Game0NOPRFWOTSTWES, O_THFC_Default)
-  
-  proc distinguish() : bool = {
-    var ps : pseed;
-    var i : int;
-    var ad : adrs;
-    var m, m' : msgWOTS;
-    var pk : pkWOTS;
-    var sig, sig' : sigWOTS;
-    var is_valid, is_fresh, dist_wgpidxs : bool;
-    var adlO, adlOC : adrs list;
-    var nrqs : int;
-    
-    ps <$ dpseed;
-    
-    O_R_PRF_Game0NOPRFWOTSTWES.init(ps);
-    O_THFC_Default.init(ps);
-    
-    A.choose();
-    
-    (i, m', sig') <@ A.forge(ps);
-    
-    (ad, m, pk, sig) <@ O_R_PRF_Game0NOPRFWOTSTWES.get(i);
-    
-    is_valid <@ WOTS_TW_ES.verify((pk, ps, ad), m', sig');
-
-    is_fresh <- m' <> m;
-    
-    nrqs <@ O_R_PRF_Game0NOPRFWOTSTWES.nr_queries();
-    
-    dist_wgpidxs <@ O_R_PRF_Game0NOPRFWOTSTWES.dist_addresses();
-       
-    adlO <@ O_R_PRF_Game0NOPRFWOTSTWES.get_addresses();
-        
-    adlOC <@ O_THFC_Default.get_tweaks();  
-        
-    return 0 <= nrqs <= c /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
-  }
-}.
-*)
-
 (* 
   Reduction adversary that reduces from SM_DT_UD_C to distinguishing between 
   Game2_WOTSTWES and Game3_WOTSTWES (by, as an intermediate step, reducing to 
@@ -3097,9 +2862,8 @@ module (R_SMDTPREC_Game4WOTSTWES (A : Adv_MEUFGCMA_WOTSTWESNPRF) : Adv_SMDTPREC)
 }.
 
 
-(* -- Proof of M-EUF-GCMA for WOTS-TW (in an encompassing structure) without PRF -- *)
 section Proof_M_EUF_GCMA_WOTS_TW_ES_NPRF.
-(* - (Auxiliary) Imports - *)
+(* -- Auxiliary/Local Imports -- *)
 (* 
   Import necessary definitions/properties to reason about programs sampling from
   dlist distributions
@@ -3111,7 +2875,7 @@ local clone import DList.Program as DListSample with
     proof *.
 
 
-(* - (Auxiliary) Adversary classes and oracle interfaces - *)
+(* -- Auxiliary/Local adversary classes and oracle interfaces -- *)
 (* Type of oracle given to adversaries in DistRCH game *)
 local module type Oracle_DistRCH  = {
   proc init(b_init : bool, ps_init : pseed) : unit
@@ -3125,7 +2889,7 @@ local module type Adv_DistRCH(O : Oracle_DistRCH, OC : Oracle_THFC) = {
 }.
 
 
-(* - Module declarations - *)
+(* -- Declarations -- *)
 (* Adversary against M-EUF-GCMA of WOTW-TW (in an encompassing structure) *)
 declare module A <: Adv_MEUFGCMA_WOTSTWESNPRF {
 (* F *)
@@ -3138,15 +2902,15 @@ declare module A <: Adv_MEUFGCMA_WOTSTWESNPRF {
   The adversary's choose procedure always terminates if the oracle procedures it can 
   call during its execution terminate 
 *)
-declare axiom A_choose_ll (O <: Oracle_MEUFGCMA_WOTSTWESNPRF {-A} ) (OC <: Oracle_THFC {-A} ) :
+declare axiom A_choose_ll (O <: Oracle_MEUFGCMA_WOTSTWESNPRF {-A}) (OC <: Oracle_THFC {-A} ) :
   islossless O.query => islossless OC.query => islossless A(O, OC).choose.
 
 (* The adversary's forge procedure always terminates *)
-declare axiom A_forge_ll (O <: Oracle_MEUFGCMA_WOTSTWESNPRF {-A} ) (OC <: Oracle_THFC {-A} ) :
+declare axiom A_forge_ll (O <: Oracle_MEUFGCMA_WOTSTWESNPRF {-A}) (OC <: Oracle_THFC {-A} ) :
   islossless A(O, OC).forge.
 
 
-(* - Oracle implementations - *)
+(* -- Auxiliary/Local oracle implementations -- *)
 (* Alternative inlined implementation of oracle given to adversary in original game *)
 local module O_MEUFGCMA_WOTSTWESNPRF_Inlined : Oracle_MEUFGCMA_WOTSTWESNPRF = {
   include var O_MEUFGCMA_WOTSTWESNPRF [-query]
@@ -3850,7 +3614,7 @@ by apply O_Game34_WOTSTWES_LoopSnocSampleAlt_Alt.
 qed.
 
 
-(* - Games in game sequence - *) 
+(* --- Auxiliary/Local games/security notions ("game sequence") --- *) 
 (* 
   Game2_WOTSTWES; third game in game sequence.
   Identical to M_EUF_GCMA_WOTSTWES, only differing in the 
@@ -4041,7 +3805,7 @@ by sim.
 qed.
 
 
-(* - Reduction adversaries - *)
+(* --- Auxiliary/Local reduction adversaries --- *)
 (* 
   Reduction adverary that reduces from distinguishing between the relevant distributions
   to distinguishing between Game2_WOTSTWES and Game3_WOTSTWES.
@@ -4316,7 +4080,7 @@ local module R_SMDTUDC_DistRCHil = {
 }.
 
 
-(* - (Auxiliary) Games - *)
+(* --- Auxiliary/Local games/security notions (not part of "game sequence) --- *)
 (*
   Game in which the adversary is tasked with distinguishing between random values
   and elements from WOTS chains selected based on an adversarially chosen message.
@@ -4606,8 +4370,6 @@ transitivity DistRCHi_LoopSnocSample.main
 by apply DistRCHi_LoopSnocSample_Alt.
 qed.
 
-
-(* - (Auxiliary) Security Notions - *)
 (*
   Specific, auxiliary instantiations/variations of the SM_DT_UD_C notion, used to obtain 
   the desired form for the proof of the SM_DT_UD_C reduction
@@ -4652,7 +4414,7 @@ local module SM_DT_UD_Cir = {
 }.
 
 
-(* - Game-playing proof - *)
+(* -- Proof steps -- *)
 (*
   First step: Show that the success probablity in M_EUF_GCMA_WOTSTWESNPRF when using O_MEUFGCMA_WOTSTWESNPRF is equal
   to the analogous probability when using O_MEUFGCMA_WOTSTWESNPRF_Inlined.

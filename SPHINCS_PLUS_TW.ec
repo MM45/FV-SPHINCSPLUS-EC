@@ -4010,7 +4010,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
     - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge2_lp).
       by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
     by rewrite mulrC -divz_eq.
-  rewrite nth_flatten.
+  rewrite (nth_flatten witness).
   + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
     by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP). 
   + rewrite modz_ge0 /=; 1: smt(ge2_lp). 
@@ -4055,7 +4055,7 @@ have {1}->:
   - rewrite eqnt0_szpkfnt /l' /nr_trees ltz_divLR; 1: smt(ge2_lp).
     by rewrite -exprD_nneg /= 1:mulr_ge0; smt(ge1_hp ge1_d Index.valP).
   by rewrite mulrC -divz_eq.
-rewrite nth_flatten.
+rewrite (nth_flatten witness).
 + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
   by rewrite eqnt0_szpkfnt /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP). 
 + rewrite modz_ge0 /=; 1: smt(ge2_lp). 

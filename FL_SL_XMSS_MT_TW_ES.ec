@@ -877,25 +877,25 @@ have gtl6_szad : forall i, i < 6 => i < adrs_len by smt(ge6_adrslen).
 have gtif_szad : forall i, i < 6 => i < if 6 < adrs_len then 6 else adrs_len by smt(ge6_adrslen).
 move=> vali valj valu @/set_ltidx @/set_typeidx.
 + rewrite insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
-  rewrite /valid_xidxvals ?drop_putK 1,2:// valgpad /= /valid_xidxvalslp.
+  rewrite /valid_xidxvals ?drop_put_out 1,2:// valgpad /= /valid_xidxvalslp.
   move: vallpad => @/valid_xidxvalslpch @/valid_xidxvalslppkco @/valid_xidxvalslptrh.
   by rewrite ?take_put /= ?nth_put ?size_put ?size_take ?eqal_szad
               1,3,5,7,9,11,13,15,17,19,21,23:// 1..12:gtif_szad 1..24:// /= /#.
 rewrite /set_kpidx /set_idx insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
-+ rewrite /valid_xidxvals ?drop_putK 1..6:// valgpad /= /valid_xidxvalslp.
++ rewrite /valid_xidxvals ?drop_put_out 1..6:// valgpad /= /valid_xidxvalslp.
   left.
   by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
              57,59,61,63,65,67,69,71:// 1..36:gtif_szad 1..72:// /=; smt(val_w ge2_len ge2_lp).
 rewrite /valid_wadrs insubdK 1:/valid_adrsidxs 1:?size_put 1:eqal_szad /= 1:valid_xidxvals_idxvals.
-+ rewrite /valid_xidxvals ?drop_putK 1..7:// valgpad /= /valid_xidxvalslp.
++ rewrite /valid_xidxvals ?drop_put_out 1..7:// valgpad /= /valid_xidxvalslp.
   left.
   by rewrite ?take_put /= /valid_xidxvalslpch ?nth_put ?size_put ?size_take ?eqal_szad
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
              57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 1..42:gtif_szad 1..85:// /=; smt(val_w ge2_len ge2_lp).
 rewrite /valid_wadrsidxs ?size_put eqal_szad /= /valid_widxvals drop_drop 1,2://.
 rewrite ?nth_drop 1..8:// /= ?nth_put ?size_put ?eqal_szad ?gtl6_szad 1..56:// /=.
-rewrite ?drop_putK 1..8:// valgpad /= ?take_put /= /valid_widxvalslp.
+rewrite ?drop_put_out 1..8:// valgpad /= ?take_put /= /valid_widxvalslp.
 by rewrite ?nth_put ?size_put ?size_take ?eqal_szad 1,3,5,7://; smt(ge6_adrslen val_w ge2_len).
 qed.
 
@@ -910,7 +910,7 @@ proof.
 move => vad vi vj vu vv.
 move: (validxadrs_validwadrs_setallboch i j u ad vad vi vj vu) => vwadbo.
 have vwp: valid_widxvals (put (val (set_kpidx (set_typeidx (set_ltidx ad i j) chtype) u)) 1 v).
-+ rewrite /valid_widxvals drop_putK 1:// /valid_widxvalslp. 
++ rewrite /valid_widxvals drop_put_out 1:// /valid_widxvalslp. 
   by rewrite take_put /= ?nth_put 1,2:size_take /=; smt(Adrs.valP ge6_adrslen).
 rewrite /set_chidx /set_idx /valid_wadrs /valid_wadrsidxs; split; 1: smt(Adrs.valP).
 rewrite insubdK 2:// /valid_adrsidxs; split; 1: by rewrite size_put; smt(Adrs.valP).
@@ -929,23 +929,23 @@ have gtif_szad : forall i, i < 6 => i < if 6 < size (val ad) then 6 else size (v
 move=> vad vi vj vu vv @/get_typeidx @/set_ltidx @/set_typeidx; rewrite insubdK. 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite /set_thtbidx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
           1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
           57,59,61,63,65,67,69,71:// 1..36:gtif_szad 1..72:// /=. 
   by rewrite /valid_tbidx expr_gt0 1:// /=; smt(ge1_hp).
 rewrite /get_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,
              57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97:// 
              1..48:gtif_szad 1..96:// /= vi vj vu vv /#. 
@@ -964,21 +964,21 @@ have gtif_szad : forall i, i < 6 => i < if 6 < size (val ad) then 6 else size (v
 move=> vad vi vj vt vu @/get_typeidx @/set_ltidx @/set_typeidx; rewrite insubdK. 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
           1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 1..72:// /=; smt(val_w ge2_len).
 rewrite /get_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).
@@ -998,39 +998,39 @@ have gtif_szad : forall i, i < 6 => i < if 6 < size (val ad) then 6 else size (v
 move=> vad vi vj vu vv vx @/get_typeidx @/set_ltidx @/set_typeidx; rewrite insubdK. 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite /set_kpidx /set_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite /set_chidx /set_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).
 rewrite /set_hidx /set_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95://
              1..48:gtif_szad 1..96:// /=; smt(val_w ge2_len).
 rewrite /get_idx insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..7:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..7:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107://
              1..54:gtif_szad 1..108:// /=; smt(val_w ge2_len).
@@ -1057,46 +1057,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_kpidx /set_idx (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite eq_sym (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
@@ -1123,46 +1123,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_kpidx /set_idx (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite eq_sym (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
@@ -1189,46 +1189,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_kpidx /set_idx (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite eq_sym (Adrs.insubdK (put (put _ _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(val_w ge2_len).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(val_w ge2_len).  
@@ -1256,46 +1256,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_thtbidx /set_idx (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite eq_sym (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /= /#.  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(ge1_hp expr_gt0).  
@@ -1323,46 +1323,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_thtbidx /set_idx (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite eq_sym (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /= /#.  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(ge1_hp expr_gt0).  
@@ -1390,46 +1390,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_thtbidx /set_idx (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite eq_sym (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /= /#.  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(ge1_hp expr_gt0).  
@@ -1457,46 +1457,46 @@ move=> @/set_ltidx @/set_typeidx.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vi vj /= /#.
 rewrite (Adrs.insubdK (put (put (val ad) _ _) _ _)). 
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
   move: vad => @/valid_xadrs @/valid_xadrsidxs [eqszad].
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
   by rewrite ?nth_put ?size_put ?size_take 1,3,5,7,9,11,13,15,17,19,21,23:// 
              1..12:gtif_szad 1..24:// /= ?nth_take 1..12:// vip vjp /= /#.
 rewrite /set_thtbidx /set_idx (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite eq_sym (Adrs.insubdK (put (put (put _ _ _) _ _) _ _)).
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..4:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,
              45,47,49,51,53,55,57,59,61,63,65,67,69,71:// 1..36:gtif_szad 
              1..72:// /=; smt(ge1_hp expr_gt0).
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /= /#.  
 rewrite insubdK.
 + rewrite /valid_adrsidxs valid_xidxvals_idxvals 2:?size_put; 2: smt(Adrs.valP).
-  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_putK 1,2:// 2?take_put /=.
+  rewrite /valid_xidxvals /valid_xidxvalslp 2?drop_put_out 1,2:// 2?take_put /=.
   rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
-  by rewrite ?drop_putK 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
+  by rewrite ?drop_put_out 1..6:// ?take_put /= ?nth_put ?size_put ?size_take
              1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,
              47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83:// 
              1..42:gtif_szad 1..84:// /=; smt(ge1_hp expr_gt0).  
@@ -2951,12 +2951,12 @@ seq 5 4 : (   #pre
       rewrite /valid_widxvals insubdK 1:valid_wadrsidxs_adrsidxs /valid_wadrsidxs; split; 1: smt(size_put Adrs.valP).
       + move: (WAddress.valP (wad{2})). 
         rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
-        rewrite ?drop_putK 1:// ?nth_drop 1..8:// /=.
+        rewrite ?drop_put_out 1:// ?nth_drop 1..8:// /=.
         rewrite drop_drop 1,2:// /= take_put /= => -> -> -> ->  -> /= vallp.
         by rewrite /valid_widxvalslp ?nth_put 1,2:size_take ?szadl 1,3:// /=; smt(ge6_adrslen size_ge0 ge2_len).
       + move: (WAddress.valP (wad{2})). 
         rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
-        by rewrite ?drop_putK 1:// ?nth_drop 1..8:// /=.
+        by rewrite ?drop_put_out 1:// ?nth_drop 1..8:// /=.
       move: (WAddress.valP (wad{2})). 
       rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals => -[szadl [#]].
       by rewrite /valid_widxvalslp ?nth_take 1..8:// ?nth_put /=; smt(size_ge0 ge6_adrslen Adrs.valP). 

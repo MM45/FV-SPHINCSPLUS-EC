@@ -689,9 +689,8 @@ op val_bt_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) : dgstblock =
   Constructs authentication path (embedding it in the corresponding subtype)
   for the special case of binary hash trees of height h' and indices between 
   0 (including) and 2 ^ h' (excluding) w.r.t. a certain public seed and address. 
-  Note that this operator does not explicitly fail when the given tree is not actually
-  of height h' or the given index not actually in [0, 2 ^ h' - 1]; 
-  instead, witness is returned.
+  Note that this operator does not explicitly fail when it is given arguments that do not
+  conform to the above; instead, it returns witness.
 *)
 op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) : apFLXMSSTW =
   DBHPL.insubd (cons_ap_trh_gen ps ad bt (rev (int2bs h' idx)) h' 0).
@@ -701,7 +700,7 @@ op cons_ap_trh (ps : pseed) (ad : adrs) (bt : dgstblock bintree) (idx : int) : a
   by the big-endian binary representation of an index between 0 (including) 
   and 2 ^ h' (excluding) using starting height index h' and breadth index 0, 
   w.r.t. a certain public seed and address. If the provided index is not actually
-  in [0, 2 ^ h' - 1], the h' least significant bits of the big-endiant binary 
+  in [0, 2 ^ h' - 1], the h' least significant bits of the big-endian binary 
   representation of the index are used as path. 
 *)
 op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFLXMSSTW) (idx : int) (leaf : dgstblock) : dgstblock = 
@@ -709,7 +708,7 @@ op val_ap_trh (ps : pseed) (ad : adrs) (ap : apFLXMSSTW) (idx : int) (leaf : dgs
   
 (*
   Extracts a collision and related subtrees, partial authentication path, height index, 
-  and a breadth index from a binary tree, an authentication path, and a leaf, 
+  and breadth index from a binary tree, an authentication path, and a leaf, 
   w.r.t. a certain public seed, address, (initial) height index, 
   and (initial) breadth index
 *)   
@@ -1509,7 +1508,7 @@ qed.
 (* - Specifications - *)
 (* Fixed-Length, StateLess XMSS-MT-TW in Encompassing Structure *)
 module FL_SL_XMSS_MT_TW_ES = {
-  (* Compute list of (inner tree) leaves from a secret seed, public seed, and address *) 
+  (* Compute (inner tree) leaves from a secret seed, public seed, and address *) 
   proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
     var pkWOTS : pkWOTS;
@@ -1517,6 +1516,7 @@ module FL_SL_XMSS_MT_TW_ES = {
     var leaves : dgstblock list;
     
     leaves <- [];
+    (* For each leaf in the (inner) tree... *)
     while (size leaves < l') {
       (* Generate a WOTS-TW secret key *)
       skWOTS <@ WOTS_TW_ES.gen_skWOTS(ss, ps, set_kpidx (set_typeidx ad chtype) (size leaves));
@@ -1533,16 +1533,16 @@ module FL_SL_XMSS_MT_TW_ES = {
     return leaves;
   }
   
-  (* Generate root of hypertree from secret seed, public seed, and address *)
+  (* Compute root of hypertree from secret seed, public seed, and address *)
   proc gen_root(ss : sseed, ps : pseed, ad : adrs) : dgstblock = {
     var root : dgstblock;
     var leaves : dgstblock list;
     
-    (* Compute list of leaves *)
+    (* Compute leaves of top-most inner tree *)
     leaves <@ leaves_from_sspsad(ss, ps, set_ltidx ad (d - 1) 0);
     
     (* 
-      Compute root (hash value) from the computed list of leaves, given public seed, and
+      Compute root (hash value) from the computed leaves, given public seed, and
       given address (after setting the type to tree hashing)
     *)
     root <- val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhtype) (list2tree leaves);
@@ -1556,6 +1556,7 @@ module FL_SL_XMSS_MT_TW_ES = {
     var pk : pkFLSLXMSSMTTW;
     var sk : skFLSLXMSSMTTW;
     
+    (* Compute the root of the hypertree *)
     root <@ gen_root(ss, ps, ad);
     
     pk <- (root, ps, ad);
@@ -1660,6 +1661,7 @@ module FL_SL_XMSS_MT_TW_ES = {
     (* Extract root (hash) value, public seed, and address from the public key *)
     (root, ps, ad) <- pk;
     
+    (* Compute root value associated with the given message, signature, and index *)
     root' <@ root_from_sigFLSLXMSSMTTW(m, sig, idx, ps, ad);
       
     return root' = root;
@@ -1668,7 +1670,7 @@ module FL_SL_XMSS_MT_TW_ES = {
 
 (* Fixed-Length StateLess FL-SL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
 module FL_SL_XMSS_MT_TW_ES_NPRF = {
-  (* Compute list of (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
+  (* Compute (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
   proc leaves_from_sklpsad(skWOTSl : skWOTS list, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
     var pkWOTS : pkWOTS;
@@ -1676,6 +1678,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
     var leaves : dgstblock list;
     
     leaves <- [];
+    (* For each leaf in the (inner) tree *)
     while (size leaves < l') {
       (* Extract considered WOTS-TW secret key *)
       skWOTS <- nth witness skWOTSl (size leaves);
@@ -1817,6 +1820,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
 
 (* - Proof - *)
 (* -- Adversary classes -- *)
+(* Adversaries against EUF-NAGCMA for FL-SL-XMSS-MT-TW-ES-NPRF *)
 module type Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF (OC : Oracle_THFC) = {
   proc choose() : msgFLSLXMSSMTTW list { OC.query }
   proc forge(pk : pkFLSLXMSSMTTW, sigl : sigFLSLXMSSMTTW list) : msgFLSLXMSSMTTW * sigFLSLXMSSMTTW * index {}
@@ -1848,7 +1852,7 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     (* Ask adversary to choose a list of messages for which to receive signatures *)
     ml <@ A(OC).choose();
             
-    (* Generate keypair for FL-SL-XMSS-MT-TW-ES-NPRF from public seed and address *)
+    (* Generate keypair for FL-SL-XMSS-MT-TW-ES-NPRF *)
     (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
     
     (* Sign (up to l) messages from list provided by adversary  *)
@@ -2727,7 +2731,8 @@ declare axiom A_choose_ll (OC <: Oracle_THFC{-A}) :
 (* 
   The adversary's forge procedure terminates as well 
   (independent of whether the given oracle terminates, because the adversary is not allowed to
-   call any procedures of the given oracle in its forge procedure *)
+   call any procedures of the given oracle in its forge procedure 
+*)
 declare axiom A_forge_ll (OC <: Oracle_THFC{-A}) : 
   islossless A(OC).forge.
 
@@ -5590,14 +5595,6 @@ seq 7 8 : (   #pre
                    size skWOTSnt{2} * (2 ^ h' - 1)
                    +
                    bigi predT (fun (m : int) => nr_nodes m) 1 (size nodes{2} + 1) 
-                (*
-                /\ (forall (i j : int), 0 <= i < size nodes{2} => 0 <= j < nr_nodes (i + 1) =>
-                      nth witness (nth witness nodes{2} i) j
-                      =
-                      let leaveslpp = take (2 ^ (i + 1)) (drop (j * (2 ^ (i + 1))) leaveslp{2}) in
-                        val_bt_trh_gen TRHC.O_THFC_Default.pp{2} (set_typeidx (set_ltidx R_SMDTTCRCTRH_EUFNAGCMA.ad{2} (size R_SMDTTCRCTRH_EUFNAGCMA.skWOTStd{2}) (size skWOTSnt{2})) trhtype) 
-                                       (list2tree leaveslpp) (i + 1) j)
-                *)
                 /\ (forall (u v : int), 0 <= u < size nodes{2} => 0 <= v < nr_nodes (u + 1) =>
                       nth witness (nth witness nodes{2} u) v
                       =

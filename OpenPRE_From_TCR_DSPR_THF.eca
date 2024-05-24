@@ -1,3 +1,5 @@
+(* - Require/Import Theories - *)
+(* -- Built-in (i.e, standard library) -- *)
 require import AllCore List Distr.
 require import FinType Finite. 
 require StdBigop StdOrder DMap.
@@ -5,8 +7,16 @@ import StdBigop.Bigreal BRA.
 import StdOrder.RealOrder.
 import RField.
 
+(* -- Local -- *)
 require TweakableHashFunctions.
 
+
+
+(* - Parameters - *)
+const t : { int | 0 <= t } as ge0_t.
+
+
+(* - Types - *)
 type pp_t.
 type tw_t.
 type in_t.
@@ -16,12 +26,16 @@ clone import FinType as InFT with
 
 type out_t.
 
-op f : pp_t -> tw_t -> in_t -> out_t.
 
+
+(* - Distributions - *)
 op [lossless] dpp : pp_t distr.
 op [lossless full uniform] din : in_t distr.
 
-const t : { int | 0 <= t } as ge0_t.
+
+
+(* - Operators - *)
+op f : pp_t -> tw_t -> in_t -> out_t.
 
 clone import TweakableHashFunctions as F with
   type pp_t <- pp_t,
@@ -57,6 +71,10 @@ clone import F.SMDTDSPR as F_DSPR with
   proof *.
   realize ge0_tsmdtdspr by exact: ge0_t.  
 
+
+
+(* - Proof - *)
+(* -- Reduction adversaries -- *)
 module (R_TCR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTTCR) (O : Oracle_SMDTTCR) = {
   var ys : out_t list
   var i : int
@@ -175,6 +193,7 @@ module (R_DSPR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTDSPR) (O : Oracle_SMDTDSP
     return (i, b);
   }
 }.
+
 
 
 section Proof_OpenPRE_From_DSPR_TCR.

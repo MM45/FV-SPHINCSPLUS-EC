@@ -170,7 +170,7 @@ module (R_DSPR_OpenPRE (A : Adv_SMDTOpenPRE) : Adv_SMDTDSPR) (O : Oracle_SMDTDSP
         
     x <- nth witness O_SMDTOpenPRE_Default.xs i; (* <@ O_SMDTOpenPRE.open(i); *)
     
-    b <- x <> x'  \/ opened;
+    b <- x <> x' \/ opened;
     
     return (i, b);
   }

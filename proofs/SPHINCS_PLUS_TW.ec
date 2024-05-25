@@ -4058,7 +4058,7 @@ call (:   ={mmap}(O_CMA_SPHINCSPLUSTWFS_NPRF, R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFC
   + rewrite divz_ge0 2:ltz_divLR; 1,2: smt(ge2_lp).
     by rewrite /nr_trees /l' -exprD_nneg /= 1:mulr_ge0; 1..4: smt(ge1_hp ge1_d Index.valP).
   + by rewrite modz_ge0 2:ltz_pmod /=; smt(ge2_lp). 
-  do 2! congr. search get_kpidx.
+  do 2! congr.
   + rewrite getsettrhf_kpidx /valid_tidx /valid_kpidx 5://.
     - rewrite insubdK /valid_adrsidxs /adrs_len /= /valid_idxvals; 2: smt(IntOrder.expr_gt0).
       by left => @/valid_idxvalsch /=; smt(ge1_d val_w ge2_len ge2_lp IntOrder.expr_ge0 IntOrder.expr_gt0).

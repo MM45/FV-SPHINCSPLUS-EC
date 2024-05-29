@@ -1011,7 +1011,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     (tidx, kpidx) <- edivz (val idx) l';
     
     (* Compute FORS-TW public key from secret/public seed and tree/keypair index address *)
-    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     (* Sign the FORS-TW public key with hypertree (FL-SL-XMSS-MT-TW-ES) *)
     sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
@@ -1681,6 +1681,47 @@ declare axiom A_forge_ll (O <: SOracle_CMA{-A}) :
 
   
 (* -- Auxiliary/Local specifications *)
+(* SPHINCS+ signing, but generating FORS public key from scratch instead of from FORS signature *)
+module SPHINCS_PLUS_TW_S = {
+  proc sign(sk : skSPHINCSPLUSTW, m : msg) : sigSPHINCSPLUSTW = {
+    var ms : mseed;
+    var ss : sseed;
+    var ps : pseed;
+    var ad : adrs;
+    var mk : mkey;
+    var sigFORSTW : sigFORSTW;
+    var cm : msgFORSTW;
+    var idx : index;
+    var tidx, kpidx : int;
+    var pkFORS : pkFORS;
+    var sigFLSLXMSSMTTW : sigFLSLXMSSMTTW;
+    var sig : sigSPHINCSPLUSTW;
+    
+    (* Extract message seed, secret seed, and public seed from secret key *)
+    (ms, ss, ps) <- sk;
+    
+    (* Initialize address *)
+    ad <- adz;
+    
+    (* Sign the message with multi-instance FORS-TW (M-FORS-TW-ES) *)
+    (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, ad), m);
+    
+    (* Compress message and compute instance index *)
+    (cm, idx) <- mco mk m;
+    
+    (* Compute tree index and keypair index from instance index  *)
+    (tidx, kpidx) <- edivz (val idx) l';
+    
+    (* Compute FORS-TW public key from secret/public seed and tree/keypair index address *)
+    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    
+    (* Sign the FORS-TW public key with hypertree (FL-SL-XMSS-MT-TW-ES) *)
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
+    
+    return (mk, sigFORSTW, sigFLSLXMSSMTTW);
+  }
+}.
+
 (* SPHINCS+-TW key generations, but uses pregenerated secret keys (with PRF or randomly sampled) *)  
 local module SPHINCS_PLUS_TW_FS = {
   proc keygen_prf() : pkSPHINCSPLUSTW * (mseed * skFORS list list * skWOTS list list list * pseed) = {
@@ -1834,6 +1875,141 @@ local module SPHINCS_PLUS_TW_FS = {
 }.
 
 
+(* --- Equivalences between procedures of specifications --- *)
+local equiv Eqv_SPHINCS_PLUS_TW_S_sign :
+  SPHINCS_PLUS_TW.sign ~ SPHINCS_PLUS_TW_S.sign : ={sk, m} ==> ={res}.
+proof.
+proc.
+seq 2 2 : (={sk, m, ms, ss, ps, ad} /\ ad{1} = adz).
++ by wp; skip.
+seq 1 1 : (   #pre 
+           /\ ={mk, sigFORSTW}
+           /\ sigFORSTW{1} 
+              =
+              (insubd (mkseq (fun (i : int) =>
+                          let lfidx = bs2int (rev (take a (drop (a * i) (val (mco mk{1} m{1}).`1)))) in
+                          let skfele = skg ss{1} (ps{1}, set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{1} trhftype) (edivz (val (mco mk{1} m{1}).`2) l').`1) (edivz (val (mco mk{1} m{1}).`2) l').`2) 0 (i * t + lfidx)) in
+                          let lvs = mkseq (fun (j : int) =>
+                                              f ps{1} (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{1} trhftype) (edivz (val (mco mk{1} m{1}).`2) l').`1) (edivz (val (mco mk{1} m{1}).`2) l').`2) 0 (i * t + j)) 
+                                                (val (skg ss{1} (ps{1}, (set_thtbidx (set_kpidx (set_tidx (set_typeidx ad{1} trhftype) (edivz (val (mco mk{1} m{1}).`2) l').`1) (edivz (val (mco mk{1} m{1}).`2) l').`2) 0 (i * t + j)))))) t in
+                          (skfele, cons_ap_trh ps{1} (set_kpidx (set_tidx (set_typeidx ad{1} trhftype) (edivz (val (mco mk{1} m{1}).`2) l').`1) (edivz (val (mco mk{1} m{1}).`2) l').`2) (list2tree lvs) lfidx i)) k))).
++ inline{1} 1; inline{2} 1.
+  inline{1} 7; inline{2} 7.
+  wp => /=.
+  while (   ={sig1, m1, ss1, ps1, ad1}
+         /\ size sig1{1} <= k
+         /\ sig1{1}
+            =
+            (mkseq (fun (i : int) =>
+                          let lfidx = bs2int (rev (take a (drop (a * i) (val m1{1})))) in
+                          let skfele = skg ss1{1} (ps1{1}, set_thtbidx ad1{1} 0 (i * t + lfidx)) in
+                          let lvs = mkseq (fun (j : int) =>
+                                              f ps1{1} (set_thtbidx ad1{1} 0 (i * t + j)) 
+                                                (val (skg ss1{1} (ps1{1}, (set_thtbidx ad1{1} 0 (i * t + j)))))) t in
+                          (skfele, cons_ap_trh ps1{1} ad1{1} (list2tree lvs) lfidx i)) (size sig1{1}))).
+  - inline{1} 4; inline{2} 4.
+    wp => /=.
+    while (   ={leaves0, ss2, ps2, ad2, idxt}
+           /\ size leaves0{1} <= t
+           /\ leaves0{1}
+              =
+              mkseq (fun (j : int) =>
+                      f ps2{1} (set_thtbidx ad2{1} 0 (idxt{1} * t + j)) 
+                        (val (skg ss2{1} (ps2{1}, (set_thtbidx ad2{1} 0 (idxt{1} * t + j)))))) (size leaves0{1})).
+    wp; skip => /> &1 _ lvsdef ltt_szlvs.
+    rewrite size_rcons mkseqS 1:size_ge0; split => [/#| ].
+    by rewrite {1}lvsdef. 
+  wp; skip => />.
+  progress. smt(ge2_t).
+  rewrite mkseq0 //.
+  smt(size_rcons).
+  rewrite size_rcons mkseqS 1:size_ge0 {1}H0; congr => /=.
+  rewrite {1}H5; congr; congr. congr. smt().
+  wp; skip => />. progress. smt(ge1_k). rewrite mkseq0 //. 
+  rewrite H2. congr. congr.  smt().
+call (: true); 1: by sim.
+sp 2 2; conseq (: _ ==> ={pkFORS}) => />; 1: smt().
+inline{1} 1; inline{2} 1.
+seq 6 5 : (={roots, ps0, ad0}).
++ sp 4 3 => /=; conseq (: _ ==> ={roots}) => />; 1: smt().
+  while (   #pre
+         /\ ={tidx, kpidx, roots}).
+  - inline{2} 1.
+    wp.
+    while{2} (leaves0{2}
+              =
+              mkseq (fun (j : int) =>
+                      f ps1{2} (set_thtbidx ad1{2} 0 (idxt{2} * t + j)) 
+                        (val (skg ss1{2} (ps1{2}, (set_thtbidx ad1{2} 0 (idxt{2} * t + j)))))) (size leaves0{2})
+              /\ size leaves0{2} <= t)
+             (t - size leaves0{2}).
+    * move=> _ z.
+      wp; skip => /> &2 lvsdef _ ltt_szlvs.
+      rewrite size_rcons -andbA; split => [| /#].
+      by rewrite mkseqS 1:size_ge0 /=; congr.
+    wp; skip => /> &1 &2. progress. rewrite mkseq0 //. smt(ge2_t). smt().
+    congr => /=.
+    rewrite eq_sym /val_bt_trh /val_ap_trh /val_bt_trh_gen /val_ap_trh_gen. 
+    print cons_ap_trh.
+    have szbslt :
+      bs2int (rev (take a (drop (a * size roots{2}) (val (mco mk{2} m{2}).`1)))) < size leaves0_R.
+    + pose r := rev _; rewrite (: size leaves0_R = 2 ^ size r) 2:bs2int_le2Xs.
+      rewrite size_rev size_take 2:size_drop 3:valP; 1,2: smt(ge1_a size_ge0).
+      rewrite mulrC -mulrBr; case (size roots{2} = k - 1) => [-> /= /# | neqk1_szrs].
+      by rewrite ler_maxr 1:mulr_ge0; smt(ge1_a).
+     rewrite (eq_valbt_valap 
+            (FTWES.trhi ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) tidx{2}) kpidx{2})) 
+            FTWES.updhbidx 
+            (list2tree leaves0_R) 
+            (DBAL.val (cons_ap_trh ps{2} (set_kpidx (set_tidx (set_typeidx adz trhftype) (edivz (val (mco mk{2} m{2}).`2) l').`1) (edivz (val (mco mk{2} m{2}).`2) l').`2) (list2tree leaves0_R) (bs2int (rev (take a (drop (a * (size roots{2})) (val (mco mk{2} m{2}).`1))))) (size roots{2})))
+            (rev (int2bs a (bs2int (rev (take a (drop (a * size roots{2}) (val (mco mk{2} m{2}).`1)))))))
+            (f ps{2} (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) tidx{2}) kpidx{2}) 0 (size roots{2} * t + bs2int (rev (take a (drop (a * size roots{2}) (val (mco mk{2} m{2}).`1)))))) (val (skg ss{2} (ps{2}, (set_thtbidx (set_kpidx (set_tidx (set_typeidx adz trhftype) tidx{2}) kpidx{2}) 0 (size roots{2} * t + bs2int (rev (take a (drop (a * size roots{2}) (val (mco mk{2} m{2}).`1))))))))))
+            (a, size roots{2})).
+    by rewrite (list2tree_fullybalanced _ a); 1,2: smt(ge1_a).
+    rewrite valP.
+    by rewrite (list2tree_height _ a); 1,2: smt(ge1_a).
+    by rewrite valP size_rev size_int2bs; smt(ge1_a).
+    rewrite list2tree_lvb; 1,2: smt(ge1_a).
+    rewrite bs2int_ge0 /= //.
+    rewrite (onth_nth witness) 1:bs2int_ge0 1://.
+    rewrite H5.
+    congr.
+    rewrite nth_mkseq. 
+    rewrite bs2int_ge0 //. 
+    trivial.
+    rewrite valP.
+    move=> i rngi.
+    rewrite /cons_ap_trh /cons_ap_trh_gen /= insubdK.
+    rewrite size_consap.
+    by rewrite (list2tree_fullybalanced _ a); 1,2: smt(ge1_a).
+     rewrite size_rev size_int2bs (list2tree_height _ a); smt(ge1_a).
+     rewrite size_rev size_int2bs; smt(ge1_a).
+     rewrite nth_consap.
+     by rewrite (list2tree_fullybalanced _ a); 1,2: smt(ge1_a).
+     rewrite size_rev size_int2bs (list2tree_height _ a); smt(ge1_a).
+     rewrite size_rev size_int2bs; smt(ge1_a).
+     congr. 
+     by move: H H0 => <- <-.
+    congr. congr.
+    rewrite insubdK 1:size_mkseq; 1: smt(ge1_k).
+    rewrite nth_mkseq 1:size_ge0 1:// 1:/=.
+    congr. congr. rewrite H5.
+    congr => [| /#].  rewrite fun_ext => j.
+    by move: H H0 => <- <-.
+    by move: H1 => <- /=.
+    congr.
+    by move: H1 => <- /=.
+    congr.
+    rewrite insubdK 1:size_mkseq; 1: smt(ge1_k).
+    rewrite nth_mkseq 1:size_ge0 1:// /=.
+    by move: H H0 => <- <-.
+    smt(size_rcons).
+    smt(size_rcons).
+  by wp; skip => /> &1 &2 <- /= + [_ ->] => <-.
+by wp; skip.
+qed.
+
+  
 (* -- Auxiliary/Local oracles -- *)
 (* SPHINCS+-TW (signing) CMA oracle, but uses pregenerated secret keys  *)
 local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
@@ -2243,6 +2419,7 @@ call (:   ={qs}(O_CMA_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
             skg O_CMA_Default.sk{1}.`2
               (O_CMA_Default.sk{1}.`3, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
 + proc.
+  rewrite equiv [{1} 1 Eqv_SPHINCS_PLUS_TW_S_sign].
   inline{1} 1.
   wp.
   conseq (: _ ==> ={mk, sigFORSTW, sigFLSLXMSSMTTW}) => //.

@@ -35,6 +35,75 @@ op val_ap (trh : 'b -> 'a -> 'a -> 'a)
         (if b then x else val_ap trh updct ap' bs' leaf (updct ct false))
         (if b then val_ap trh updct ap' bs' leaf (updct ct true) else x).
 
+lemma size_consap (trh : 'b -> 'a -> 'a -> 'a)
+                  (updct : 'b -> bool -> 'b)
+                  (bt : 'a bintree) 
+                  (bs : bool list) 
+                  (ct : 'b) :
+     fully_balanced bt
+  => height bt = size bs
+  => size (cons_ap trh updct bt bs ct) = size bs.
+proof.
+elim: bs bt ct; 1: by move => bt ? /= _ /height_eq0 [x ->].  
+by move=> b bs' ih [? /= | l r ct /= [eqh [fbl fbr]] eqhsz]; smt(size_ge0).
+qed.
+                  
+lemma nth_consap (trh : 'b -> 'a -> 'a -> 'a)
+                 (updct : 'b -> bool -> 'b)
+                 (bt : 'a bintree) 
+                 (bs : bool list) 
+                 (ct : 'b)
+                 (i : int) :
+     fully_balanced bt
+  => height bt = size bs
+  => 0 <= i < size bs
+  => nth witness (cons_ap trh updct bt bs ct) i
+     =
+     val_bt trh updct (oget (sub_bt bt (rcons (take i bs) (! (nth witness bs i)))))
+                  (foldl updct ct (rcons (take i bs) (! (nth witness bs i)))).
+proof.
+elim: bs bt ct i => [/= /# | b bs' ih [? ? ? /= | l r ct i /=]]; 1: smt(size_ge0).
+move=> [eqh [fbl fbr] eqhsz rngi].
+case (i = 0) => [-> | neq0i] /=; 1: by rewrite subbt_empty.
+rewrite (: ! i <= 0) 1:/# /= ih // /#.
+qed.
+        
+lemma eq_valbt_valap (trh : 'b -> 'a -> 'a -> 'a)
+                     (updct : 'b -> bool -> 'b)
+                     (bt : 'a bintree)
+                     (ap : 'a list)
+                     (bs : bool list)
+                     (leaf : 'a)
+                     (ct : 'b) :
+     fully_balanced bt
+  => height bt = size ap
+  => size ap = size bs
+  => Some leaf = vallf_subbt bt bs
+  => (forall (i : int), 0 <= i < size ap =>
+        nth witness ap i 
+        = 
+        val_bt trh updct (oget (sub_bt bt (rcons (take i bs) (! (nth witness bs i)))))
+                  (foldl updct ct (rcons (take i bs) (! (nth witness bs i)))))
+  => val_bt trh updct bt ct = val_ap trh updct ap bs leaf ct.
+proof.
+elim: ap bs bt ct => /=.
++ move=> bs bt ct ? /height_eq0 [x ->] /eq_sym /size_eq0 -> /= + _.
+  by rewrite vallf_subbt_Leaf eq_sym &(someI).
+move=> x ap' ih [? ? ? ? /= | b bs' [? ? ? /= | l r ct /= [eqh [fbl fbr]]]]; 1,2: smt(size_ge0).
+move=> eqhszap eqszs; rewrite vallf_subbt_Node.
+case b => [bT | bF] eqlf eqnthi.
++ move: (eqnthi 0 _) => /=; 1: smt(size_ge0).
+  rewrite subbt_empty oget_some => ->. 
+  rewrite (ih bs' r (updct ct true)) 1:fbr 1,2:/# 1:eqlf 1,3:// => i rngi.
+  move: (eqnthi (i + 1) _); 1: smt().
+  by rewrite (: ! i + 1 = 0) 2:(: ! i + 1 <= 0) 1,2:/#.
+move: (eqnthi 0 _) => /=; 1: smt(size_ge0).
+rewrite subbt_empty oget_some => ->. 
+rewrite (ih bs' l (updct ct false)) 1:fbl 1,2:/# 1:eqlf 1,3:// => i rngi.
+move: (eqnthi (i + 1) _); 1: smt().
+by rewrite (: ! i + 1 = 0) 2:(: ! i + 1 <= 0) 1,2:/#.
+qed.
+
 op extract_collision_bt_ap (trh : 'b -> 'a -> 'a -> 'a) 
                            (updct : 'b -> bool -> 'b)
                            (bt : 'a bintree)

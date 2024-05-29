@@ -444,7 +444,7 @@ move=> ge0_e; elim: e ge0_e ls idx.
 + rewrite expr0 => ls idx ^ /size_eq1 [x ->] sz1 rng_idx.
   by rewrite (: idx = 0) 1:/# int2bs0s rev_nil subbt_empty list2tree1.
 move=> e ge0_e ih ls idx szls rng_idx.
-rewrite int2bsS 1:// rev_rcons. print subbt_list2tree_cons.
+rewrite int2bsS 1:// rev_rcons.
 rewrite (subbt_list2tree_cons _ _ _ (e + 1)) 1:/# 1:szls // 1:size_rev 1:size_int2bs 1:/#.
 have szlsd2: size ls %/ 2 = 2 ^ e by rewrite -{1}(expr1 2) szls expz_div 1:/#.
 have ge0_szld2: 0 <= size ls %/ 2 by rewrite szlsd2 StdOrder.IntOrder.expr_ge0.

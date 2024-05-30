@@ -1507,7 +1507,7 @@ qed.
 
 (* - Specifications - *)
 (* Fixed-Length, StateLess XMSS-MT-TW in Encompassing Structure *)
-module FL_SL_XMSS_MT_TW_ES = {
+module FL_SL_XMSS_MT_ES = {
   (* Compute (inner tree) leaves from a secret seed, public seed, and address *) 
   proc leaves_from_sspsad(ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
@@ -1669,7 +1669,7 @@ module FL_SL_XMSS_MT_TW_ES = {
 }.
 
 (* Fixed-Length StateLess FL-SL-XMSS-MT-TW in Encompassing Structure (No PRF) *)  
-module FL_SL_XMSS_MT_TW_ES_NPRF = {
+module FL_SL_XMSS_MT_ES_NPRF = {
   (* Compute (inner tree) leaves from a WOTS-TW secret key, public seed, and address *) 
   proc leaves_from_sklpsad(skWOTSl : skWOTS list, ps : pseed, ad : adrs) : dgstblock list = {
     var skWOTS : skWOTS;
@@ -1813,7 +1813,7 @@ module FL_SL_XMSS_MT_TW_ES_NPRF = {
     return sig;
   }
   
-  proc verify = FL_SL_XMSS_MT_TW_ES.verify
+  proc verify = FL_SL_XMSS_MT_ES.verify
 }.
 
 
@@ -1853,14 +1853,14 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     ml <@ A(OC).choose();
             
     (* Generate keypair for FL-SL-XMSS-MT-TW-ES-NPRF *)
-    (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ FL_SL_XMSS_MT_ES_NPRF.keygen(ps, ad);
     
     (* Sign (up to l) messages from list provided by adversary  *)
     sigl <- [];
     while (size sigl < l) {
       m <- nth witness ml (size sigl);
 
-      sig <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign(sk, m, Index.insubd (size sigl));
+      sig <@ FL_SL_XMSS_MT_ES_NPRF.sign(sk, m, Index.insubd (size sigl));
       
       sigl <- rcons sigl sig;
     }
@@ -1869,7 +1869,7 @@ module EUF_NAGCMA_FLSLXMSSMTTWESNPRF (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF, OC :
     (m', sig', idx') <@ A(OC).forge(pk, sigl);
 
     (* Check validity of forgery *)
-    is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
+    is_valid <@ FL_SL_XMSS_MT_ES_NPRF.verify(pk, m', sig', idx');
     
     (* 
       Check freshness of message in forgery; in this context,
@@ -2713,7 +2713,7 @@ module (R_SMDTTCRCTRH_EUFNAGCMA (A : Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF) : TRHC_TC
 }.
 
 
-section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.
+section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_ES_NPRF.
 (* -- Declarations -- *)
 declare module A <: Adv_EUFNAGCMA_FLSLXMSSMTTWESNPRF {
 (* WOTS-TW *)
@@ -3114,7 +3114,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C = {
     (* Ask adversary for list of messages to sign *)
     ml <@ A(O_THFC_Default).choose();
 
-    (* (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad); *)
+    (* (pk, sk) <@ FL_SL_XMSS_MT_ES_NPRF.keygen(ps, ad); *)
     (* 
       Using the provided oracles, compute and store all the 
       WOTS-TW secret keys, WOTS-TW public keys, WOTS-TW signatures, 
@@ -3220,7 +3220,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C = {
     (* Ask adversary to provide a forgery (given public key and list of signatures) *)
     (m', sig', idx') <@ A(O_THFC_Default).forge(pk, sigl);
 
-    is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
+    is_valid <@ FL_SL_XMSS_MT_ES_NPRF.verify(pk, m', sig', idx');
 
     is_fresh <- m' <> nth witness ml (val idx'); 
     
@@ -3345,7 +3345,7 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_V = {
     (* Ask adversary for list of messages to sign *)
     ml <@ A(O_THFC_Default).choose();
 
-    (* (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad); *)
+    (* (pk, sk) <@ FL_SL_XMSS_MT_ES_NPRF.keygen(ps, ad); *)
     (* 
       Using the provided oracles, compute and store all the 
       WOTS-TW secret keys, WOTS-TW public keys, WOTS-TW signatures, 
@@ -6384,4 +6384,4 @@ while (true) (l - size sigl).
 by wp; skip => /> /#.
 qed.
 
-end section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_TW_ES_NPRF.
+end section Proof_EUF_NAGCMA_FL_SL_XMSS_MT_ES_NPRF.

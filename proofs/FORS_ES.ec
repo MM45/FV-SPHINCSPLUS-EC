@@ -1446,7 +1446,7 @@ qed.
   Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme and proofs.
   Represents single FORS-TW instance that signs fixed-length messages. 
 *)
-module FL_FORS_TW_ES = {
+module FL_FORS_ES = {
   (* Compute leaves for the tree signified by the given index (idxt) from a secret seed, public seed, and address *)
   proc gen_leaves_single_tree(idxt : int, ss : sseed, ps : pseed, ad : adrs) : dgstblock list = {
     var skFORS_ele : dgstblock;
@@ -1607,7 +1607,7 @@ module FL_FORS_TW_ES = {
 }.
 
 (* Multi-instance FORS-TW in Encompassing Structure. *)
-module M_FORS_TW_ES = {
+module M_FORS_ES = {
   proc gen_pkFORSs (ss : sseed, ps : pseed, ad : adrs) : pkFORS list list = {
     var pkFORS : pkFORS;
     var pkFORSl : pkFORS list;
@@ -1625,7 +1625,7 @@ module M_FORS_TW_ES = {
       (* For each FORS-TW instance in this set (SPHINCS+: leaf of XMSS instance)... *)
       while (size pkFORSl < l) {
         (* Compute the FORS public key from the secret seed, public seed, and tree/keypair index address  *)
-        pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) (size pkFORSl));
+        pkFORS <@ FL_FORS_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx ad (size pkFORSs)) (size pkFORSl));
         pkFORSl <- rcons pkFORSl pkFORS; 
       }
       
@@ -1677,7 +1677,7 @@ module M_FORS_TW_ES = {
     (tidx, kpidx) <- edivz (val idx) l;
     
     (* Sign the compressed message with the FORS-TW instance pointed to by the indices *)
-    sig <@ FL_FORS_TW_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
+    sig <@ FL_FORS_ES.sign((ss, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
     return (mk, sig);
   }
@@ -1708,7 +1708,7 @@ module M_FORS_TW_ES = {
     pkFORS <- nth witness (nth witness pkFORSl tidx) kpidx;
     
     (* Check whether the signature is valid w.r.t. the FORS-TW instance pointed to by the indices *)
-    is_valid <@ FL_FORS_TW_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
+    is_valid <@ FL_FORS_ES.verify((pkFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm, sigFORSTW);
     
     return is_valid;
   } 
@@ -1721,7 +1721,7 @@ module M_FORS_TW_ES = {
   Auxiliary scheme to simplify specification of multi-instance FORS-TW scheme (without PRF) and proofs.
   Represents single FORS-TW instance that signs fixed-length messages. 
 *)
-module FL_FORS_TW_ES_NPRF = {
+module FL_FORS_ES_NPRF = {
   (* Compute leaves for the tree signified by the given index (idxt) from a secret seed, public seed, and address *)
   proc gen_leaves_single_tree(idxt : int, skFORS : skFORS, ps : pseed, ad : adrs) : dgstblock list = {
     var skFORS_ele : dgstblock;
@@ -1848,14 +1848,14 @@ module FL_FORS_TW_ES_NPRF = {
     return insubd sig;
   }
   
-  proc verify = FL_FORS_TW_ES.verify
+  proc verify = FL_FORS_ES.verify
 }.
 
 (* 
   Multi-instance FORS-TW in Encompassing Structure (No PRF).
   Signing operation not included because it is never directly needed.
 *)
-module M_FORS_TW_ES_NPRF = {
+module M_FORS_ES_NPRF = {
   proc keygen(ps : pseed, ad : adrs) : (pkFORS list list * pseed * adrs) * (skFORS list list * pseed * adrs) =  {
     var skFORS : skFORS;
     var pkFORS : pkFORS;
@@ -1880,10 +1880,10 @@ module M_FORS_TW_ES_NPRF = {
       (* For each FORS-TW instance in this set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
         (* Generate a FORS secret key *)
-        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
+        skFORS <@ FL_FORS_ES_NPRF.gen_skFORS();
         
         (* Compute the FORS public key corresponding to the computed FORS secret key (using public seed and tree/keypair index address) *)
-        pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl));
+        pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) (size skFORSs)) (size skFORSl));
         
         skFORSl <- rcons skFORSl skFORS;
         pkFORSl <- rcons pkFORSl pkFORS; 
@@ -1900,7 +1900,7 @@ module M_FORS_TW_ES_NPRF = {
   }
   
   (* Verify procedure identical to verify procedure of M-FORS-TW-ES (verify doesn't use a PRF in any case) *)
-  proc verify = M_FORS_TW_ES.verify
+  proc verify = M_FORS_ES.verify
 }.
 
 
@@ -1945,7 +1945,7 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
     ps <$ dpseed;
     
     (* Generate keypair for M-FORS-TW-ES-NPRF *)
-    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ M_FORS_ES_NPRF.keygen(ps, ad);
 
     (* Initialize CMA oracle *)
     O.init(sk);
@@ -1954,7 +1954,7 @@ module EUF_CMA_MFORSTWESNPRF (A : Adv_EUFCMA_MFORSTWESNPRF, O : Oracle_CMA_MFORS
     (m', sig') <@ A(O).forge(pk);
 
     (* Check validity of forgery *)
-    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m', sig');
+    is_valid <@ M_FORS_ES_NPRF.verify(pk, m', sig');
 
     (* Check freshness of message in forgery *)
     is_fresh <@ O.fresh(m');
@@ -2009,7 +2009,7 @@ module O_CMA_MFORSTWESNPRF : Oracle_CMA_MFORSTWESNPRF = {
     skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
      
     (* Sign the message with the FORS-TW instance pointed to by the indices *)
-    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
+    sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
     (* Store message in the query list *)
     qs <- rcons qs m;
@@ -2090,7 +2090,7 @@ module O_CMA_MFORSTWESNPRF_AV : Oracle_CMA_MFORSTWESNPRF = {
     skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
      
     (* Sign the message with the FORS-TW instance pointed to by the indices *)
-    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
+    sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
 
     return (mk, sigFORSTW);
   }
@@ -2132,7 +2132,7 @@ module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
 
       skFORS <- nth witness (nth witness skFORSs tidx) kpidx;
 
-      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
+      sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhtype) tidx) kpidx), cm);
     
       return (mk, sigFORSTW);
     }
@@ -2150,7 +2150,7 @@ module (R_ITSR_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : Adv_ITSR) (O : Oracle_ITS
     ps <$ dpseed;
     
     (* Generate keypair for M-FORS-TW-ES-NPRF *)
-    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);    
+    (pk, sk) <@ M_FORS_ES_NPRF.keygen(ps, ad);    
     
     (* Initialize module variables (for oracle usage) *)
     skFORSs <- sk.`1;
@@ -2408,7 +2408,7 @@ module (R_TRHSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRHC_TCR.Adv_SMDTT
       pkFORSl <- [];
       (* For each FORS-TW instance in this set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
+        skFORS <@ FL_FORS_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         nodesk <- [];
@@ -2603,7 +2603,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
       pkFORSl <- [];
       (* For each FORS-TW instance in this set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
+        skFORS <@ FL_FORS_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         nodesk <- [];
@@ -2732,7 +2732,7 @@ module (R_TRCOSMDTTCRC_EUFCMA (A : Adv_EUFCMA_MFORSTWESNPRF) : TRCOC_TCR.Adv_SMD
 }.
 
 
-section Proof_EUFCMA_M_FORS_TW_ES.
+section Proof_EUFCMA_M_FORS_ES.
 (* -- Declarations -- *)
 declare module A <: Adv_EUFCMA_MFORSTWESNPRF {
 (* FP_OPRETCRDSPR *)
@@ -3114,7 +3114,7 @@ local module EUF_CMA_MFORSTWESNPRF_C = {
     ps <$ dpseed;
     
     (* Generate keypair for M-FORS-TW-ES-NPRF *)
-    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ M_FORS_ES_NPRF.keygen(ps, ad);
 
     (* Initialize oracle *)
     O_CMA_MFORSTWESNPRF_AV.init(sk);
@@ -3123,7 +3123,7 @@ local module EUF_CMA_MFORSTWESNPRF_C = {
     (m', sig') <@ A(O_CMA_MFORSTWESNPRF_AV).forge(pk);
 
     (* Check validity of forgery *)
-    is_valid <@ M_FORS_TW_ES_NPRF.verify(pk, m', sig');
+    is_valid <@ M_FORS_ES_NPRF.verify(pk, m', sig');
 
     (* Check freshness of message in forgery *)
     is_fresh <@ O_CMA_MFORSTWESNPRF_AV.fresh(m');
@@ -3209,7 +3209,7 @@ local module EUF_CMA_MFORSTWESNPRF_V = {
     ps <$ dpseed;
     
     (* Generate keypair for M-FORS-TW-ES-NPRF *)
-    (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ M_FORS_ES_NPRF.keygen(ps, ad);
 
     (* Initialize oracle *)
     O_CMA_MFORSTWESNPRF_AV.init(sk);
@@ -3344,7 +3344,7 @@ local module EUF_CMA_MFORSTWESNPRF_VI = {
     ad <- adz;
     ps <$ dpseed;
     
-    (* (pk, sk) <@ M_FORS_TW_ES_NPRF.keygen(ps, ad); *)
+    (* (pk, sk) <@ M_FORS_ES_NPRF.keygen(ps, ad); *)
     (* Sample FORS-TW secret keys and compute corresponding leaves *)
     skFORSs <- [];
     leavess <- [];
@@ -3360,7 +3360,7 @@ local module EUF_CMA_MFORSTWESNPRF_VI = {
       pkFORSl <- [];
       (* For each FORS-TW instance in this set (SPHINCS+: leaf of XMSS instance)... *)
       while (size skFORSl < l) {
-        skFORS <@ FL_FORS_TW_ES_NPRF.gen_skFORS();
+        skFORS <@ FL_FORS_ES_NPRF.gen_skFORS();
         
         leavesk <- [];
         nodesk <- [];
@@ -6500,4 +6500,4 @@ while (true) (s - size pkFORSs).
 by wp; skip => /> /#.        
 qed.
 
-end section Proof_EUFCMA_M_FORS_TW_ES.
+end section Proof_EUFCMA_M_FORS_ES.

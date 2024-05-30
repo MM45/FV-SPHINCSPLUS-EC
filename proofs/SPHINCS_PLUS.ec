@@ -9,7 +9,7 @@ require (*--*) DigitalSignatures.
 (* -- Local -- *)
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
-require (*--*) FORS_TW_ES FL_SL_XMSS_MT_TW_ES.
+require (*--*) FORS_ES FL_SL_XMSS_MT_ES.
 
 
 
@@ -452,7 +452,7 @@ op trco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * k).
 
 (* - Underlying schemes - *)
 (* -- FORS-TW -- *)
-clone import FORS_TW_ES as FTWES with
+clone import FORS_ES as FTWES with
     op adrs_len <- adrs_len,
     op n <- n,
     op k <- k,
@@ -543,7 +543,7 @@ import DBAL BLKAL DBAPKL DBLLKTL FP_OPRETCRDSPR.
 
 
 (* -- FL-SL-XMSS-MT-TW -- *)
-clone import FL_SL_XMSS_MT_TW_ES as FSSLXMTWES with
+clone import FL_SL_XMSS_MT_ES as FSSLXMTWES with
     op adrs_len <- adrs_len,
     op n <- n,
     op log2_w <- log2_w,
@@ -954,7 +954,7 @@ qed.
 
 
 (* - Specification - *)
-module SPHINCS_PLUS_TW : Scheme = {
+module SPHINCS_PLUS : Scheme = {
   proc keygen() : pkSPHINCSPLUSTW * skSPHINCSPLUSTW = {
     var ad : adrs;
     var ms : mseed;
@@ -973,7 +973,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     ps <$ dpseed;
     
     (* Compute root of hypertree *)
-    root <@ FL_SL_XMSS_MT_TW_ES.gen_root(ss, ps, ad);
+    root <@ FL_SL_XMSS_MT_ES.gen_root(ss, ps, ad);
     
     pk <- (root, ps);
     sk <- (ms, ss, ps);
@@ -1002,7 +1002,7 @@ module SPHINCS_PLUS_TW : Scheme = {
     ad <- adz;
     
     (* Sign the message with multi-instance FORS-TW (M-FORS-TW-ES) *)
-    (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, ad), m);
+    (mk, sigFORSTW) <@ M_FORS_ES.sign((ms, ss, ps, ad), m);
     
     (* Compress message and compute instance index *)
     (cm, idx) <- mco mk m;
@@ -1011,10 +1011,10 @@ module SPHINCS_PLUS_TW : Scheme = {
     (tidx, kpidx) <- edivz (val idx) l';
     
     (* Compute FORS-TW public key from secret/public seed and tree/keypair index address *)
-    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     (* Sign the FORS-TW public key with hypertree (FL-SL-XMSS-MT-TW-ES) *)
-    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES.sign((ss, ps, ad), pkFORS, idx);
     
     return (mk, sigFORSTW, sigFLSLXMSSMTTW);
   }
@@ -1045,10 +1045,10 @@ module SPHINCS_PLUS_TW : Scheme = {
     (tidx, kpidx) <- edivz (val idx) l';
     
     (* Compute FORS-TW public key from FORS-TW signature, compressed message, public seed, and tree/keypair index address *)
-    pkFORS <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES.pkFORS_from_sigFORSTW(sigFORSTW, cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     (* Compute root from FORS-TW public key, hypertree signature, instance index, public seed, and address *)
-    root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS, sigFLSLXMSSMTTW, idx, ps, ad);
+    root' <@ FL_SL_XMSS_MT_ES.root_from_sigFLSLXMSSMTTW(pkFORS, sigFLSLXMSSMTTW, idx, ps, ad);
     
     (* Compare computed root with root in public key *)
     return root' = root;
@@ -1095,11 +1095,11 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
 
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
 
-      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
+      sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
 
-      pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+      pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
 
-      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
 
       qs <- rcons qs m;
 
@@ -1187,7 +1187,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
       and compute the corresponding leaves.
     *)
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
@@ -1201,7 +1201,7 @@ module (R_SKGPRF_EUFCMA (A : Adv_EUFCMA) : SKG_PRF.Adv_PRF) (O : SKG_PRF.Oracle_
     (m', sig') <@ A(O_CMA).forge(pk);
     
     (* Check whether forgery is valid *)
-    is_valid <@ SPHINCS_PLUS_TW.verify(pk, m', sig');
+    is_valid <@ SPHINCS_PLUS.verify(pk, m', sig');
     
     (* Check whether message from forgery is fresh *)
     is_fresh <- ! m' \in qs;
@@ -1247,11 +1247,11 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
 
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
 
-      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
+      sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
 
-      pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+      pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
 
-      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
 
       qs <- rcons qs m;
 
@@ -1336,7 +1336,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
       and compute the corresponding leaves.
     *)
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
@@ -1350,7 +1350,7 @@ module (R_MKGPRF_EUFCMA (A : Adv_EUFCMA) : MKG_PRF.Adv_PRF) (O : MKG_PRF.Oracle_
     (m', sig') <@ A(O_CMA).forge(pk);    
     
     (* Check whether forgery is valid *)
-    is_valid <@ SPHINCS_PLUS_TW.verify(pk, m', sig');
+    is_valid <@ SPHINCS_PLUS.verify(pk, m', sig');
     
     (* Check whether message from forgery is fresh *)
     is_fresh <- ! m' \in qs;
@@ -1391,7 +1391,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
       
       pkFORS <- nth witness (nth witness pkFORSnt tidx) kpidx;
       
-      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, set_typeidx ad chtype), pkFORS, idx);
+      sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, ps, set_typeidx ad chtype), pkFORS, idx);
       
       return (mk, sigFORSTW, sigFLSLXMSSMTTW);
     }
@@ -1441,7 +1441,7 @@ module (R_MFORSTWESNPRFEUFCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFCMA_MFORSTWESNPRF
       and compute the corresponding leaves.
     *)
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx (set_typeidx ad chtype) (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx (set_typeidx ad chtype) (d - 1) 0);
     
     (*
       Compute root (hash value) from the computed list of leaves, given public seed, and
@@ -1497,7 +1497,7 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
       
       skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
       
-      sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm); 
+      sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm); 
       
       sigFLSLXMSSMTTW <- nth witness sigFLSLXMSSMTTWl (val idx);
       
@@ -1621,14 +1621,14 @@ module (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA (A : Adv_EUFCMA) : Adv_EUFNAGCMA_FL
      
     (tidx', kpidx') <- edivz (val idx') l';
        
-    pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm', ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx') kpidx');
+    pkFORS' <@ FL_FORS_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm', ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx') kpidx');
    
     return (pkFORS', sigFLSLXMSSMTTW', idx');
   }
 }.
 
 
-section Proof_SPHINCS_PLUS_TW_EUFCMA.
+section Proof_SPHINCS_PLUS_EUFCMA.
 (* -- Declarations -- *)
 declare module A <: Adv_EUFCMA {
 (* FORS-TW *)
@@ -1682,7 +1682,7 @@ declare axiom A_forge_ll (O <: SOracle_CMA{-A}) :
   
 (* -- Auxiliary/Local specifications *)
 (* SPHINCS+ signing, but generating FORS public key from scratch instead of from FORS signature *)
-module SPHINCS_PLUS_TW_S = {
+module SPHINCS_PLUS_S = {
   proc sign(sk : skSPHINCSPLUSTW, m : msg) : sigSPHINCSPLUSTW = {
     var ms : mseed;
     var ss : sseed;
@@ -1704,7 +1704,7 @@ module SPHINCS_PLUS_TW_S = {
     ad <- adz;
     
     (* Sign the message with multi-instance FORS-TW (M-FORS-TW-ES) *)
-    (mk, sigFORSTW) <@ M_FORS_TW_ES.sign((ms, ss, ps, ad), m);
+    (mk, sigFORSTW) <@ M_FORS_ES.sign((ms, ss, ps, ad), m);
     
     (* Compress message and compute instance index *)
     (cm, idx) <- mco mk m;
@@ -1713,17 +1713,17 @@ module SPHINCS_PLUS_TW_S = {
     (tidx, kpidx) <- edivz (val idx) l';
     
     (* Compute FORS-TW public key from secret/public seed and tree/keypair index address *)
-    pkFORS <@ FL_FORS_TW_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES.gen_pkFORS(ss, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     (* Sign the FORS-TW public key with hypertree (FL-SL-XMSS-MT-TW-ES) *)
-    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES.sign((ss, ps, ad), pkFORS, idx);
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES.sign((ss, ps, ad), pkFORS, idx);
     
     return (mk, sigFORSTW, sigFLSLXMSSMTTW);
   }
 }.
 
 (* SPHINCS+-TW key generations, but uses pregenerated secret keys (with PRF or randomly sampled) *)  
-local module SPHINCS_PLUS_TW_FS = {
+local module SPHINCS_PLUS_FS = {
   proc keygen_prf() : pkSPHINCSPLUSTW * (mseed * skFORS list list * skWOTS list list list * pseed) = {
     var ad : adrs;
     var ms : mseed;
@@ -1788,7 +1788,7 @@ local module SPHINCS_PLUS_TW_FS = {
     }
 
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
     root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
     pk <- (root, ps);
@@ -1861,7 +1861,7 @@ local module SPHINCS_PLUS_TW_FS = {
     }
 
     skWOTSlp <- nth witness (nth witness skWOTStd (d - 1)) 0;
-    leaves <@ FL_SL_XMSS_MT_TW_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
+    leaves <@ FL_SL_XMSS_MT_ES_NPRF.leaves_from_sklpsad(skWOTSlp, ps, set_ltidx ad (d - 1) 0);
     
     root <- FSSLXMTWES.val_bt_trh ps (set_typeidx (set_ltidx ad (d - 1) 0) trhxtype) (list2tree leaves);
     
@@ -1871,13 +1871,13 @@ local module SPHINCS_PLUS_TW_FS = {
     return (pk, sk);
   }
   
-  proc verify = SPHINCS_PLUS_TW.verify
+  proc verify = SPHINCS_PLUS.verify
 }.
 
 
 (* --- Equivalences between procedures of specifications --- *)
-local equiv Eqv_SPHINCS_PLUS_TW_S_sign :
-  SPHINCS_PLUS_TW.sign ~ SPHINCS_PLUS_TW_S.sign : ={sk, m} ==> ={res}.
+local equiv Eqv_SPHINCS_PLUS_S_sign :
+  SPHINCS_PLUS.sign ~ SPHINCS_PLUS_S.sign : ={sk, m} ==> ={res}.
 proof.
 proc.
 seq 2 2 : (={sk, m, ms, ss, ps, ad} /\ ad{1} = adz).
@@ -2022,11 +2022,11 @@ local module O_CMA_SPHINCSPLUSTWFS_PRF : SOracle_CMA = {
     
     skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
      
-    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
+    sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
     
-    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
-    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
     
     qs <- rcons qs m;
     
@@ -2088,11 +2088,11 @@ local module O_CMA_SPHINCSPLUSTWFS_NPRF : SOracle_CMA = {
     
     skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
      
-    sigFORSTW <@ FL_FORS_TW_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
+    sigFORSTW <@ FL_FORS_ES_NPRF.sign((skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx), cm);
     
-    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
-    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
+    sigFLSLXMSSMTTW <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, ps, ad), pkFORS, idx);
     
     qs <- rcons qs m;
 
@@ -2113,13 +2113,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_PRFPRF = {
     var is_valid : bool;
     var is_fresh : bool;
     
-    (pk, sk) <@ SPHINCS_PLUS_TW_FS.keygen_prf();
+    (pk, sk) <@ SPHINCS_PLUS_FS.keygen_prf();
     
     O_CMA_SPHINCSPLUSTWFS_PRF.init(sk);
     
     (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_PRF).forge(pk);
     
-    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');
+    is_valid <@ SPHINCS_PLUS_FS.verify(pk, m', sig');
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_PRF.fresh(m');
     
     return is_valid /\ is_fresh;
@@ -2136,13 +2136,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFPRF = {
     var is_valid : bool;
     var is_fresh : bool;
     
-    (pk, sk) <@ SPHINCS_PLUS_TW_FS.keygen_nprf();
+    (pk, sk) <@ SPHINCS_PLUS_FS.keygen_nprf();
     
     O_CMA_SPHINCSPLUSTWFS_PRF.init(sk);
     
     (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_PRF).forge(pk);
     
-    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');
+    is_valid <@ SPHINCS_PLUS_FS.verify(pk, m', sig');
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_PRF.fresh(m');
     
     return is_valid /\ is_fresh;
@@ -2162,13 +2162,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF = {
     var is_valid : bool;
     var is_fresh : bool;
     
-    (pk, sk) <@ SPHINCS_PLUS_TW_FS.keygen_nprf();
+    (pk, sk) <@ SPHINCS_PLUS_FS.keygen_nprf();
     
     O_CMA_SPHINCSPLUSTWFS_NPRF.init(sk);
     
     (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_NPRF).forge(pk);
     
-    is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig');
+    is_valid <@ SPHINCS_PLUS_FS.verify(pk, m', sig');
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m');
     
     return is_valid /\ is_fresh;
@@ -2203,13 +2203,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
     var skFORS : skFORS;
     var root, root' : dgstblock;
     
-    (pk, sk) <@ SPHINCS_PLUS_TW_FS.keygen_nprf();
+    (pk, sk) <@ SPHINCS_PLUS_FS.keygen_nprf();
     
     O_CMA_SPHINCSPLUSTWFS_NPRF.init(sk);
     
     (m', sig') <@ A(O_CMA_SPHINCSPLUSTWFS_NPRF).forge(pk);
     
-    (* is_valid <@ SPHINCS_PLUS_TW_FS.verify(pk, m', sig'); *)
+    (* is_valid <@ SPHINCS_PLUS_FS.verify(pk, m', sig'); *)
     (root, ps) <- pk;
     (mk', sigFORSTW', sigFLSLXMSSMTTW') <- sig';
     ad <- adz;
@@ -2220,13 +2220,13 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
     (tidx, kpidx) <- edivz (val idx) l';
     
     skFORS <- nth witness (nth witness skFORSnt tidx) kpidx;
-    pkFORS <@ FL_FORS_TW_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS <@ FL_FORS_ES_NPRF.gen_pkFORS(skFORS, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
-    pkFORS' <@ FL_FORS_TW_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
+    pkFORS' <@ FL_FORS_ES.pkFORS_from_sigFORSTW(sigFORSTW', cm, ps, set_kpidx (set_tidx (set_typeidx ad trhftype) tidx) kpidx);
     
     valid_MFORSTWESNPRF <- pkFORS' = pkFORS;
     
-    root' <@ FL_SL_XMSS_MT_TW_ES.root_from_sigFLSLXMSSMTTW(pkFORS', sigFLSLXMSSMTTW', idx, ps, ad);
+    root' <@ FL_SL_XMSS_MT_ES.root_from_sigFLSLXMSSMTTW(pkFORS', sigFLSLXMSSMTTW', idx, ps, ad);
     
     is_valid <- root' = root;
     is_fresh <@ O_CMA_SPHINCSPLUSTWFS_NPRF.fresh(m');
@@ -2238,7 +2238,7 @@ local module EUF_CMA_SPHINCSPLUSTWFS_NPRFNPRF_V = {
 
 (* ---- Equivalences between security properties ---- *)
 local equiv Eqv_EUF_CMA_SPHINCSPLUSTW_Orig_FSPRFPRF :
-  EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main ~ EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main : 
+  EUF_CMA(SPHINCS_PLUS, A, O_CMA_Default).main ~ EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main : 
     ={glob A} ==> ={res}.
 proof.
 proc.
@@ -2392,7 +2392,7 @@ call (:   ={qs}(O_CMA_Default, O_CMA_SPHINCSPLUSTWFS_PRF)
             skg O_CMA_Default.sk{1}.`2
               (O_CMA_Default.sk{1}.`3, set_hidx (set_chidx (set_kpidx (set_typeidx (set_ltidx adz i j) chtype) u) v) 0))).
 + proc.
-  rewrite equiv [{1} 1 Eqv_SPHINCS_PLUS_TW_S_sign].
+  rewrite equiv [{1} 1 Eqv_SPHINCS_PLUS_S_sign].
   inline{1} 1.
   wp.
   conseq (: _ ==> ={mk, sigFORSTW, sigFLSLXMSSMTTW}) => //.
@@ -2619,19 +2619,19 @@ local module EUF_NAGCMA_FLSLXMSSMTTWESNPRF_RV = {
     ps <$ dpseed;
     FSSLXMTWES.TRHC.O_THFC_Default.init(ps);
     ml <@ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A, FSSLXMTWES.TRHC.O_THFC_Default).choose();
-    (pk, sk) <@ FL_SL_XMSS_MT_TW_ES_NPRF.keygen(ps, ad);
+    (pk, sk) <@ FL_SL_XMSS_MT_ES_NPRF.keygen(ps, ad);
     
     skWOTStd <- sk.`1;
      
     sigl <- [];
     while (size sigl < l){
       m <- nth witness ml (size sigl);
-      sig <@ FL_SL_XMSS_MT_TW_ES_NPRF.sign((skWOTStd, sk.`2, sk.`3), m, insubd (size sigl));
+      sig <@ FL_SL_XMSS_MT_ES_NPRF.sign((skWOTStd, sk.`2, sk.`3), m, insubd (size sigl));
       sigl <- rcons sigl sig;
     }
     
     (m', sig', idx') <@ R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A, FSSLXMTWES.TRHC.O_THFC_Default).forge(pk, sigl);
-    is_valid <@ FL_SL_XMSS_MT_TW_ES_NPRF.verify(pk, m', sig', idx');
+    is_valid <@ FL_SL_XMSS_MT_ES_NPRF.verify(pk, m', sig', idx');
     is_fresh <- m' <> nth witness ml (val idx');
     
     return is_valid /\ is_fresh;
@@ -4278,8 +4278,8 @@ qed.
   against the PRF properties of skg and mkg, the EUF-CMA property of M-FORS-TW-ES-NPRF, 
   and the EUF-NAGCMA OF FL-SL-XMSS-MT-TW-ES-NPRF  
 *)
-local lemma EUFCMA_SPHINCS_PLUS_TW_FX &m :
-  Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
+local lemma EUFCMA_SPHINCS_PLUS_FX &m :
+  Pr[EUF_CMA(SPHINCS_PLUS, A, O_CMA_Default).main() @ &m : res]
   <= 
   `|  Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(false) @ &m : res]
     - Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(true) @ &m : res] |
@@ -4292,7 +4292,7 @@ local lemma EUFCMA_SPHINCS_PLUS_TW_FX &m :
   Pr[EUF_NAGCMA_FLSLXMSSMTTWESNPRF(R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A), FSSLXMTWES.TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 have ->:
-  Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
+  Pr[EUF_CMA(SPHINCS_PLUS, A, O_CMA_Default).main() @ &m : res]
   =
   Pr[EUF_CMA_SPHINCSPLUSTWFS_PRFPRF.main() @ &m : res].
 + by byequiv Eqv_EUF_CMA_SPHINCSPLUSTW_Orig_FSPRFPRF.
@@ -4329,8 +4329,8 @@ qed.
   bounded by advantages/success probabilities (of reduction adversaries)
   against properties of employed KHFs/THFs.  
 *)
-lemma EUFCMA_SPHINCS_PLUS_TW &m :
-  Pr[EUF_CMA(SPHINCS_PLUS_TW, A, O_CMA_Default).main() @ &m : res]
+lemma EUFCMA_SPHINCS_PLUS &m :
+  Pr[EUF_CMA(SPHINCS_PLUS, A, O_CMA_Default).main() @ &m : res]
   <= 
   `|  Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(false) @ &m : res]
     - Pr[SKG_PRF.PRF(R_SKGPRF_EUFCMA(A), SKG_PRF.O_PRF_Default).main(true) @ &m : res] |
@@ -4367,7 +4367,7 @@ have validxsadz : valid_adrsidxs [0; 0; 0; chtype; 0; 0].
   - rewrite /valid_adrsidxs /= /adrs_len /= /valid_idxvals; left.
     by rewrite /valid_idxvalsch /=; smt(val_w ge2_len ge2_lp IntOrder.expr_gt0 ge1_d).
 move: (EUFNAGCMA_FLSLXMSSMTTWESNPRF (R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA(A)) _ _ &m _ _ _)
-      (EUFCMA_SPHINCS_PLUS_TW_FX &m). 
+      (EUFCMA_SPHINCS_PLUS_FX &m). 
 + move=> OC OCll.
   proc.
   while (true) (nr_trees 0 - size R_FLSLXMSSMTTWESNPRFEUFNAGCMA_EUFCMA.skFORSnt).
@@ -4600,4 +4600,4 @@ while (true) (d - size R_MFORSTWESNPRFEUFCMA_EUFCMA.skWOTStd).
 by wp; skip => /> /#.
 qed.
 
-end section Proof_SPHINCS_PLUS_TW_EUFCMA.
+end section Proof_SPHINCS_PLUS_EUFCMA.

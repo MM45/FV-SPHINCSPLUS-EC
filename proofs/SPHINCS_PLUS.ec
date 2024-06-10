@@ -1958,7 +1958,10 @@ seq 6 5 : (={roots, ps0, ad0}).
     * rewrite /bscm; pose r := rev _; rewrite (: size lvs = 2 ^ size r) 2:bs2int_le2Xs.
       rewrite size_rev size_take 2:size_drop 3:valP; 1,2: smt(ge1_a size_ge0).
       rewrite mulrC -mulrBr; case (size roots{2} = k - 1) => [-> /= /# | neqk1_szrs].
-      by rewrite ler_maxr 1:mulr_ge0; smt(ge1_a).
+      
+      rewrite ler_maxr 1:mulr_ge0; 1,2: smt(ge1_a).
+      rewrite (: a < a * (k - size roots{2})) 2:/#.
+      by rewrite ltr_pmulr; smt(ge1_a).
     have fblvs : fully_balanced (list2tree lvs) by rewrite (list2tree_fullybalanced _ a); smt(ge1_a).
     have szrvbs : size (rev (int2bs a bscm)) = a by rewrite size_rev size_int2bs; smt(ge1_a).
     have hlvs : height (list2tree lvs) = a by rewrite (list2tree_height _ a); smt(ge1_a).
@@ -3031,7 +3034,10 @@ seq 8 14 : (   ={glob A, ad}
   wp => /=.
   swap{2} 1 5.
   do 3! rnd.
-  by wp; skip => /> *; smt(ge1_d IntOrder.expr_ge0 mem_empty).
+  wp; skip => /> *. 
+  split => [| skf psam]; 1: split => [ps |]; 2: by rewrite IntOrder.expr_ge0.
+  - by rewrite mem_empty /= => i j u v /#.
+  by move/lezNgt => gent0_szskf _ psamdef lent0_szskf; split; smt(ge1_d).
 call (:   ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_SKGPRF_EUFCMA)
        /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (R_SKGPRF_EUFCMA.ms, R_SKGPRF_EUFCMA.skFORSnt, R_SKGPRF_EUFCMA.skWOTStd, R_SKGPRF_EUFCMA.ps){2}).
 + proc.

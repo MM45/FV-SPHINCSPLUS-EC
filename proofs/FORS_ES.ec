@@ -4544,7 +4544,8 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_OpenPRE] StdOrder.RealOrder.le
             rewrite valP (: k = k - size sigFORSTW{2} + size sigFORSTW{2}) 1:/# mulrDl -addrA (mulrC a) subrr /=.
             have: 1 <= k - size sigFORSTW{2} by smt().
             case => [gt1_ks | <- /=]; 2: smt(ge1_a).
-            rewrite lez_maxr 2:(: a < (k - size sigFORSTW{2}) * a) 3://; 1: smt(ge1_a).
+            rewrite lez_maxr 2:(: a < (k - size sigFORSTW{2}) * a) 3://.
+            + by rewrite mulr_ge0 1:/#; smt(ge1_a).
             by rewrite -ltz_divLR 2:divzz; 1,2: smt(ge1_a).
           rewrite valKd /=; do 2! congr; rewrite lfsdef.
           rewrite &(eq_from_nth witness).
@@ -5344,8 +5345,11 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                     - split => [| _]; 1: smt(size_ge0).
                       by rewrite (: k = k - 1 + 1) 1:// mulrDl /= ler_lt_add 1:/t 1:ler_pmul2r 3:// 1:expr_gt0 1:// /#.
                     rewrite (: size nodesk{2} = size nodesk{2} - u + u) 1:/# mulrDl.
-                    rewrite neq_ltz; right; suff /#: 0 <= size nodescl{2}.
-                    by rewrite size_ge0.
+                    rewrite neq_ltz; right.
+                    rewrite addrAC addrC ltr_le_add 2://.
+                    rewrite ltr_paddr 1:size_ge0.
+                    have -[gt1 | /#]: 1 <= size nodesk{2} - u by smt().
+                    by rewrite -mul1r ltr_pmul 1,3:// /#.
                   rewrite &(neq_from_nth witness _ _ 1).
                   rewrite neqthidx_setthtbkpt 1:valf_adz 1..5,7,10:// 1,3:/#.
                   split => [| _]; 1: smt(size_ge0).
@@ -5384,7 +5388,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                       j * k * (t - 1) + u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
                       < 
                       size skFORSl{2} * k * (t - 1) + size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
-                    rewrite -?mulrA -?addrA ltlltr 3:/#; 1: smt(ge1_k ge2_t). 
+                    rewrite -?mulrA -?addrA ltlltr 3:/# 1:mulr_ge0; 1,2: smt(mulr_ge0 ge1_k ge2_t). 
                     - rewrite ?addr_ge0 2:sumr_ge0 1:mulr_ge0 4:// => [| | a _]; 1,2: smt(size_ge0 ge2_t).
                       by rewrite expr_ge0.
                     rewrite -(addr0 (k * _)) ltlltr 2:// 2:/#; 1: smt(IntOrder.expr_gt0).
@@ -5436,7 +5440,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                     j * k * (t - 1) + u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
                     < 
                     size skFORSl{2} * k * (t - 1) + size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
-                  rewrite -?mulrA -?addrA ltlltr 3:/#; 1: smt(ge1_k ge2_t). 
+                  rewrite -?mulrA -?addrA ltlltr 3:/# 1:mulr_ge0; 1,2: smt(ge1_k ge2_t). 
                   + rewrite ?addr_ge0 2:sumr_ge0 1:mulr_ge0 4:// => [| | a _]; 1,2: smt(size_ge0 ge2_t).
                     by rewrite expr_ge0.
                   rewrite -(addr0 (k * _)) ltlltr 2:// 2:/#; 1: smt(IntOrder.expr_gt0).
@@ -5485,7 +5489,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
                   j * k * (t - 1) + u * (t - 1) + bigi predT nr_nodes 1 (v + 1) + w 
                   < 
                   size skFORSl{2} * k * (t - 1) + size leavesk0{2} * (t - 1) + bigi predT nr_nodes 1 (size nodest{2} + 1) + size nodescl{2}.
-                rewrite -?mulrA -?addrA ltlltr 3:/#; 1: smt(ge1_k ge2_t). 
+                rewrite -?mulrA -?addrA ltlltr 3:/# 1:mulr_ge0; 1,2: smt(ge1_k ge2_t). 
                 * rewrite ?addr_ge0 2:sumr_ge0 1:mulr_ge0 4:// => [| | a _]; 1,2: smt(size_ge0 ge2_t).
                   by rewrite expr_ge0.
                 rewrite -(addr0 (k * _)) ltlltr 2:// 2:/#; 1: smt(IntOrder.expr_gt0).
@@ -5786,7 +5790,7 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
     (if a < max 0 (k * a - a * fit) then a else max 0 (k * a - a * fit))
     =
     a.
-  - rewrite lez_maxr 1:ler_subr_addr; 1: smt(ge1_a).
+  - rewrite lez_maxr 1:ler_subr_addr /= 1:mulrC 1:ler_pmul 4:// 1,3:/#; 1: smt(ge1_a).
     suff /#: a <= k * a - a * fit.
     by rewrite -{1}(mulr1 a) ler_subr_addr -mulrDr mulrC ler_pmul2r; smt(ge1_a).
   rewrite (list2tree_height _ a) 2:size_mkseq 2:// 2:lez_maxr 2:expr_ge0 2,3:// /=; 1: smt(ge1_a). 
@@ -5820,8 +5824,11 @@ rewrite Pr[mu_split EUF_CMA_MFORSTWESNPRF_V.valid_TRHTCR] StdOrder.RealOrder.ler
   - rewrite ?addr_ge0 ?mulr_ge0 1:divz_ge0 6:modz_ge0; 1..10: smt(Top.ge1_l ge1_k ge2_t Index.valP).
     * by rewrite sumr_ge0 => a _; rewrite expr_ge0.
     by rewrite modz_ge0 neq_ltz expr_gt0.
-  - rewrite -(addr0 (d * k * (t - 1))) dval -?mulrA -?addrA ltlltr 2:// 2:ltz_divLR 3:-dval; 1..3: smt(Top.ge1_l ge1_k ge2_t Index.valP).
-    rewrite -/t -(addr0 (Top.l * (k * (t - 1)))) ltlltr 2:// 2:ltz_pmod; 1,2: smt(Top.ge1_l ge1_k ge2_t).
+  - rewrite -(addr0 (d * k * (t - 1))) dval -?mulrA -?addrA ltlltr 2:// 2:ltz_divLR 3:-dval; 2,3: smt(Top.ge1_l ge1_k ge2_t Index.valP).
+    * rewrite mulr_ge0 2:mulr_ge0; 1,2: smt(Top.ge1_l ge1_k). 
+      by rewrite ler_subr_addl exprn_ege1 2://; smt(ge1_a).
+    rewrite -/t -(addr0 (Top.l * (k * (t - 1)))) ltlltr 2:// 2:ltz_pmod; 2: smt(Top.ge1_l).
+    * by rewrite mulr_ge0; smt(Top.ge1_l ge1_k ge2_t).
     rewrite -(addr0 (k * (t - 1))) ltlltr 2://; 1,2: smt(ge2_t).
     rewrite hbidxval /= /t ltnn1_bignna 1:size_ge0 1://.
     by rewrite modz_ge0 2:ltz_pmod 3:// 1:neq_ltz expr_gt0.

@@ -1,4 +1,4 @@
-name: SPHINC+
+name: SPHINCS+
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ env:
 
 jobs:
   ec:
-    name: Check SPHINC+ EasyCrypt Project
+    name: Check SPHINCS+ EasyCrypt Project
     runs-on: ubuntu-20.04
     container:
       image: ghcr.io/easycrypt/ec-build-box
@@ -42,7 +42,7 @@ jobs:
       run: |
         opam config exec -- easycrypt why3config -why3 ~/.why3.conf
     - name: Compile Project
-      run: opam config exec -- easycrypt runtest -jobs 1 -report report.log -raw-args -gcstats tests.config sphincsplus
+      run: opam config exec -- easycrypt runtest -report report.log -raw-args -gcstats config/tests.config sphincsplus
     - uses: actions/upload-artifact@v4
       name: Upload report.log
       if: always()

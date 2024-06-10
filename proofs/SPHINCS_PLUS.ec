@@ -3031,7 +3031,10 @@ seq 8 14 : (   ={glob A, ad}
   wp => /=.
   swap{2} 1 5.
   do 3! rnd.
-  by wp; skip => /> *; smt(ge1_d IntOrder.expr_ge0 mem_empty).
+  wp; skip => /> *. 
+  split => [| skf psam]; 1: split => [ps |]; 2: by rewrite IntOrder.expr_ge0.
+  - by rewrite mem_empty /= => i j u v /#.
+  by move/lezNgt => gent0_szskf _ psamdef lent0_szskf; split; smt(ge1_d).
 call (:   ={qs}(O_CMA_SPHINCSPLUSTWFS_PRF, R_SKGPRF_EUFCMA)
        /\ O_CMA_SPHINCSPLUSTWFS_PRF.sk{1} = (R_SKGPRF_EUFCMA.ms, R_SKGPRF_EUFCMA.skFORSnt, R_SKGPRF_EUFCMA.skWOTStd, R_SKGPRF_EUFCMA.ps){2}).
 + proc.

@@ -1,4 +1,4 @@
-name: SPHINC+
+name: SPHINCS+
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ env:
 
 jobs:
   ec:
-    name: Check SPHINC+ EasyCrypt Project
+    name: Check SPHINCS+ EasyCrypt Project
     runs-on: ubuntu-20.04
     container:
       image: ghcr.io/easycrypt/ec-build-box

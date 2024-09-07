@@ -16,6 +16,12 @@ on:
                 required: true
                 type: string
 
+env:
+    OPAMROOT: /home/charlie/.opam
+    OPAMYES: true
+    OPAMJOBS: 2
+    ECRJOBS: 1
+
 jobs:
     default:
         runs-on: ubuntu-20.04

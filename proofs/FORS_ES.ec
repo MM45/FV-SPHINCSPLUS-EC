@@ -339,7 +339,6 @@ import Adrs.
 type adrs = HA.adrs.
 
 
-
 (* -- FORS/FORS-TW specific -- *)
 (* Public keys *)
 type pkFORSTW = pkFORS * pseed * adrs.

@@ -1,0 +1,61 @@
+name: Check SPHINCS+ EasyCrypt Development
+
+on:
+    push:
+        branches:
+            - 'master'
+            - 'merge-*'
+        paths:
+            - 'proofs/**'
+            - 'config/**'
+            - 'easycrypt.project'
+    pull_request:
+        branches:
+            - 'master'
+    workflow_dispatch:
+        inputs:
+            ec-branch:
+                description: Branch (in EasyCrypt repository)
+                type: string
+            test-file:
+                description: Test configuration file location
+                type: string
+            test-name:
+                description: Test name
+                type: string
+
+jobs:
+    check-custom:
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: ./.github/workflows/ec-ci.yml
+        with:
+            ec-branch: ${{ github.event.inputs.ec-branch || vars.DEFAULT_EC_BRANCH }}
+            test-file: ${{ github.event.inputs.test-file || vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ github.event.inputs.test-name || vars.DEFAULT_TEST_NAME }}
+    check-master:
+        if: ${{ github.event_name != 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch }}
+        uses: ./.github/workflows/ec-ci.yml
+        with:
+            ec-branch: ${{ vars.DEFAULT_EC_BRANCH }} 
+            test-file: ${{ vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ vars.DEFAULT_TEST_NAME }}
+    preprocess-merge-x:
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
+        runs-on: ubuntu-latest
+        outputs:
+            extracted-branch: ${{ steps.extract-branch.outputs.extracted-branch }}
+        steps:
+            -   id: extract-branch
+                run: |
+                    BRANCH=${{ github.ref_name }}
+                    echo "extracted-branch=${BRANCH#merge-}" >> "$GITHUB_OUTPUT"
+    check-merge-x:
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
+        needs: preprocess-merge-x
+        uses: ./.github/workflows/ec-ci.yml
+        with:
+            ec-branch: ${{ needs.preprocess-merge-x.outputs.extracted-branch }}
+            test-file: ${{ vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ vars.DEFAULT_TEST_NAME }}
+        
+

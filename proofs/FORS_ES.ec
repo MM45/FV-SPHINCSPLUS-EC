@@ -4,6 +4,7 @@ require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrd
 (*---*) import BS2Int BitChunking Bigint BIA.
 (*---*) import IntOrder RealOrder.
 
+
 (* -- Local -- *)
 require import BinaryTrees MerkleTrees.
 require (*--*) KeyedHashFunctions TweakableHashFunctions HashAddresses.
@@ -336,7 +337,6 @@ clone import HashAddresses as HA with
 import Adrs.
 
 type adrs = HA.adrs.
-
 
 
 (* -- FORS/FORS-TW specific -- *)

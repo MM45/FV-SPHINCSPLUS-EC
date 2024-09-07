@@ -1,4 +1,4 @@
-name: Continuous Integration for EasyCrypt Projects
+name: Reusable Workflow Continuous Integration EasyCrypt Projects
 
 on:
     workflow_call:

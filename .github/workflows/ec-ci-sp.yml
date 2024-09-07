@@ -37,17 +37,17 @@ jobs:
             test-file: 'config/tests.config'
             test-name: 'sphincsplus'
     preprocess-merge-x:
-        if: ${{ github.event_name != 'workflow_dispatch' && startsWith('merge-', github.ref_name) }}
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
         runs-on: ubuntu-latest
         outputs:
-            extracted-branch: ${{ steps.extract-branch.outputs.result }}
+            extracted-branch: ${{ steps.extract-branch.outputs.extracted-branch }}
         steps:
             -   id: extract-branch
                 run: |
                     BRANCH=${{ github.ref_name }}
                     echo "extracted-branch=${BRANCH#merge-}" >> "$GITHUB_OUTPUT"
     check-merge-x:
-        if: ${{ github.event_name != 'workflow_dispatch' && startsWith('merge-', github.ref_name) }}
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
         needs: preprocess-merge-x
         uses: ./.github/workflows/ec-ci.yml
         with:

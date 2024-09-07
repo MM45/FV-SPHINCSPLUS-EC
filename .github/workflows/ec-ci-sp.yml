@@ -3,10 +3,12 @@ name: Check SPHINCS+ EasyCrypt Development
 on:
     push:
         branches:
-            - $default-branch
+            - 'master'
             - 'merge-*'
         paths:
             - 'proofs/**'
+            - 'config/**'
+            - 'easycrypt.project'
     workflow_dispatch:
         inputs:
             ec-branch:

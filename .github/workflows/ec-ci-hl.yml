@@ -1,5 +1,5 @@
 name: High-Level (Coordinating) Workflow Continuous Integration EasyCrypt Projects
-run-name: ${{ format('Branch "{0}" -- Execute test "{1}" (in file "{2}") with EasyCrypt (from branch "{3}").', github.ref_name, github.event.inputs.test-name || vars.DEFAULT_TEST_NAME, github.event.inputs.test-file || vars.DEFAULT_TEST_FILE, github.event.inputs.ec-branch || vars.DEFAULT_EC_BRANCH) }}
+run-name: ${{ format('Branch "{0}" | Execute test "{1}" (in file "{2}") | See details for EasyCrypt version/branch.', github.ref_name, github.event.inputs.test-name || vars.DEFAULT_TEST_NAME, github.event.inputs.test-file || vars.DEFAULT_TEST_FILE) }}
 
 on:
     # Always trigger on push and pull request to any branch. 

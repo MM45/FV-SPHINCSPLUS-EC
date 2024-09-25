@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr SmtMap DList FinType IntDiv BitEncoding StdOrder StdBigop LoopTransform.
+require import AllCore List Distr FMap DList FinType IntDiv BitEncoding StdOrder StdBigop LoopTransform.
 (*---*) import BS2Int BitChunking Bigint BIA.
 (*---*) import IntOrder RealOrder.
 

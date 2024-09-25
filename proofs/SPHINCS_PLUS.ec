@@ -1,6 +1,6 @@
 (* - Require/Import - *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr SmtMap IntDiv RealExp StdOrder FinType BitEncoding.
+require import AllCore List Distr FMap IntDiv RealExp StdOrder FinType BitEncoding.
 require (*--*) DigitalSignatures.
 (*---*) import IntOrder RealOrder.
 (*---*) import BS2Int.

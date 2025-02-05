@@ -749,7 +749,7 @@ rewrite (: Pr[DSPR(R_DSPR_PRE(A)).main() @ &m : res] = Pr[DSPRg.main() @ &m : re
 + by byequiv=> //=; proc; inline *; sim.
 rewrite Pr[mu_split (1 <= size (pre_f_l DSPRg.k (f DSPRg.k DSPRg.x)) <= card)].
 rewrite -(addr0 (big _ _ _)) addrA -addrA (addrC 0%r) addrA; congr; last first.
-+ byphoare (: _ ==> false) => //=.
++ byphoare (: _ ==> false) => //= &0.
   by rewrite rngprefl_image.
 have prsp :
   forall (i : int), 0 <= i =>

@@ -1387,7 +1387,7 @@ have -> :
 apply eq_big_int => jj jjr /=.
 rewrite Pr[mu_split (1 <= size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <= card)].
 rewrite -(addr0 (big _ _ _)) addrA -addrA (addrC 0%r) addrA; congr; last first.
-+ byphoare (: _ ==> false) => //=.
++ byphoare (: _ ==> false) => //= &0.
   by rewrite rngprefl_image.
 have prsp :
   forall (i : int), 0 <= i =>
@@ -1547,7 +1547,7 @@ have -> :
 apply eq_big_int => jj jjr /=.
 rewrite Pr[mu_split (1 <= size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <= card)].
 rewrite -(addr0 (big _ _ _)) -addrA (addrC 0%r) addrA; congr; last first.
-+ byphoare (: _ ==> false) => //=.
++ byphoare (: _ ==> false) => //= &0.
   by rewrite rngprefl_image.
 
 have prsp :
@@ -1686,7 +1686,7 @@ have -> /= : Pr[TCRg.main() @ &m :
    (res /\ OPREg.i = jj) /\
    ! (1 <= size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) &&
       size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) <= card)] = 0%r.
-+ byphoare (: _ ==> false) => //=.
++ byphoare (: _ ==> false) => //= &0.
   by rewrite rngprefl_image.
 
 have prsp :

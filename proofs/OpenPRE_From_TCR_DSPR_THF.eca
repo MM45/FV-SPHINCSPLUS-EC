@@ -1474,8 +1474,20 @@ rewrite big_cons /predT /= -/predT -addrA; congr.
   have /= ? := (nth_map witness witness (fun (x : _*_) => x.`2) jj tsl _); 1: smt(size_map).
   have /= ? := (nth_map witness witness (fun (x : _*_) => x.`1) jj tsr _); 1: smt(size_map).
   have /= ? := (nth_map witness witness (fun (x : _*_) => x.`1) jj tsl _); 1: smt(size_map). 
-  by move => *; do split;smt(eqv_spex_szprefl size_map uniq_map). 
-rewrite -andbA mulrAC.
+  by move => *; do split;smt(eqv_spex_szprefl size_map uniq_map).
+have ->: Pr[DSPRg.main() @ &m : ((res{hr} /\ OPREg.i{hr} = jj)
+                                          /\ size
+                                               (pre_f_l OPREg.pp{hr} OPREg.tw{hr}
+                                                  (f OPREg.pp{hr} OPREg.tw{hr} OPREg.x{hr})) = ii)
+                                          /\ ! (R_DSPR_OpenPRE.i{hr} \in O_SMDTOpenPRE_Default.os{hr})
+                                          /\ f OPREg.pp{hr} OPREg.tw{hr} R_DSPR_OpenPRE.x'{hr}
+                                             = f OPREg.pp{hr} OPREg.tw{hr} OPREg.x{hr}]
+       = Pr[DSPRg.main() @ &m :
+              (res /\ OPREg.i = jj) /\
+              size (pre_f_l OPREg.pp OPREg.tw (f OPREg.pp OPREg.tw OPREg.x)) = ii /\
+              ! (R_DSPR_OpenPRE.i \in O_SMDTOpenPRE_Default.os) /\
+              f OPREg.pp OPREg.tw R_DSPR_OpenPRE.x' = f OPREg.pp OPREg.tw OPREg.x].
++ by byequiv=> //; conseq (: ={res, OPREg.i, OPREg.pp, OPREg.tw, OPREg.x, R_DSPR_OpenPRE.i, O_SMDTOpenPRE_Default.os, R_DSPR_OpenPRE.x'})=> //; sim.
 have ->:
   Pr[DSPRg.main() @ &m :
    (res /\ OPREg.i = jj) /\

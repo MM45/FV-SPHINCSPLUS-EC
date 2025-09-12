@@ -779,7 +779,12 @@ rewrite Pr[mu_split (f DSPRg.k DSPRg.x' =f DSPRg.k DSPRg.x)]; congr; last first.
   call (: true).
   wp; rnd; rnd.
   by skip => />; smt(eqv_spex_szprefl).
-rewrite -andbA mulrAC.
+have ->:
+  Pr[DSPRg.main() @ &m : (res{hr} /\ size (pre_f_l DSPRg.k{hr} (f DSPRg.k{hr} DSPRg.x{hr})) = i)
+                                  /\ f DSPRg.k{hr} DSPRg.x'{hr} = f DSPRg.k{hr} DSPRg.x{hr}]
+  = Pr[DSPRg.main() @ &m : res /\ size (pre_f_l DSPRg.k (f DSPRg.k DSPRg.x)) = i  
+                               /\ f DSPRg.k DSPRg.x' = f DSPRg.k DSPRg.x].
++ by byequiv=> //; conseq (: ={res, DSPRg.k, DSPRg.x, DSPRg.x'})=> //; sim.
 have ->:
   Pr[DSPRg.main() @ &m : res /\ size (pre_f_l DSPRg.k (f DSPRg.k DSPRg.x)) = i  
                              /\ f DSPRg.k DSPRg.x' = f DSPRg.k DSPRg.x]

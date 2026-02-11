@@ -20,8 +20,8 @@ provers Z3 4.13.4 and Alt-Ergo 2.6.0 (as specified in `easycrypt.project`).
 
 ## Building, Running, and Testing
 
-You can run this development either via Docker (recommended for reproducibility)
-or natively (if you have the correct EasyCrypt + solver installation).
+You can run this development either via Docker or natively (if you have the
+correct EasyCrypt + solver installation).
 
 ### Prerequisites
 

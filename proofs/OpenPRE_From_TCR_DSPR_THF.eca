@@ -1276,10 +1276,9 @@ seq 1 :
        /\  (size O_SMDTOpenPRE_Default.ts <= _jj)
        /\ _j{hr} = _jj); 1: by auto;smt(size_ge0 mem_rcons nth_rcons size_rcons).
     by wp;call(:true);auto => />; smt(ge0_t size_ge0).
-  if;sp 1;seq 1 : #pre;1: by auto.
-    + by auto => />;smt(nth_rcons size_rcons).
+  if; 1:(sp 1;seq 1 : #pre;1: by auto).
+  + by auto => />;smt(nth_rcons size_rcons).
   by auto => />;smt(nth_rcons size_rcons).
-by auto => />;smt(nth_rcons size_rcons).
 
 + call (_ : (glob A) = (glob A){m} /\ arg.`1 = _ii /\ arg.`2 = _jj ==>
       res.`3 = _jj /\ O_SMDTOpenPRE_Default_early_fail.r

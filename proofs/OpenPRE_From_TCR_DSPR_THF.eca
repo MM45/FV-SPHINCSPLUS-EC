@@ -1711,7 +1711,7 @@ have -> /= : Pr[TCRg.main() @ &m : (res /\ OPREg.i = jj) /\ size (pre_f_l OPREg.
    do 6!(wp;call (: true);1:by auto).
    auto => />; smt(eqv_spex_szprefl size_map uniq_map size_ge0 rngprefl_image).
 
-apply ler_sum_seq => ii /mem_range iir /= _.
+apply ler_sum_seq => ii /mem_range iir /=.
 rewrite -mulrA mulrC -mulrA mulrC (mulrC (inv ii%r) (ii%r - 1%r)) -pr_cond_neqxxp_Si.
 + byequiv  => //;symmetry.
   proc;inline * => //.

@@ -4437,7 +4437,7 @@ rewrite -RField.addrA Pr[mu_split EUF_NAGCMA_FLSLXMSSMTTWESNPRF_C.valid_WOTSTWES
           rewrite -!andbA; split.
           - rewrite size_flatten -map_comp sumzE /= big_map /(\o) /predT /= -/predT.
             rewrite (eq_bigr _ _ (fun (_ : DigestBlock.sT) => 8 * n)) 1:/=.
-            * by move=> ? _; rewrite valP.
+            * by move=> ?; rewrite valP.
             by rewrite insubdK 1:/# big_constz count_predT /#.
           rewrite /nr_nodes_ht /nr_nodes /= -/l' -mulr_suml in szqs.
           split => [admpksig |]; 1: rewrite mem_rcons size_rcons /=; 1: split.
@@ -6053,7 +6053,7 @@ seq 7 8 : (   #pre
         rewrite !andbA -3!andbA; split; 2: by rewrite ?size_rcons /#.
         rewrite size_flatten -map_comp sumzE /= big_map /(\o) /predT /= -/predT.
         rewrite (eq_bigr _ _ (fun (_ : DigestBlock.sT) => 8 * n)) 1:/=.
-        * by move=> ? _; rewrite valP.
+        * by move=> ?; rewrite valP.
         rewrite big_constz count_predT; split => [/# |].
         rewrite -cats1 all_cat allntrhtwsp /=.
         by rewrite gettype_setkptypeltchpkco 1:valx_adz 3,4://; smt(size_ge0 dist_adrstypes).
